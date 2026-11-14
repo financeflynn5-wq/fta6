@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FTA 6 · Flynn Theft Auto</title>
+<meta name="description" content="Flynn Theft Auto: Sunset Coast. Steal a car, outrun the cops. Plays in your browser.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">{"imports":{
+  "three":"./vendor/three/build/three.module.js",
+  "three/addons/":"./vendor/three/addons/",
+  "rapier":"./vendor/rapier/rapier.mjs"
+}}</script>
+</head>
+<body>
+<canvas id="cv" aria-label="FTA 6 game view"></canvas>
+
+<div id="sirenFx" aria-hidden="true"></div>
+<div id="hurtFx" aria-hidden="true"></div>
+
+<div id="hud" hidden>
+  <div class="logo">FLYNN<br>THEFT AUTO<small>SUNSET COAST</small></div>
+  <div class="topright">
+    <div class="money" id="money">$0</div>
+    <div class="stars" id="stars"></div>
+    <div class="bar health"><i id="healthBar"></i></div>
+    <div class="bar stamina"><i id="staminaBar"></i></div>
+  </div>
+  <canvas id="minimap" width="220" height="220"></canvas>
+  <div class="speedo" id="speedo" hidden>
+    <div class="carname" id="carName">SEDAN</div>
+    <div class="kmh"><b id="kmh">0</b><span>km/h</span></div>
+    <div class="bar car"><i id="carBar"></i></div>
+  </div>
+  <div class="prompt" id="prompt" hidden></div>
+  <div class="toasts" id="toasts"></div>
+  <div class="clock" id="clock"></div>
+</div>
+
+<div class="overlay" id="title">
+  <div class="panel">
+    <div class="biglogo">FLYNN<br>THEFT AUTO<small>SUNSET COAST</small></div>
+    <p class="tag">You are Rocco. Steal a ride. Lose the cops. Keep the cash.</p>
+    <div class="keys">
+      <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>Walk / drive</span></div>
+      <div><kbd>E</kbd><span>Steal a car / get out</span></div>
+      <div><kbd>Space</kbd><span>Handbrake (drift!)</span></div>
+      <div><kbd>Shift</kbd><span>Sprint</span></div>
+      <div><kbd>Mouse</kbd><span>Look around</span></div>
+      <div><kbd>H</kbd><span>Horn</span></div>
+      <div><kbd>T</kbd><span>Day / night</span></div>
+      <div><kbd>Q</kbd><span>Graphics high / fast</span></div>
+      <div><kbd>M</kbd><span>Mute</span></div>
+      <div><kbd>Esc</kbd><span>Pause</span></div>
+    </div>
+    <button id="playBtn" disabled>Building the city…</button>
+  </div>
+</div>
+
+<div class="overlay" id="pause" hidden>
+  <div class="panel small">
+    <div class="biglogo">PAUSED</div>
+    <button id="resumeBtn">Back to the streets</button>
+  </div>
+</div>
+
+<div class="overlay flash" id="busted" hidden>
+  <div class="bustText" id="bustText">NABBED!</div>
+  <div class="bustSub" id="bustSub"></div>
+</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
