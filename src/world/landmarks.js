@@ -24,26 +24,38 @@ function signTexture(kind, name) {
   });
 }
 
+// The building on a block whose front sits furthest out toward one street, nearest the middle
+// of the block. Returns where its front wall is (fx, fz) and how wide a sign it can carry.
+export function frontage(boxes, block, side) {
+  const [bi, bj] = block, [sx, sz] = side;
+  const cx = WORLD.PITCH / 2 + WORLD.PITCH * bi, cz = WORLD.PITCH / 2 + WORLD.PITCH * bj;
+  let best = null, bestScore = -1e9;
+  for (const b of boxes) {
+    if (b.wall || Math.abs(b.x - cx) > 20 || Math.abs(b.z - cz) > 20) continue;
+    const face = sx ? (b.x + sx * b.hw) * sx : (b.z + sz * b.hd) * sz, off = sx ? Math.abs(b.z - cz) : Math.abs(b.x - cx);
+    const score = face * 2 - off * .5 + (sx ? b.hd : b.hw) * .4;
+    if (score > bestScore) { bestScore = score; best = b; }
+  }
+  if (!best) return null;
+  return {
+    fx: sx ? best.x + sx * (best.hw + .1) : best.x, fz: sz ? best.z + sz * (best.hd + .1) : best.z,
+    width: Math.min(9, (sx ? best.hd : best.hw) * 2 - 1), cx, cz,
+  };
+}
+
+// A sign hung over a building's front door. Unlit, so it glows at night.
+export function hangSign(scene, f, side, texture) {
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(f.width, f.width), new THREE.MeshBasicMaterial({ map: texture, transparent: true }));
+  sign.position.set(f.fx, 6.4, f.fz); sign.rotation.y = Math.atan2(side[0], side[1]); scene.add(sign); return sign;
+}
+
 export function createLandmarks(game) {
   const boxes = game.city.solids.boxes, out = {};
   for (const [kind, def] of Object.entries(RESPAWN)) {
-    const [bi, bj] = def.block, [sx, sz] = def.side;
-    const cx = 27 + WORLD.PITCH * bi, cz = 27 + WORLD.PITCH * bj;
-    // the building whose front sits furthest out toward that street, nearest the middle of the block
-    let best = null, bestScore = -1e9;
-    for (const b of boxes) {
-      if (b.wall || Math.abs(b.x - cx) > 20 || Math.abs(b.z - cz) > 20) continue;
-      const face = sx ? (b.x + sx * b.hw) * sx : (b.z + sz * b.hd) * sz, off = sx ? Math.abs(b.z - cz) : Math.abs(b.x - cx);
-      const score = face * 2 - off * .5 + (sx ? b.hd : b.hw) * .4;
-      if (score > bestScore) { bestScore = score; best = b; }
-    }
-    if (!best) continue;
-    const fx = sx ? best.x + sx * (best.hw + .1) : best.x, fz = sz ? best.z + sz * (best.hd + .1) : best.z;
-    const width = Math.min(9, (sx ? best.hd : best.hw) * 2 - 1);
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(width, width), new THREE.MeshBasicMaterial({ map: signTexture(kind, def.name), transparent: true }));
-    sign.position.set(fx, 6.4, fz); sign.rotation.y = Math.atan2(sx, sz); game.scene.add(sign);
-    const spot = { x: fx + sx * 2.4, z: fz + sz * 2.4, face: Math.atan2(sx, sz), kind, name: def.name };
-    out[kind] = spot;
+    const [sx, sz] = def.side, f = frontage(boxes, def.block, def.side);
+    if (!f) continue;
+    hangSign(game.scene, f, def.side, signTexture(kind, def.name));
+    out[kind] = { x: f.fx + sx * 2.4, z: f.fz + sz * 2.4, face: Math.atan2(sx, sz), kind, name: def.name };
   }
   return out;
 }

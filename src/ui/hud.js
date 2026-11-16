@@ -4,10 +4,10 @@ import { PLAYER } from '../config.js';
 const $ = (id) => document.getElementById(id);
 
 export function createHud(game) {
-  const el = { hud: $('hud'), money: $('money'), stars: $('stars'), health: $('healthBar'), stamina: $('staminaBar'), speedo: $('speedo'), kmh: $('kmh'), carBar: $('carBar'), carName: $('carName'), prompt: $('prompt'), toasts: $('toasts'), siren: $('sirenFx'), hurt: $('hurtFx'), clock: $('clock') };
+  const el = { hud: $('hud'), money: $('money'), stars: $('stars'), health: $('healthBar'), stamina: $('staminaBar'), speedo: $('speedo'), kmh: $('kmh'), carBar: $('carBar'), carName: $('carName'), prompt: $('prompt'), toasts: $('toasts'), siren: $('sirenFx'), hurt: $('hurtFx'), clock: $('clock'), job: $('job') };
   el.stars.innerHTML = '<span>★</span>'.repeat(5);
   const starEls = [...el.stars.children];
-  let shownMoney = 0, lastPrompt = '', hurtT = 0, lastKmh = -1, lastClock = '';
+  let shownMoney = 0, lastPrompt = '', hurtT = 0, lastKmh = -1, lastClock = '', lastJob = '', jobT = 0;
 
   const hud = {
     show(v) { el.hud.hidden = !v; },
@@ -45,6 +45,12 @@ export function createHud(game) {
       const heat = police.stars > 0 && !police.searching ? Math.min(.75, .25 + game.police.sirenLevel() * .5) : 0;
       el.siren.style.opacity = heat; if (heat) el.siren.classList.toggle('alt', Math.floor(t * 4) % 2 === 0);
       hurtT = Math.max(0, hurtT - dt * 1.5); el.hurt.style.opacity = Math.max(hurtT, p.health < 30 ? .5 + Math.sin(t * 6) * .2 : 0);
+      // the job panel: what you're working on and what it pays (refreshed a few times a second)
+      if ((jobT -= dt) <= 0) {
+        jobT = .2;
+        const html = game.over ? '' : game.jobs.lines().map(([tag, text, cash]) => `<div class="${tag === 'FARE' ? 'gold' : ''}"><b>${tag}</b><span>${text}</span>${cash ? `<em>${cash}</em>` : ''}</div>`).join('');
+        if (html !== lastJob) { el.job.innerHTML = html; el.job.hidden = !html; lastJob = html; }
+      }
       const c = game.env.label(); if (c !== lastClock) { el.clock.textContent = c; lastClock = c; }
     },
   };

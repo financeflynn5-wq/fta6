@@ -81,3 +81,24 @@ export const RESPAWN = {
   hospital: { block: [1, -1], side: [1, 0], name: 'SUNSET GENERAL' },
   station:  { block: [-2, 1], side: [0, -1], name: 'SUNSET PD' },
 };
+
+// ---------- jobs ----------
+// chop: Scrap's chop shop (block / side work like RESPAWN). Park a stolen car on its marker to sell it.
+export const JOBS = {
+  chop: { block: [1, 2], side: [-1, 0], name: "SCRAP'S CHOP SHOP", radius: 5 },
+  orders: {
+    first: 14, gap: 16, life: 360,                 // seconds: before the first order, between orders, until an ignored order is swapped
+    pay: { car: 500, taxi: 650, police: 2200 },    // a delivered order car, in mint condition (plus a little for distance)
+    scrap: { car: 90, taxi: 110, police: 450 },    // any other stolen car is still worth scrap
+    minDist: 90,                                   // order cars are parked at least this far from you
+    hotEvery: 3,                                   // every third order is a police cruiser
+  },
+  taxi: {
+    flag: 20, perMetre: .45,                       // fare = flag + street distance * perMetre
+    tip: .5, pace: 13, slack: 8,                   // tip (share of the fare) melts once you take longer than distance / pace + slack seconds
+    bump: .25, bumpImpact: 5,                      // every hard knock costs this share of the tip
+    streak: .1, streakMax: 5,                      // each fare in a row pays 10% more, up to +50%
+    pickupMin: 45, pickupMax: 140, tripMin: 120, tripMax: 330,
+    hail: 12, stop: 6.5,                           // passenger runs over once the cab stops this close; drop-off circle radius
+  },
+};

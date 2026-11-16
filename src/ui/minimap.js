@@ -45,6 +45,23 @@ export function createMinimap(game) {
       for (const o of game.police.officers) { x.fillStyle = Math.floor(t * 6) % 2 ? '#ff3048' : '#3d7bff'; x.beginPath(); x.arc(o.ped.x, o.ped.z, 2.2, 0, 7); x.fill(); }
       if (game.police.searching) { const k = game.police.lastKnown; x.strokeStyle = 'rgba(255,211,77,.9)'; x.lineWidth = 1.5; x.beginPath(); x.arc(k.x, k.z, 9 + Math.sin(t * 5) * 2, 0, 7); x.stroke(); }
       x.restore();
+      // jobs: Scrap's (pink diamond), the car he wants (pink box), fares (gold). Far ones stick to the rim.
+      const a = -yaw - Math.PI / 2, ca = Math.cos(a), sa = Math.sin(a);
+      for (const b of game.jobs.blips()) {
+        const dx = (b.x - p.x) * SCALE, dz = (b.z - p.z) * SCALE;
+        let sx = dx * ca - dz * sa, sy = dx * sa + dz * ca;
+        const d = Math.hypot(sx, sy), max = R - 10, s = (d > max ? 5 : 6.5) + (b.hot ? Math.sin(t * 6) * 1.3 : 0);
+        if (d > max) { sx *= max / d; sy *= max / d; }
+        const cx = R + sx, cy = R + sy;
+        x.globalAlpha = b.hot || d <= max ? 1 : .7;
+        x.fillStyle = b.kind === 'chop' || b.kind === 'car' ? '#ff4fd8' : '#ffd34d'; x.strokeStyle = '#111'; x.lineWidth = 2; x.beginPath();
+        if (b.kind === 'chop') { x.moveTo(cx, cy - s * 1.25); x.lineTo(cx + s * 1.25, cy); x.lineTo(cx, cy + s * 1.25); x.lineTo(cx - s * 1.25, cy); x.closePath(); }
+        else if (b.kind === 'car') x.rect(cx - s, cy - s * .7, s * 2, s * 1.4);
+        else x.arc(cx, cy, s, 0, 7);
+        x.stroke(); x.fill();
+        if (b.kind === 'dest') { x.fillStyle = '#111'; x.beginPath(); x.arc(cx, cy, s * .42, 0, 7); x.fill(); }
+        x.globalAlpha = 1;
+      }
       // the player: always centre, always pointing the way they face
       const heading = p.vehicle ? p.vehicle.h : Math.PI / 2 - p.face;
       x.save(); x.translate(R, R); x.rotate(heading - yaw);

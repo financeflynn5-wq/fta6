@@ -94,6 +94,8 @@ export function createAudio() {
     pickup() { tone('triangle', 880, 880, .07, .18); tone('triangle', 1320, 1320, .12, .18, .06); },
     equip() { burst(.05, .18, 3000, 'bandpass', 2); tone('square', 700, 600, .03, .07, .05); },
     hitmark() { tone('square', 2600, 2600, .03, .05); },
+    pager() { tone('square', 1568, 1568, .07, .08); tone('square', 2093, 2093, .1, .08, .1); tone('square', 1568, 1568, .07, .08, .24); tone('square', 2093, 2093, .1, .08, .34); },
+    wrench() { for (let i = 0; i < 5; i++) { tone('square', 900 + Math.random() * 1400, 500, .05, .06, i * .09); } burst(.3, .2, 2600, 'bandpass', 2); },
     wasted() { [330, 262, 196, 131].forEach((f, i) => tone('triangle', f, f * .96, .4, .2, i * .28)); },
   };
 }

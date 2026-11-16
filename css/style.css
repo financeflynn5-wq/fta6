@@ -33,7 +33,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#0d0f14;color:#fff;fon
 .prompt kbd,.keys kbd{font:700 .8rem var(--body);background:#fff;color:#111;border-radius:6px;padding:3px 8px;box-shadow:0 2px 0 #9aa}
 .toasts{position:absolute;left:50%;top:17%;transform:translateX(-50%);display:grid;justify-items:center;gap:6px}
 .toast{font-size:clamp(1rem,2.4vw,1.7rem);padding:2px 12px;-webkit-text-stroke:1.5px #111;paint-order:stroke fill;text-shadow:0 3px 0 rgba(0,0,0,.45);animation:toast 2.4s forwards;white-space:nowrap}
-.toast.bad{color:#ff6b86}.toast.good{color:#7dffa8}.toast.info{color:var(--gold)}
+.toast.job{color:#ff8ae6}.toast.bad{color:#ff6b86}.toast.good{color:#7dffa8}.toast.info{color:var(--gold)}
 @keyframes toast{0%{transform:scale(.4) rotate(-6deg);opacity:0}9%{transform:scale(1.12) rotate(-3deg);opacity:1}16%{transform:scale(1) rotate(-3deg)}80%{opacity:1}100%{opacity:0;transform:translateY(-14px) rotate(-3deg)}}
 .clock{position:absolute;left:50%;top:12px;transform:translateX(-50%);font:700 .75rem var(--body);letter-spacing:.14em;opacity:.7;text-shadow:0 1px 3px rgba(0,0,0,.6)}
 
@@ -82,4 +82,11 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 .scope::before{width:66vmin;height:1.5px;transform:translate(-50%,-50%)}.scope::after{width:1.5px;height:66vmin;transform:translate(-50%,-50%)}
 button.ghost{background:transparent;border:2px solid rgba(255,255,255,.35);box-shadow:none;font-size:.95rem;padding:9px 20px;display:inline-flex;align-items:center;gap:10px}
 button.ghost kbd{font:700 .7rem var(--body);background:#fff;color:#111;border-radius:5px;padding:2px 6px}
+/* ---------- jobs ---------- */
+.job{position:absolute;left:18px;bottom:calc(min(220px,26vw) + 30px);display:grid;gap:5px;justify-items:start;max-width:min(520px,70vw)}
+.job div{display:flex;align-items:center;gap:9px;background:rgba(10,12,18,.72);backdrop-filter:blur(6px);border-radius:999px;padding:5px 14px 5px 5px;font:700 .85rem var(--body);white-space:nowrap}
+.job b{font:400 .68rem var(--display);letter-spacing:.12em;background:#ff4fd8;color:#1a0716;border-radius:999px;padding:4px 9px}
+.job .gold b{background:var(--gold);color:#221a00}
+.job em{font:400 .95rem var(--display);font-style:normal;color:#7dffa8}
+.tip{margin:-6px 0 0;color:#aeb4c2;font-size:.86rem;line-height:1.4}.tip b{color:#ff8ae6}
 @media (max-width:620px){.keys{grid-template-columns:1fr}.logo{display:none}}

@@ -35,6 +35,21 @@ export function createTraffic(game) {
       new AIDriver(game, v, s.from, s.to); return v;
     },
 
+    // A fresh parked car at a random kerb on the main streets, away from the player
+    // (chop-shop orders use this when every suitable parked car is already gone).
+    spawnParked(type, minDist = 0, ok = () => true) {
+      const p = game.player;
+      for (let tries = 0; tries < 40; tries++) {
+        const r = choose([-54, 0, 54]), t = -135 + Math.random() * 270, side = Math.random() < .5 ? 1 : -1, alongX = Math.random() < .5;
+        if (WORLD.roadsAt.some(q => Math.abs(t - q) < 14)) continue;
+        const x = alongX ? t : r + side * 5.6, z = alongX ? r + side * 5.6 : t;
+        if (Math.hypot(x - p.x, z - p.z) < minDist || !ok(x, z)) continue;
+        if (vehicles.some(v => Math.abs(v.x - x) < 7 && Math.abs(v.z - z) < 7)) continue;
+        return traffic.add(type, x, z, alongX ? (side > 0 ? 0 : Math.PI) : (side > 0 ? -Math.PI / 2 : Math.PI / 2));
+      }
+      return null;
+    },
+
     init() {
       // parked cars along the three main streets, as in the concept
       for (const r of [-54, 0, 54]) for (const axis of ['x', 'z']) for (let t = -140; t < 140; t += 11) {

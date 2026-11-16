@@ -26,6 +26,7 @@ import { loadWeaponModels } from './combat/weaponModels.js';
 import { createCombat } from './combat/combat.js';
 import { createCopGuns } from './combat/copGuns.js';
 import { createPickups } from './combat/pickups.js';
+import { createJobs } from './missions/jobs.js';
 
 const STEP = 1 / 60;
 const $ = (id) => document.getElementById(id);
@@ -64,6 +65,7 @@ async function boot() {
   game.weaponsReady = loadWeaponModels();       // Flynn's guns stream in; stand-ins until then
   game.traffic.init();
   game.peds.init();
+  game.jobs = createJobs(game);
   game.env.touch();
   engine.resize();
 
@@ -83,13 +85,14 @@ async function boot() {
       else hud.toast('NICE AND QUIET', 'good');
     }
     car.stolen = true; car.temp = true; game.firstTheft = true;
+    game.jobs.onCarTaken(car);
   };
   game.onCarLeft = () => { };
 
   game.onCrash = (v, impact) => {
     const power = clamp((impact - 2) / 14, 0, 1), mine = v.driver === 'player';
     const d = Math.hypot(v.x - player.x, v.z - player.z);
-    if (mine) cam.shake(.2 + power * .6);
+    if (mine) { cam.shake(.2 + power * .6); game.jobs.onCrash(v, impact); }
     if (d < 50 && game.time - crashSound > .07) { crashSound = game.time; audio.crash(mine ? power : power * (1 - d / 50) * .7); }
     if (d < 70) fx.spark(v.x + v.fx * 1.6 * Math.sign(v.vf || 1), v.y + .6, v.z + v.fz * 1.6 * Math.sign(v.vf || 1), 3 + Math.round(power * 10), .6 + power);
   };
@@ -214,6 +217,7 @@ async function boot() {
     police.update(dt, t);
     game.copGuns.update(dt, t);
     game.pickups.update(dt, t);
+    game.jobs.update(dt, t);
     fx.update(dt);
     game.city.updateLights(t);
     if ((maintainT -= dt) <= 0) { maintainT = 2; game.traffic.maintain(); }
