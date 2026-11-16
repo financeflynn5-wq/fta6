@@ -1,5 +1,6 @@
 // Round radar in the corner. Rotates with the camera; cops flash red and blue.
 import { WORLD } from '../config.js';
+import { paintPlan } from '../world/ground.js';
 
 export function createMinimap(game) {
   const cv = document.getElementById('minimap'), x = cv.getContext('2d'), S = cv.width, R = S / 2;
@@ -7,13 +8,13 @@ export function createMinimap(game) {
   // the street plan never changes, so draw it once
   const plan = document.createElement('canvas'), half = WORLD.LIMIT + 30; plan.width = plan.height = half * 2;
   const g = plan.getContext('2d');
-  g.fillStyle = '#2b8fa8'; g.fillRect(0, 0, half * 2, half * 2);
-  g.fillStyle = '#4a4e57'; g.fillRect(30, 30, WORLD.LIMIT * 2, WORLD.LIMIT * 2);
+  paintPlan(g, half, game.city.districts.decks);      // land, sea and roads from the map
   g.fillStyle = '#d6cfc4';
   for (const bi of WORLD.blocksIdx) for (const bj of WORLD.blocksIdx) g.fillRect(half + 27 + WORLD.PITCH * bi - 20, half + 27 + WORLD.PITCH * bj - 20, 40, 40);
   let frame = 0;
 
   return {
+    plan, half,
     setBuildings(boxes) { g.fillStyle = '#e9a58f'; for (const b of boxes) if (!b.wall) g.fillRect(half + b.x - b.hw, half + b.z - b.hd, b.hw * 2, b.hd * 2); },
     update(t) {
       if (frame++ % 2) return;
@@ -61,6 +62,17 @@ export function createMinimap(game) {
         x.stroke(); x.fill();
         if (b.kind === 'dest') { x.fillStyle = '#111'; x.beginPath(); x.arc(cx, cy, s * .42, 0, 7); x.fill(); }
         x.globalAlpha = 1;
+      }
+      // activity markers (game.markers): a coloured disc with a letter; pinned ones stick to the rim when far away
+      for (const m of game.markers) {
+        if (m.visible && !m.visible()) continue;
+        const dx = (m.x - p.x) * SCALE, dz = (m.z - p.z) * SCALE;
+        let sx = dx * ca - dz * sa, sy = dx * sa + dz * ca;
+        const d = Math.hypot(sx, sy), max = R - 10;
+        if (d > max) { if (!m.pin) continue; sx *= max / d; sy *= max / d; }
+        const cx = R + sx, cy = R + sy, s = (m.size || 7) * (d > max ? .8 : 1) + (m.hot ? Math.sin(t * 6) * 1.2 : 0);
+        x.fillStyle = m.color; x.strokeStyle = '#111'; x.lineWidth = 2; x.beginPath(); x.arc(cx, cy, s, 0, 7); x.stroke(); x.fill();
+        if (m.glyph) { x.fillStyle = m.ink || '#111'; x.font = `900 ${Math.round(s * 1.45)}px "Archivo Black",Impact,sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(m.glyph, cx, cy + .5); }
       }
       // the player: always centre, always pointing the way they face
       const heading = p.vehicle ? p.vehicle.h : Math.PI / 2 - p.face;

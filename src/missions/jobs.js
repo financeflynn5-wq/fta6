@@ -6,14 +6,13 @@ import * as THREE from 'three';
 import { WORLD, JOBS } from '../config.js';
 import { choose, clamp, rnd } from '../core/utils.js';
 import { groundY } from '../world/city.js';
+import { districtAt } from '../world/map.js';
 import { ctex } from '../world/materials.js';
 import { frontage, hangSign } from '../world/landmarks.js';
 import { animateCharacter, setCharacterShadow, CIVILIANS } from '../characters/models.js';
 
 const PINK = 0xff4fd8, GOLD = 0xffd34d;
-const DISTRICTS = [['PALM HEIGHTS', 'NEON ROW', 'PIER SIDE'], ['OLD TOWN', 'MIDTOWN', 'SUNSET STRIP'], ['THE FLATS', 'MARKET ROW', 'DOCKSIDE']];
-const third = (v) => clamp(Math.floor((v / WORLD.LIMIT + 1) * 1.5), 0, 2);
-const district = (x, z) => DISTRICTS[third(z)][third(x)];
+const district = districtAt;      // district names live with the map (world/map.js)
 const money = (n) => '$' + Math.round(n).toLocaleString('en-US'), round10 = (n) => Math.round(n / 10) * 10;
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 

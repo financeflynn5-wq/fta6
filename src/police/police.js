@@ -162,7 +162,7 @@ export function createPolice(game) {
           // lost them: check the last place they were seen, then sweep nearby corners
           const goal = u.search || police.lastKnown;
           if (Math.hypot(car.x - goal.x, car.z - goal.z) < 13 || !u.search && Math.hypot(car.x - police.lastKnown.x, car.z - police.lastKnown.z) < 13) {
-            const i = clamp(nearestNodeIndex(police.lastKnown.x) + choose([-1, 0, 1]), 0, 6), j = clamp(nearestNodeIndex(police.lastKnown.z) + choose([-1, 0, 1]), 0, 6);
+            const i = clamp(nearestNodeIndex(police.lastKnown.x) + choose([-1, 0, 1]), 0, N.length - 1), j = clamp(nearestNodeIndex(police.lastKnown.z) + choose([-1, 0, 1]), 0, N.length - 1);
             u.search = { x: N[i], z: N[j] };
           }
           d.target.x = (u.search || police.lastKnown).x; d.target.z = (u.search || police.lastKnown).z; d.hold = false; d.ram = false; d.maxSpeed = 17;

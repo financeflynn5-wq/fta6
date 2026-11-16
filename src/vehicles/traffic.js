@@ -4,6 +4,7 @@ import { rand, choose } from '../core/utils.js';
 import { Vehicle } from './vehicle.js';
 import { AIDriver } from './aiDriver.js';
 import { makeCharacter, CIVILIANS } from '../characters/models.js';
+import { ROAD_EDGES } from '../world/roads.js';
 
 const N = WORLD.nodes, LAST = N.length - 1;
 
@@ -27,10 +28,8 @@ export function createTraffic(game) {
     // A free stretch of road, optionally far from (and hidden from) the player.
     findRoadSpot(minDist = 0, maxDist = 1e9) {
       const p = game.player;
-      for (let tries = 0; tries < 40; tries++) {
-        const i = Math.floor(Math.random() * (LAST + 1)), j = Math.floor(Math.random() * (LAST + 1));
-        const [di, dj] = choose([[1, 0], [-1, 0], [0, 1], [0, -1]]);
-        if (i + di < 0 || i + di > LAST || j + dj < 0 || j + dj > LAST) continue;
+      for (let tries = 0; tries < 80; tries++) {
+        const { i, j, di, dj } = choose(ROAD_EDGES);
         const s = 12 + Math.random() * 28, x = N[i] + di * s - dj * WORLD.LANE, z = N[j] + dj * s + di * WORLD.LANE;
         const d = p ? Math.hypot(x - p.x, z - p.z) : 999;
         if (d < minDist || d > maxDist) continue;
@@ -40,8 +39,8 @@ export function createTraffic(game) {
       }
       return null;
     },
-    spawnCruiser(type, minDist = 0) {
-      const s = traffic.findRoadSpot(minDist); if (!s) return null;
+    spawnCruiser(type, minDist = 0, maxDist = 1e9) {
+      const s = traffic.findRoadSpot(minDist, maxDist); if (!s) return null;
       const v = traffic.add(type, s.x, s.z, s.h); v.temp = true;
       const driver = new AIDriver(game, v, s.from, s.to);
       if (v.stats.rider) { driver.kind = choose(CIVILIANS); v.seat(makeCharacter(driver.kind)); game.env?.touch(); }   // bikes show who's riding
@@ -77,7 +76,7 @@ export function createTraffic(game) {
       // ...with a motorbike and a sports car a few steps further along the same kerb
       for (const v of vehicles.slice()) if (Math.abs(v.x - sx) < 3 && v.z > sz - 17 && v.z < sz + 18) traffic.remove(v);
       traffic.add('car', sx, sz, -Math.PI / 2); traffic.add('bike', sx + .5, sz + 11, -Math.PI / 2); traffic.add('sport', sx, sz - 10.5, -Math.PI / 2);
-      for (let i = 0; i < TRAFFIC.count; i++) traffic.spawnCruiser(pickType(0, Math.random()));
+      for (let i = 0; i < TRAFFIC.count; i++) traffic.spawnCruiser(pickType(0, Math.random()), 0, TRAFFIC.near);
     },
 
     preStep(dt, t) {
@@ -93,11 +92,13 @@ export function createTraffic(game) {
         const far = Math.hypot(v.x - p.x, v.z - p.z);
         if (v.driver instanceof AIDriver && v.type !== 'police' && !v.wrecked) cruising++;
         if (v.driver === 'player' || game.police.owns(v)) continue;
+        // the map is big: ordinary traffic that has drifted far from you is recycled closer
+        if (v.driver instanceof AIDriver && v.type !== 'police' && far > TRAFFIC.near + 70) { if (!v.wrecked) cruising--; traffic.remove(v); continue; }
         const abandoned = !v.driver && (v.temp || v.wrecked) && v.idleTime > 12;
         if (abandoned && far > 115 && !game.physics.canSee(v.x, v.z, p.x, p.z)) traffic.remove(v);
         else if (v.wrecked && v.idleTime > 90 && far > 60) traffic.remove(v);
       }
-      if (cruising < TRAFFIC.count) traffic.spawnCruiser(pickType(0, Math.random()), 95);
+      for (let k = 0; k < 2 && cruising + k < TRAFFIC.count; k++) traffic.spawnCruiser(pickType(0, Math.random()), 95, TRAFFIC.near);
     },
   };
   return traffic;

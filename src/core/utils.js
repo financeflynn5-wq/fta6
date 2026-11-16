@@ -15,3 +15,14 @@ export const TAU = Math.PI * 2;
 export const wrapAngle = (a) => { a = (a + Math.PI) % TAU; if (a < 0) a += TAU; return a - Math.PI; };
 export const angleDiff = (to, from) => wrapAngle(to - from);
 export const dist2 = (ax, az, bx, bz) => Math.hypot(ax - bx, az - bz);
+// A private random stream for new areas, so adding them never shifts the original city's dice.
+export const seeded = (s) => () => ((s = (s * 16807) % 2147483647) / 2147483647);
+// Smooth 2D noise in 0..1 (same answer every time for the same spot).
+const hash2 = (x, z) => { let h = Math.imul(x, 374761393) ^ Math.imul(z, 668265263); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; };
+export function noise2(x, z) {
+  const xi = Math.floor(x), zi = Math.floor(z), fx = x - xi, fz = z - zi, u = fx * fx * (3 - 2 * fx), v = fz * fz * (3 - 2 * fz);
+  const a = hash2(xi, zi), b = hash2(xi + 1, zi), c = hash2(xi, zi + 1), d = hash2(xi + 1, zi + 1);
+  return a + (b - a) * u + (c - a + (a - b + d - c) * u) * v;
+}
+// Read or set the shared city dice (new areas put it back so later systems roll what they always did).
+export const randSeed = (s) => (s === undefined ? seed : (seed = s));

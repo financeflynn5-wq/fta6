@@ -1,5 +1,6 @@
 // What a bullet (or a fist) hits, and what that does: hurting citizens, cops and cars,
 // knocking people out, and telling the police about it.
+import { rayGround } from '../world/terrain.js';
 import { COMBAT, CAR } from '../config.js';
 
 const BODY_R = .42, BODY_H = 2.0, HEAD_Y = 1.45;
@@ -52,7 +53,7 @@ export function createHits(game) {
       // buildings, posts and trees
       const h = Math.hypot(dx, dz);
       if (h > 1e-4) { const free = game.physics.probeSolid(ox, oz, dx / h, dz / h, best * h); if (free < best * h) { best = free / h; kind = 'wall'; obj = null; } }
-      if (dy < 0) { const tg = (.02 - oy) / dy; if (tg < best) { best = tg; kind = 'ground'; obj = null; } }
+      { const tg = rayGround(ox, oy, oz, dx, dy, dz, best); if (tg >= 0 && tg < best) { best = tg; kind = 'ground'; obj = null; } }
       hit.t = best; hit.x = ox + dx * best; hit.y = oy + dy * best; hit.z = oz + dz * best; hit.kind = kind; hit.obj = obj;
       hit.head = (kind === 'ped' || kind === 'officer') && !pose(kind === 'ped' ? obj : obj.ped) && hit.y - (kind === 'ped' ? obj.y : obj.ped.y) > HEAD_Y;
       return hit;

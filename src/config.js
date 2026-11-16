@@ -4,8 +4,9 @@ export const WORLD = {
   BLOCK: 40, PITCH: 54, ROAD: 14,
   blocksIdx: [-3, -2, -1, 0, 1, 2],
   roadsAt: [-108, -54, 0, 54, 108],
-  nodes: [-162, -108, -54, 0, 54, 108, 162],  // road grid incl. the ring road by the sea wall
-  LIMIT: 170,                                   // sea wall
+  // every corner of the map grid, 54 m apart; downtown is the middle seven (-162..162). Roads: world/map.js
+  nodes: [-378, -324, -270, -216, -162, -108, -54, 0, 54, 108, 162, 216, 270, 324, 378],
+  LIMIT: 372,                                   // edge of the world
   CURB: 0.3,
   LANE: 2.6,
 };
@@ -64,9 +65,21 @@ export const POLICE = {
 };
 
 export const TRAFFIC = {
-  count: 28, cruise: 11.5, pedCountNear: 5, pedCountFar: 2,
+  count: 30, cruise: 11.5, pedCountNear: 5, pedCountFar: 2,
+  near: 260,                 // traffic lives within this distance of you
   // how often each vehicle turns up: [driving around, parked]
   mix: { car: [48, 54], taxi: [14, 8], van: [12, 12], bike: [10, 9], truck: [6, 4], sport: [6, 8], limo: [4, 5] },
+};
+
+// How cars meet the land (world/ride.js). Flat downtown is unaffected.
+export const RIDE = {
+  gravity: 16,               // m/s^2 while airborne: lower = longer, floatier jumps
+  slopePull: 9,              // how hard hills drag a car back (9.8 would be real life)
+  ledge: .55,                // a step taller than this (per axle, per tick) is a wall, not a bump
+  absorb: .4,                // drops smaller than this are soaked up by the suspension instead of counting as a jump
+  hardLanding: 9, landingDamage: 3,     // landing speed (m/s) that starts to hurt, and damage per m/s beyond it
+  waterDrag: 2.4, floodDepth: .8,       // water slows a car; deeper than this kills the engine
+  wadeDepth: .55, wadeSpeed: .55,       // on foot: deeper than this you wade at this share of your speed
 };
 
 export const TIME = { day: 210, dusk: 26, night: 130, dawn: 26 };

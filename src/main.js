@@ -22,6 +22,8 @@ import { createHud } from './ui/hud.js';
 import { createMinimap } from './ui/minimap.js';
 import { createWeaponHud } from './ui/weaponHud.js';
 import { createLandmarks } from './world/landmarks.js';
+import { createWorld } from './world/world.js';
+import { createActivities } from './activities/activities.js';
 import { loadWeaponModels } from './combat/weaponModels.js';
 import { createCombat } from './combat/combat.js';
 import { createCopGuns } from './combat/copGuns.js';
@@ -47,6 +49,7 @@ async function boot() {
   for (const p of game.city.solids.posts) game.physics.addStaticPost(p.x, p.z, p.r);
   game.env = createSky(engine, game.city);
   game.fx = createEffects(engine.scene);
+  game.world = createWorld(game);               // the land: hills, air time, water (also sets game.ride)
   game.wheels = createWheelBatch(engine.scene);
   game.traffic = createTraffic(game);
   game.peds = createPedestrians(game);
@@ -66,6 +69,7 @@ async function boot() {
   game.traffic.init();
   game.peds.init();
   game.jobs = createJobs(game);
+  game.activities = createActivities(game);     // races, stunt jumps, collectibles and the rest
   game.env.touch();
   engine.resize();
 
@@ -195,9 +199,11 @@ async function boot() {
     player.preStep(dt);
     game.combat.preStep(dt);
     game.traffic.preStep(dt, game.time);
+    game.world.preStep(dt);
     game.physics.step(onContact);
     game.traffic.postStep(dt);
     player.postStep();
+    game.world.postStep(dt);
     game.input.endStep();
   }
   let last = performance.now(), acc = 0, maintainT = 0, slowFor = 0, autoQuality = true, fpsAvg = 60, titleYaw = .75;
@@ -227,6 +233,7 @@ async function boot() {
       titleYaw += dt * .05; engine.camera.position.set(Math.sin(titleYaw) * 92, 58, Math.cos(titleYaw) * 92); engine.camera.lookAt(0, 2, 0);
       cam.lookAt.set(0, 0, 0);
     } else cam.update(dt, t);
+    game.world.update(dt, t); game.activities.update(dt, t);
     game.env.update(dt, engine.camera.position, cam.lookAt);
     game.carLights.update(t);
     hud.update(dt, t); game.weaponHud.update(dt, t); game.minimap.update(t);

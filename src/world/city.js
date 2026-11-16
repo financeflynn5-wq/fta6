@@ -6,15 +6,14 @@ import { rand, pick, V } from '../core/utils.js';
 import { WORLD } from '../config.js';
 import { mats, std, facade, awnings, G, mesh, rbox, ctex } from './materials.js';
 import { bakeStatic } from './batching.js';
+import { CITY_EDGE } from './map.js';
+import { buildGround } from './ground.js';
+import { buildDistricts } from './districts.js';
 
-const { BLOCK, PITCH, blocksIdx, roadsAt, LIMIT, CURB } = WORLD;
+const { BLOCK, PITCH, blocksIdx, roadsAt } = WORLD;
 
-// Height of the ground: sidewalks/blocks are raised by one curb.
-export function groundY(x, z) {
-  const bi = Math.round((x - 27) / PITCH), bj = Math.round((z - 27) / PITCH);
-  if (bi < -3 || bi > 2 || bj < -3 || bj > 2) return 0;
-  return (Math.abs(x - (27 + PITCH * bi)) <= BLOCK / 2 && Math.abs(z - (27 + PITCH * bj)) <= BLOCK / 2) ? CURB : 0;
-}
+// Height of the ground anywhere on the map (hills, beach, kerbs, ramps): see terrain.js.
+export { groundY } from './terrain.js';
 
 // Traffic light cycle shared by the lamps and by AI drivers.
 const CYCLE = 18;
@@ -31,8 +30,10 @@ export function buildCity(realScene) {
   const solids = { boxes: [], posts: [] };   // boxes: buildings {x,z,hw,hd}; posts: thin round things {x,z,r}
   const lampPts = [], signs = [];
 
-  const ground = mesh(new THREE.PlaneGeometry(420, 420), mats.asphalt, null, null, realScene, false);
+  // downtown's flat street level; the land around it is drawn by ground.js
+  const size = CITY_EDGE * 2, ground = mesh(new THREE.PlaneGeometry(size, size), mats.asphalt, null, null, realScene, false);
   ground.rotation.x = -Math.PI / 2;
+  const guv = ground.geometry.attributes.uv; for (let i = 0; i < guv.count; i++) guv.setXY(i, guv.getX(i) * size / 420, guv.getY(i) * size / 420);   // same texture scale as before
 
   // instanced collectors
   function Inst(geo, mat, cast = true) {
@@ -87,8 +88,8 @@ export function buildCity(realScene) {
   });
 
   // ---------- buildings ----------
-  function building(cx, cz, w, d, h, downtown) {
-    const fm = pick(facade), g = new THREE.Group(); g.position.set(cx, .3, cz); scene.add(g);
+  function building(cx, cz, w, d, h, downtown, y = .3) {
+    const fm = pick(facade), g = new THREE.Group(); g.position.set(cx, y, cz); scene.add(g);
     solids.boxes.push({ x: cx, z: cz, hw: w / 2, hd: d / 2 });
     const shopH = 4.6;
     mesh(G.box, mats.trim, V(0, shopH / 2, 0), V(w, shopH, d), g);
@@ -134,8 +135,8 @@ export function buildCity(realScene) {
     for (let i = 0; i < N; i++) { const a = i * 3; idx.push(a, a + 3, a + 1, a + 1, a + 3, a + 4, a + 1, a + 4, a + 2, a + 2, a + 4, a + 5); }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
   })();
-  function palm(x, z, s = 1) {
-    const g = new THREE.Group(); g.position.set(x, .3, z); g.rotation.y = rand() * 6.28; g.scale.setScalar(s); scene.add(g);
+  function palm(x, z, s = 1, y = .3) {
+    const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rand() * 6.28; g.scale.setScalar(s); scene.add(g);
     solids.posts.push({ x, z, r: .3 });
     const lean = .6 + rand() * .9, curve = new THREE.CatmullRomCurve3([V(0, 0, 0), V(lean * .2, 3, 0), V(lean * .6, 6, 0), V(lean, 8.6, 0)]);
     mesh(new THREE.TubeGeometry(curve, 14, .24, 8), mats.trunk, null, null, g);
@@ -184,14 +185,9 @@ export function buildCity(realScene) {
     [['r', .45], ['y', 0], ['g', -.45]].forEach(([k, y]) => mesh(G.sph, set[k], face.clone().add(V(0, y, 0)), V(.15, .15, .15), hb, false));
   }
 
-  // The coast: a low sea wall around the city and water beyond it (keeps cars in the map).
-  const L = LIMIT;
-  for (const [x, z, w, d] of [[0, -L - .5, 2 * L + 2, 1], [0, L + .5, 2 * L + 2, 1], [-L - .5, 0, 1, 2 * L + 2], [L + .5, 0, 1, 2 * L + 2]]) {
-    mesh(G.box, mats.trim, V(x, .55, z), V(w, 1.1, d), scene);
-    solids.boxes.push({ x, z, hw: w / 2, hd: d / 2, wall: true });
-  }
-  const sea = mesh(new THREE.RingGeometry(L + 1, 1400, 4, 1, Math.PI / 4), mats.sea, V(0, .06, 0), null, scene, false);
-  sea.rotation.x = -Math.PI / 2; sea.scale.setScalar(Math.SQRT2);
+  // Everything beyond downtown: the land itself, then what stands on it.
+  buildGround(realScene);
+  const districts = buildDistricts({ scene, realScene, solids, lampPts, signMats, building, palm, IB, mat4 });
 
   bakeStatic(scene, realScene, (x, z) => Math.floor((x + 162) / 54) + ',' + Math.floor((z + 162) / 54));
 
@@ -202,5 +198,5 @@ export function buildCity(realScene) {
     for (const [k, ax] of [['ew', 'x'], ['ns', 'z']]) { const st = lightState(ax, t); for (const c of ['r', 'y', 'g']) sig[k][c].emissiveIntensity = st === c ? 3.2 : .04; }
   }
 
-  return { solids, lampPts, signMats, litWindows: IBm.lit, updateLights };
+  return { solids, lampPts, signMats, litWindows: IBm.lit, updateLights, districts };
 }

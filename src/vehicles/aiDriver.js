@@ -4,6 +4,7 @@
 import { WORLD, TRAFFIC } from '../config.js';
 import { clamp, angleDiff } from '../core/utils.js';
 import { lightState } from '../world/city.js';
+import { hasRoad, nearestRoadLeg } from '../world/roads.js';
 
 const N = WORLD.nodes, LAST = N.length - 1, SPAN = WORLD.PITCH, LANE = WORLD.LANE, BOX = 7;
 
@@ -11,7 +12,7 @@ export const nearestNodeIndex = (v) => clamp(Math.round((v - N[0]) / SPAN), 0, L
 
 function pickNext(from, to) {
   const di = to.i - from.i, dj = to.j - from.j;
-  const ok = (i, j) => i >= 0 && i <= LAST && j >= 0 && j <= LAST;
+  const ok = (i, j) => i >= 0 && i <= LAST && j >= 0 && j <= LAST && hasRoad(to.i, to.j, i, j);
   const straight = { i: to.i + di, j: to.j + dj }, right = { i: to.i - dj, j: to.j + di }, left = { i: to.i + dj, j: to.j - di };
   const s = ok(straight.i, straight.j), r = ok(right.i, right.j), l = ok(left.i, left.j);
   if (s && r) return Math.random() < .68 ? straight : right;
@@ -167,11 +168,8 @@ export class AIDriver {
 
   // Put the car back into normal traffic from wherever it is.
   resumeCruise() {
-    const v = this.v, i = nearestNodeIndex(v.x), j = nearestNodeIndex(v.z);
-    // head for the nearest corner, then carry on in the direction we're facing
-    const fx = Math.abs(v.fx) > Math.abs(v.fz) ? Math.sign(v.fx) : 0, fz = fx ? 0 : Math.sign(v.fz);
-    const to = { i, j }, from = { i: clamp(i - fx, 0, LAST), j: clamp(j - fz, 0, LAST) };
-    if (from.i === to.i && from.j === to.j) { from.i = clamp(i + fx, 0, LAST); from.j = clamp(j + fz, 0, LAST); }
+    // join the nearest stretch of road that heads roughly the way we're facing
+    const v = this.v, { from, to } = nearestRoadLeg(v.x, v.z, v.fx, v.fz);
     this.from = from; this.to = to; this.next = pickNext(from, to); this.turning = false; this.mode = 'cruise';
   }
 }
