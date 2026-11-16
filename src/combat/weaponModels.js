@@ -4,6 +4,7 @@
 // handed out swaps to the real model the moment it arrives.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { loadEmbeddedGltf } from '../core/embeddedGltf.js';
 import { WEAPONS } from '../config.js';
 import { litMaterials, std } from '../world/materials.js';
 
@@ -15,7 +16,7 @@ const standInMat = std({ color: 0x1d1f24, roughness: .45, metalness: .7 });
 
 export function loadWeaponModels(base = 'assets/weapons/') {
   const loader = new GLTFLoader();
-  const jobs = Object.keys(WEAPONS).filter(id => !WEAPONS[id].melee).map(id => loader.loadAsync(base + id + '.gltf.json').then(gltf => {
+  const jobs = Object.keys(WEAPONS).filter(id => !WEAPONS[id].melee).map(id => loadEmbeddedGltf(base + id + '.gltf.json', loader).then(gltf => {
     const scene = gltf.scene, L = WEAPONS[id].length;
     const box = new THREE.Box3().setFromObject(scene), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
     const k = L / size.z; scene.scale.setScalar(k);
@@ -28,7 +29,7 @@ export function loadWeaponModels(base = 'assets/weapons/') {
     const muzzle = new THREE.Vector3(c.x, c.y + .12 * size.y, c.z + size.z / 2).multiplyScalar(k).sub(grip);
     real[id] = { scene, grip, muzzle };
     for (const h of holders) if (h.userData.id === id) fill(h);
-  }).catch(() => { /* no file yet: keep the stand-in */ }));
+  }).catch((e) => { console.warn('FTA 6: could not load the ' + id + ' model, showing a stand-in.', e); }));
   return Promise.all(jobs);
 }
 
