@@ -157,3 +157,13 @@ export const JOBS = {
     hail: 12, stop: 6.5,                           // passenger runs over once the cab stops this close; drop-off circle radius
   },
 };
+
+// ---------- things to do around the map (src/activities/) ----------
+export const ACTIVITIES = {
+  races: { pay: { gold: 1500, silver: 800, bronze: 400, finish: 150 }, firstGold: 1000, gate: 8.5, gateFoot: 3.2 },
+  stunts: { first: 500, again: 100, barge: 1000, bigAir: 12, airPay: 4 },   // bigAir: metres flown before any jump pays; airPay: $ per metre
+  tins: { each: 150, all: 10000 },                                          // golden tins hidden around the map
+  pizza: { count: 4, base: 100, tip: 160, pace: 13, slack: 14, cold: 20, perfect: 500 },   // seconds allowed = distance / pace + slack
+  traps: { perKmh: 12, cooldown: 20 },                                      // speed cameras pay per km/h over their limit
+  bowling: { perPin: 50, strike: 1000, settle: 4.5 },
+};
