@@ -2,7 +2,7 @@
 // ground plane: physics x = world x, physics y = world z.
 import RAPIER from 'rapier';
 
-export const GROUP = { BUILDING: 1, PROP: 2, CAR: 4, PED: 8 };
+export const GROUP = { BUILDING: 1, PROP: 2, CAR: 4, PED: 8, LOW: 16 };   // LOW: walls and boxes a flying car clears
 const groups = (member, filter) => ((member << 16) | filter) >>> 0;
 const ALL = 0xffff;
 
@@ -13,13 +13,16 @@ export async function createPhysics() {
   const queue = new RAPIER.EventQueue(true);
   const owners = new Map();          // collider handle -> game object
   const ray = new RAPIER.Ray({ x: 0, y: 0 }, { x: 1, y: 0 });
-  const buildingsOnly = groups(ALL, GROUP.BUILDING), solidStuff = groups(ALL, GROUP.BUILDING | GROUP.PROP);
+  const buildingsOnly = groups(ALL, GROUP.BUILDING), solidStuff = groups(ALL, GROUP.BUILDING | GROUP.PROP | GROUP.LOW);
 
   const physics = {
     RAPIER, world, owners,
-    addStaticBox(x, z, hw, hd) {
-      world.createCollider(RAPIER.ColliderDesc.cuboid(hw, hd).setTranslation(x, z).setCollisionGroups(groups(GROUP.BUILDING, ALL)).setFriction(.25).setRestitution(.15));
+    // low = something short (a rail, one container): it stops cars on the ground but not ones in the air
+    addStaticBox(x, z, hw, hd, low = false) {
+      world.createCollider(RAPIER.ColliderDesc.cuboid(hw, hd).setTranslation(x, z).setCollisionGroups(groups(low ? GROUP.LOW : GROUP.BUILDING, ALL)).setFriction(.25).setRestitution(.15));
     },
+    // A car high in the air only hits buildings; back on the ground it hits everything again.
+    setFlying(body, on) { body.collider(0).setCollisionGroups(groups(GROUP.CAR, on ? GROUP.BUILDING : ALL)); },
     addStaticPost(x, z, r) {
       world.createCollider(RAPIER.ColliderDesc.ball(r).setTranslation(x, z).setCollisionGroups(groups(GROUP.PROP, ALL)).setFriction(.2).setRestitution(.2));
     },

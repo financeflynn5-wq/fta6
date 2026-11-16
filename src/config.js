@@ -75,6 +75,7 @@ export const TRAFFIC = {
 export const RIDE = {
   gravity: 16,               // m/s^2 while airborne: lower = longer, floatier jumps
   slopePull: 9,              // how hard hills drag a car back (9.8 would be real life)
+  steep: .8, steepPull: 40,  // slopes steeper than this (rise over run) can't be climbed: mountain sides, cliffs
   ledge: .55,                // a step taller than this (per axle, per tick) is a wall, not a bump
   absorb: .4,                // drops smaller than this are soaked up by the suspension instead of counting as a jump
   hardLanding: 9, landingDamage: 3,     // landing speed (m/s) that starts to hurt, and damage per m/s beyond it

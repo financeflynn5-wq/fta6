@@ -40,6 +40,7 @@ export function createWorld(game) {
         lift = need > lift ? need : damp(lift, Math.max(0, need), 5, dt);
         if (lift > .01) { cam.position.y += lift; cam.lookAt(game.cam.lookAt); }
       }
+      for (const f of game.city.districts.animated) f(dt, t);
       // splashes while wading
       if (p.mode === 'foot' && p.swimming && p.speed > 1 && (swimT -= dt) <= 0) { swimT = .22; game.fx.smoke(p.x, p.y + 1.15, p.z, 1, .7, .45); }
       // "now entering" banner

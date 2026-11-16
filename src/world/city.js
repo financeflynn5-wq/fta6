@@ -8,7 +8,7 @@ import { mats, std, facade, awnings, G, mesh, rbox, ctex } from './materials.js'
 import { bakeStatic } from './batching.js';
 import { CITY_EDGE } from './map.js';
 import { buildGround } from './ground.js';
-import { buildDistricts } from './districts.js';
+import { buildDistricts, shapeLand } from './districts.js';
 
 const { BLOCK, PITCH, blocksIdx, roadsAt } = WORLD;
 
@@ -186,7 +186,7 @@ export function buildCity(realScene) {
   }
 
   // Everything beyond downtown: the land itself, then what stands on it.
-  buildGround(realScene);
+  shapeLand(); buildGround(realScene);
   const districts = buildDistricts({ scene, realScene, solids, lampPts, signMats, building, palm, IB, mat4 });
 
   bakeStatic(scene, realScene, (x, z) => Math.floor((x + 162) / 54) + ',' + Math.floor((z + 162) / 54));

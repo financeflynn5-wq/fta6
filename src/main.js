@@ -45,7 +45,7 @@ async function boot() {
   game.input = createInput(canvas);
   game.audio = createAudio();
   game.city = buildCity(engine.scene);
-  for (const b of game.city.solids.boxes) game.physics.addStaticBox(b.x, b.z, b.hw, b.hd);
+  for (const b of game.city.solids.boxes) game.physics.addStaticBox(b.x, b.z, b.hw, b.hd, b.low);
   for (const p of game.city.solids.posts) game.physics.addStaticPost(p.x, p.z, p.r);
   game.env = createSky(engine, game.city);
   game.fx = createEffects(engine.scene);

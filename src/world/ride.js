@@ -44,12 +44,22 @@ export function createRide(game) {
       const gPrev = (v.gf + v.gr) / 2, groundVy = clamp((g - gPrev) / dt, -40, 40);
 
       if (v.air > 0) {                      // flying: gravity only, the tyres can't do anything
+        const pf = v.gf, pr = v.gr;
         v.air += dt; v.vy -= RIDE.gravity * dt; v.y += v.vy * dt; v.gf = gf; v.gr = gr;
         if (v.jump && v.y > v.jump.top) v.jump.top = v.y;
         const lv = b.linvel(); vel.x = lv.x; vel.y = lv.y; b.setLinvel(vel, true); b.setAngvel(b.angvel() * (1 - .8 * dt), true);
         v._set.x = vel.x; v._set.y = vel.y;                       // nothing unexpected happened, so no crash is counted
         v.vf = vel.x * fx + vel.y * fz; v.vl = vel.x * v.rx + vel.y * v.rz; v.sliding = false; v.braking = false; v.slip = 0;
-        if (v.y <= g) land(v, g, groundVy);
+        if (v.air > .12 && !v.flying && v.y - g > 1.3) { v.flying = true; game.physics.setFlying(b, true); }   // clear of low walls, boxes and other cars
+        if (v.y <= g) {
+          if (g - v.y > 1 && (gf - pf > RIDE.ledge || gr - pr > RIDE.ledge)) {     // flew into the side of something tall: bounce off and keep falling
+            pos.x = v.qx; pos.y = v.qz; b.setTranslation(pos, true); vel.x *= -.25; vel.y *= -.25; b.setLinvel(vel, true); v._set.x = vel.x; v._set.y = vel.y;
+            v.gf = pf; v.gr = pr; v.x = v.qx; v.z = v.qz; v.damage(Math.hypot(vel.x, vel.y) * 6); game.onCrash(v, Math.hypot(vel.x, vel.y) * 4);
+            return true;
+          }
+          if (v.flying) { v.flying = false; game.physics.setFlying(b, false); }
+          land(v, g, groundVy);
+        }
         v.qx = x; v.qz = z;
         return true;
       }
@@ -81,7 +91,8 @@ export function createRide(game) {
       // gravity along the slope (parked cars stay put)
       let changed = false; vel.x = lv.x; vel.y = lv.y;
       if ((v.driver || speed > .3) && Math.abs(v.slope) > .02) {
-        const a = -RIDE.slopePull * v.slope / Math.hypot(1, v.slope) * dt; vel.x += fx * a; vel.y += fz * a; changed = true;
+        const steep = Math.max(0, Math.abs(v.slope) - RIDE.steep) * RIDE.steepPull * Math.sign(v.slope);
+        const a = -(RIDE.slopePull * v.slope / Math.hypot(1, v.slope) + steep) * dt; vel.x += fx * a; vel.y += fz * a; changed = true;
       }
       // water: slows you down, then floods the engine
       const depth = WATER - g;
