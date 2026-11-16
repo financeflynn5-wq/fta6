@@ -25,16 +25,23 @@ export function createInput(canvas) {
   document.addEventListener('pointerlockchange', () => { input.locked = document.pointerLockElement === canvas; });
   let drag = false;
   // mouse buttons count as keys: Mouse0 = left (fire / punch), Mouse2 = right (aim).
+  // These are mouse events on purpose. Pointer events only report the FIRST button that goes down:
+  // with right held to aim, a left click sends no pointerdown at all, so the gun never fired.
   // The click that captures the mouse doesn't also fire.
-  canvas.addEventListener('pointerdown', (e) => {
+  canvas.addEventListener('mousedown', (e) => {
     if (!input.enabled) return;
     if (!input.locked) { input.lock(); drag = true; return; }
     held.add('Mouse' + e.button); pressed.add('Mouse' + e.button);
   });
-  window.addEventListener('pointerup', (e) => { drag = false; held.delete('Mouse' + e.button); });
+  window.addEventListener('mouseup', (e) => { drag = false; held.delete('Mouse' + e.button); });
+  // a button let go while the browser wasn't telling us (outside the window, over a menu) must not stay stuck down
+  const BUTTON_BIT = [1, 4, 2, 8, 16];
+  const dropReleased = (e) => { for (let b = 0; b < 5; b++) if (!(e.buttons & BUTTON_BIT[b])) held.delete('Mouse' + b); };
+  document.addEventListener('pointerlockchange', () => { if (!input.locked) for (let b = 0; b < 5; b++) held.delete('Mouse' + b); });
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   window.addEventListener('wheel', (e) => { if (input.enabled && input.locked) input.wheel += Math.sign(e.deltaY); }, { passive: true });
   window.addEventListener('mousemove', e => {
+    dropReleased(e);
     if (!input.enabled || !(input.locked || drag)) return;
     input.mouseDX += e.movementX; input.mouseDY += e.movementY; input.lastMouse = performance.now();
   });
