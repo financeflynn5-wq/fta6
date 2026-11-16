@@ -1,7 +1,7 @@
 // One drivable car: arcade handling on top of a Rapier body.
 // Anyone can drive it by writing to `controls` (the player, traffic AI or a cop).
 import { CAR } from '../config.js';
-import { clamp, lerp, damp } from '../core/utils.js';
+import { clamp, lerp, damp, angleDiff } from '../core/utils.js';
 import { groundY } from '../world/city.js';
 import { makeCarModel } from './carModel.js';
 
@@ -19,6 +19,9 @@ export class Vehicle {
     this.x = x; this.z = z; this.h = heading; this.vx = 0; this.vz = 0;
     this.vf = 0; this.vl = 0; this.speed = 0; this.omega = 0;
     this.steer = 0; this.slip = 0; this.sliding = false; this.braking = false;
+    this.loose = 0;                // 0 = rear tyres biting, 1 = sliding on the handbrake
+    this.px = x; this.pz = z; this.ph = heading;   // where the car was one physics step ago
+    this.ix = x; this.iz = z; this.ih = heading;   // where to draw it this frame (between the two steps)
     this.impact = 0; this.siren = false; this.rpm = 0;
     this.roll = 0; this.pitch = 0; this.y = groundY(x, z); this.accelLong = 0;
     this.smokeT = 0; this.skidPrev = [null, null]; this.spin = 0; this.idleTime = 0;
@@ -33,7 +36,9 @@ export class Vehicle {
   // --- before the physics step: turn controls into velocities ---
   preStep(dt) {
     const b = this.body;
-    if (!this.driver && b.isSleeping()) { this.speed = this.vf = this.vl = 0; this.sliding = false; return; }
+    this.px = this.x; this.pz = this.z; this.ph = this.h;
+    if (!this.driver && b.isSleeping()) { this.speed = this.vf = this.vl = 0; this.sliding = false; this.loose = 0; return; }
+    if (this.game.ride?.preStep(this, dt)) return;      // terrain: slopes and flight (world/ride.js)
     const v = b.linvel(); this.h = b.rotation();
     const fx = this.fx, fz = this.fz, rx = this.rx, rz = this.rz, S = this.stats;
     let vf = v.x * fx + v.y * fz, vl = v.x * rx + v.y * rz, w = b.angvel();
@@ -53,23 +58,35 @@ export class Vehicle {
     const nv = vf - resist * dt; vf = (Math.sign(nv) !== Math.sign(vf) && thr === 0) ? 0 : nv;
     if (this.braking && before * vf < 0) vf = 0;
 
+    // The rear tyres only let go on the handbrake, and bite again over a moment instead of snapping.
+    const drifting = hb && driven && Math.abs(vf) > CAR.driftMinSpeed;
+    this.loose = drifting ? Math.min(1, this.loose + CAR.looseIn * dt) : Math.max(0, this.loose - CAR.looseOut * dt);
+    const grip = driven ? lerp(CAR.grip, CAR.gripHandbrake, this.loose) : CAR.gripHandbrake * .7;
+
     // sideways: tyres cancel the slide, up to their grip limit
-    const grip = (hb ? CAR.gripHandbrake : CAR.grip) * (driven ? 1 : .7);
-    const want = -vl / dt, got = clamp(want, -grip, grip);
+    const vl0 = vl, got = clamp(-vl / dt, -grip, grip);
     vl += got * dt;
+    // ...and what they cancel pushes the car forward again, so coming out of a drift keeps its speed
+    if (driven && !hb) vf = Math.sign(vf || 1) * Math.sqrt(vf * vf + CAR.slideKeep * (thr > 0 ? 1 : .5) * clamp((Math.abs(vf) - 3) / 6, 0, 1) * Math.max(0, vl0 * vl0 - vl * vl));
     this.slip = Math.abs(vl);
     const burnout = driven && thr > .9 && Math.abs(vf) < 7 && Math.abs(before) < 6;
-    this.sliding = this.slip > 2.4 || (hb && driven && Math.abs(vf) > 5) || burnout;
+    this.sliding = this.slip > 2.2 || drifting || burnout;
     if (this.slip > 1) vf -= vf * Math.min(.5, this.slip * .012) * dt;       // sliding scrubs a little speed
 
-    // steering: yaw follows the front wheels, less so while sliding
-    const sp = clamp(Math.abs(vf) / S.maxSpeed, 0, 1);
+    // steering wheel: moves at a steady rate, a touch slower at speed so a tap is a lane change, not a lurch
+    const av = Math.abs(vf), sp = clamp(av / S.maxSpeed, 0, 1);
     const target = driven ? clamp(c.steer, -1, 1) : 0;
-    this.steer = damp(this.steer, target, Math.abs(target) > Math.abs(this.steer) ? CAR.steerIn : CAR.steerOut, dt);
-    const lock = lerp(CAR.steerLow, CAR.steerHigh, Math.pow(sp, .6));
-    let wT = vf * Math.tan(this.steer * lock) / CAR.wheelbase;
-    if (hb && driven && Math.abs(vf) > 4) wT *= 1.65;
-    if (driven) w = damp(w, wT, this.slip > 3 ? CAR.yawSlide : CAR.yawGrip, dt);
+    const rate = target === 0 ? CAR.steerOut : target * this.steer < 0 ? CAR.steerFlip : lerp(CAR.steerIn, CAR.steerInFast, sp);
+    this.steer += clamp(target - this.steer, -rate * dt, rate * dt);
+    // Full lock asks for the tightest turn the tyres can hold at this speed and no more, so the car goes
+    // where it is pointed. On the handbrake the tail is free to swing round faster than that.
+    const most = lerp(CAR.gripUse * CAR.grip / Math.max(av, 1), CAR.driftYaw, this.loose);
+    let wT = this.steer * clamp(vf * Math.tan(CAR.steerLock) / CAR.wheelbase, -most, most);
+    if (this.loose > 0 && wT * vl < 0) {       // swinging deeper into the slide: ease off before it becomes a spin
+      const ang = Math.atan2(this.slip, av);
+      wT *= lerp(1, clamp(1 - (ang - CAR.driftAngle) / .35, .12, 1), this.loose);
+    }
+    if (driven) w = damp(w, wT, lerp(CAR.yawGrip, CAR.yawSlide, this.loose), dt);
     else w *= Math.max(0, 1 - 2.5 * dt);
 
     this.accelLong = damp(this.accelLong, (vf - before) / dt, 10, dt);
@@ -86,6 +103,7 @@ export class Vehicle {
     this.impact = Math.hypot(v.x - this._set.x, v.y - this._set.y);
     if (b.isSleeping()) this.impact = 0;
     this.x = p.x; this.z = p.y; this.h = b.rotation(); this.vx = v.x; this.vz = v.y; this.speed = Math.hypot(v.x, v.y);
+    if (Math.abs(this.x - this.px) + Math.abs(this.z - this.pz) > 4) { this.px = this.x; this.pz = this.z; this.ph = this.h; }   // moved by hand, not driven
     if (this.impact > CAR.damageMin) {
       this.damage((this.impact - CAR.damageMin) * CAR.damageScale * (this.driver === 'player' ? .75 : 1));
       this.game.onCrash(this, this.impact);
@@ -102,11 +120,19 @@ export class Vehicle {
   // --- once per rendered frame ---
   syncVisual(dt, t) {
     const m = this.mesh, u = m.userData, g = this.game;
-    const yf = groundY(this.x + this.fx * 1.4, this.z + this.fz * 1.4), yr = groundY(this.x - this.fx * 1.4, this.z - this.fz * 1.4);
-    this.y = dt ? damp(this.y, (yf + yr) / 2, 18, dt) : (yf + yr) / 2;
-    m.position.set(this.x, this.y, this.z); m.rotation.y = -this.h;
+    // Physics runs at a fixed 60 steps a second; draw the car between the last two steps so it
+    // moves smoothly at any frame rate.
+    const k = dt ? g.alpha ?? 1 : 1;
+    const x = this.ix = lerp(this.px, this.x, k), z = this.iz = lerp(this.pz, this.z, k), h = this.ih = this.ph + angleDiff(this.h, this.ph) * k;
+    let curb;
+    if (g.ride) curb = g.ride.place(this, dt);          // terrain: sits the car on slopes and flies it (world/ride.js)
+    else {
+      const cx = Math.cos(h) * 1.4, cz = Math.sin(h) * 1.4, yf = groundY(x + cx, z + cz), yr = groundY(x - cx, z - cz);
+      this.y = dt ? damp(this.y, (yf + yr) / 2, 18, dt) : (yf + yr) / 2;
+      m.position.set(x, this.y, z); m.rotation.y = -h;
+      curb = Math.atan2(yf - yr, 2.8);
+    }
     if (!dt) { this.pushWheels(); return; }
-    const curb = Math.atan2(yf - yr, 2.8);
     this.roll = damp(this.roll, clamp(-this.vf * this.omega * .0042, -.085, .085), 8, dt);
     this.pitch = damp(this.pitch, clamp(this.accelLong * .0035, -.06, .05) + curb, 9, dt);
     u.chassis.rotation.x = this.roll; u.chassis.rotation.z = this.pitch;
@@ -115,7 +141,7 @@ export class Vehicle {
     const burn = this.driver && this.controls.throttle > .9 && Math.abs(this.vf) < 7;
     for (const w of u.wheels) {
       w.spin.rotation.z = w.front || !burn ? this.spin : this.spin * 3;
-      if (w.front) w.steer.rotation.y = -this.steer * .5;
+      if (w.front) w.steer.rotation.y = -this.steer * lerp(.55, .2, Math.min(1, Math.abs(this.vf) / 30));
     }
     if (this.driver || this.speed > .02 || this.wheelsDirty) this.pushWheels();
     u.tail.emissiveIntensity = g.env.tailBase * (this.braking && this.driver ? 5 : 1);
@@ -125,7 +151,7 @@ export class Vehicle {
     const fxs = g.fx;
     if (this.sliding && this.speed > 1.5 || (burn && this.sliding)) {
       for (let i = 0; i < 2; i++) {
-        const side = i ? .86 : -.86, wx = this.x - this.fx * 1.42 + this.rx * side, wz = this.z - this.fz * 1.42 + this.rz * side;
+        const side = i ? .86 : -.86, ch = Math.cos(this.ih), sh = Math.sin(this.ih), wx = this.ix - ch * 1.42 - sh * side, wz = this.iz - sh * 1.42 + ch * side;
         const prev = this.skidPrev[i];
         if (prev) { if (Math.hypot(wx - prev.x, wz - prev.z) > .45) { fxs.skid(prev.x, prev.z, wx, wz, groundY(wx, wz)); prev.x = wx; prev.z = wz; } }
         else this.skidPrev[i] = { x: wx, z: wz };
@@ -159,7 +185,7 @@ export class Vehicle {
 
   teleport(x, z, h) {
     this.body.setTranslation({ x, y: z }, true); this.body.setRotation(h, true); this.body.setLinvel({ x: 0, y: 0 }, true); this.body.setAngvel(0, true);
-    this.x = x; this.z = z; this.h = h; this.syncVisual(0, 0);
+    this.x = this.px = x; this.z = this.pz = z; this.h = this.ph = h; this.loose = 0; this.syncVisual(0, 0);
   }
   dispose() { this.game.wheels.release(this.wheelSlot); this.game.scene.remove(this.mesh); this.game.physics.remove(this.body); this.gone = true; }
 }

@@ -1,8 +1,8 @@
 // Rocco's side of a fight: which weapons he carries, punching, aiming, shooting and reloading,
 // and how he holds each gun. Damage rules live in hits.js; cops shooting back in copGuns.js.
 import * as THREE from 'three';
-import { WEAPONS, COMBAT } from '../config.js';
-import { damp, angleDiff, clamp } from '../core/utils.js';
+import { WEAPONS, COMBAT, AIM } from '../config.js';
+import { damp, angleDiff, clamp, lerp, TAU } from '../core/utils.js';
 import { makeWeapon } from './weaponModels.js';
 import { createHits } from './hits.js';
 import { createGunFx } from './gunfx.js';
@@ -14,12 +14,12 @@ export function createCombat(game) {
   const hits = createHits(game), gfx = createGunFx(game.scene);
   const player = game.player, arms = player.model.userData.arms;
   const guns = {};                      // the gun meshes in Rocco's right hand, made on first pickup
-  const camDir = new THREE.Vector3(), muzzle = new THREE.Vector3(), d = new THREE.Vector3();
+  const muzzle = new THREE.Vector3(), d = new THREE.Vector3(), shot = new THREE.Vector3(), side = new THREE.Vector3(), up = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
   let reportT = 0;
 
   const combat = {
     hits, gfx, guns, weapon: 'fists', owned: new Set(['fists']), clip: {}, ammo: {},
-    aiming: false, aimBlend: 0, aimPitch: 0, ready: false, cool: 0, reloading: 0, burstLeft: 0, burstT: 0,
+    aiming: false, aimT: 0, aimBlend: 0, aimPitch: 0, scopeStep: 0, spread: 0, onTarget: false, ready: false, cool: 0, reloading: 0, burstLeft: 0, burstT: 0,
     swingT: 0, swingSide: 0, lastShot: -9, lastSwing: -9, hitT: 0, killHit: false, bloom: 0, kick: 0,
     get def() { return WEAPONS[combat.weapon]; },
 
@@ -49,14 +49,18 @@ export function createCombat(game) {
     // ---------- input, at the fixed physics rate ----------
     preStep(dt) {
       const input = game.input, p = player, w = combat.def;
-      combat.cool -= dt; reportT -= dt; combat.bloom = Math.max(0, combat.bloom - dt * 2.5);
+      combat.cool -= dt; reportT -= dt; combat.bloom = Math.max(0, combat.bloom - dt * AIM.bloomMax * 2);
       if (game.state !== 'playing') return;
       for (const id of WEAPON_ORDER) if (input.hit('Digit' + WEAPONS[id].slot)) combat.select(id);
-      const wh = input.takeWheel(); if (wh && p.mode === 'foot') cycle(wh);
+      // the wheel changes weapon; while looking through a scope it changes the magnification instead
+      const wh = input.takeWheel();
+      if (wh && p.mode === 'foot') { if (combat.aiming && w.scope) combat.scopeStep = clamp(combat.scopeStep - wh, 0, AIM.scopeZoom.length - 1); else cycle(wh); }
       const free = !p.frozen && p.mode === 'foot' && p.tumble <= 0 && !game.over;
       if (!free) { combat.aiming = false; combat.burstLeft = 0; combat.ready = false; p.aiming = false; return; }
 
+      const was = combat.aiming;
       combat.aiming = !w.melee && input.down('Mouse2');
+      if (combat.aiming && !was) game.cam.beginAim(snapTarget(w));
       if (combat.reloading > 0 && (combat.reloading -= dt) <= 0) finishReload();
       if (input.hit('KeyR')) reload();
       if (w.melee) { if (input.down('Mouse0') && combat.cool <= 0) swing(); }
@@ -73,12 +77,21 @@ export function createCombat(game) {
     update(dt, t) {
       const p = player, w = combat.def, onFoot = p.mode === 'foot';
       for (const id in guns) guns[id].visible = onFoot && id === combat.weapon;
-      combat.aimBlend = damp(combat.aimBlend, combat.aiming ? 1 : 0, 14, dt);
+      // the gun comes up over a fixed time (heavier guns take longer), eased at both ends
+      combat.aimT = clamp(combat.aimT + (combat.aiming ? dt / (w.ads || AIM.time) : -dt / AIM.timeOut), 0, 1);
+      combat.aimBlend = combat.aimT * combat.aimT * (3 - 2 * combat.aimT);
+      combat.spread = spreadNow(w);
       combat.hitT = Math.max(0, combat.hitT - dt); combat.swingT = Math.max(0, combat.swingT - dt); combat.kick = damp(combat.kick, 0, 14, dt);
       gfx.update(dt);
       if (!onFoot || p.tumble > 0) return;
-      game.camera.getWorldDirection(camDir);
-      combat.aimPitch = combat.aiming ? Math.asin(clamp(camDir.y, -1, 1)) : 0;
+      const cam = game.cam;
+      combat.aimPitch = Math.asin(clamp(cam.dir.y, -1, 1)) * combat.aimBlend;
+      // is the crosshair on somebody? (the HUD turns it red)
+      combat.onTarget = false;
+      if (combat.aiming && combat.aimBlend > .5 && !w.melee) {
+        const h = hits.cast(cam.origin.x, cam.origin.y, cam.origin.z, cam.dir.x, cam.dir.y, cam.dir.z, w.range, pastRocco(cam.origin, cam.dir), COMBAT.aimAssist * .35);
+        combat.onTarget = h.kind === 'ped' || h.kind === 'officer';
+      }
       if (combat.ready) p.face += angleDiff(faceYaw(), p.face) * Math.min(1, dt * 22);
       pose(w, t);
     },
@@ -112,20 +125,24 @@ export function createCombat(game) {
     const gun = guns[id]; muzzle.copy(gun.userData.muzzle); gun.localToWorld(muzzle);
 
     // aim: down the crosshair when aiming, otherwise at whoever is in front (hip fire auto-aim)
-    const cam = game.camera; let ox, oy, oz, tmin, assist;
-    if (combat.aiming) {
-      cam.getWorldDirection(d); ox = cam.position.x; oy = cam.position.y; oz = cam.position.z;
-      tmin = Math.max(0, (p.x - ox) * d.x + (p.y + 1.2 - oy) * d.y + (p.z - oz) * d.z - .2); assist = COMBAT.aimAssist * .35;
+    const cam = game.cam; let ox, oy, oz, tmin, assist;
+    if (combat.aiming && combat.aimBlend > .35) {
+      // exactly the ray through the crosshair, as it was drawn on the frame the trigger was pulled
+      d.copy(cam.dir); ox = cam.origin.x; oy = cam.origin.y; oz = cam.origin.z;
+      tmin = pastRocco(cam.origin, d); assist = COMBAT.aimAssist * .35;
     } else {
       ox = p.x; oy = p.y + 1.35; oz = p.z; tmin = .3; assist = COMBAT.aimAssist;
       const yaw = game.cam.yaw; d.set(Math.cos(yaw), 0, Math.sin(yaw));
       const tgt = autoTarget(w.range * .7, d);
       if (tgt) d.set(tgt.x - ox, tgt.y + 1.15 - oy, tgt.z - oz).normalize();
     }
-    const spread = w.spread * (1 + combat.bloom) * (combat.aiming ? 1 : 1.8);
+    // every pellet lands somewhere inside the cone the crosshair shows
+    const spread = spreadNow(w);
+    side.crossVectors(d, UP); if (side.lengthSq() < 1e-6) side.set(1, 0, 0); side.normalize(); up.crossVectors(side, d);
     for (let i = 0; i < w.pellets; i++) {
-      let dx = d.x + (Math.random() - .5) * 2 * spread, dy = d.y + (Math.random() - .5) * 2 * spread, dz = d.z + (Math.random() - .5) * 2 * spread;
-      const l = Math.hypot(dx, dy, dz); dx /= l; dy /= l; dz /= l;
+      const r = Math.tan(spread * Math.sqrt(Math.random())), a = Math.random() * TAU;
+      shot.copy(d).addScaledVector(side, Math.cos(a) * r).addScaledVector(up, Math.sin(a) * r).normalize();
+      const dx = shot.x, dy = shot.y, dz = shot.z;
       const h = hits.cast(ox, oy, oz, dx, dy, dz, w.range, tmin, assist);
       // the barrel must also be able to see what the crosshair sees
       if (h.kind !== 'wall') {
@@ -137,15 +154,31 @@ export function createCombat(game) {
     }
     gfx.flash(muzzle.x, muzzle.y, muzzle.z, .35 + w.loud * .25);
     audio.shot(w.loud, 1);
-    game.cam.shake(w.kick * .9); game.cam.pitch -= w.kick * (combat.aiming ? .12 : 0); combat.kick = w.kick * 4; combat.bloom = Math.min(2.5, combat.bloom + .5);
+    game.cam.shake(w.kick * .9); if (combat.aiming) game.cam.kick(w.kick); combat.kick = w.kick * 4; combat.bloom = Math.min(AIM.bloomMax, combat.bloom + AIM.bloom);
     game.peds.scare(p.x, p.z, 40, 8);
     if (reportT <= 0 && game.police.witnessed(p.x, p.z, COMBAT.witnessRange)) { reportT = 1.5; game.police.crime(...COMBAT.crime.shotsFired, 'SHOTS FIRED!'); }
     if (combat.clip[id] === 0 && combat.ammo[id] > 0 && !combat.burstLeft) setTimeout(() => { if (combat.weapon === id) reload(); }, 180);
   }
 
+  // How wide the shots scatter right now (radians): tight when aiming, wider from the hip, on the move and in a long burst.
+  function spreadNow(w) {
+    if (w.melee) return 0;
+    const hip = w.hipSpread ?? AIM.hipSpread, ads = w.adsSpread ?? AIM.adsSpread;
+    return w.spread * (1 + combat.bloom) * lerp(hip, ads, combat.aimBlend) * (1 + clamp(player.speed / 4.3, 0, 1) * AIM.moveSpread);
+  }
+  // Distance along the crosshair ray to just short of Rocco, so shots ignore whatever is between the camera and him.
+  const pastRocco = (o, dir) => Math.max(0, (player.x - o.x) * dir.x + (player.y + 1.2 - o.y) * dir.y + (player.z - o.z) * dir.z - .2);
+  // Who the crosshair should land on when the gun comes up: somebody close to dead ahead, if anyone.
+  function snapTarget(w) {
+    if (!AIM.snap) return null;
+    const yaw = game.cam.yaw; d.set(Math.cos(yaw), 0, Math.sin(yaw));
+    const q = autoTarget(w.range * .7, d, AIM.snap);
+    return q ? { x: q.x, y: q.y + 1.25, z: q.z } : null;
+  }
+
   // Closest body near the line of fire (people, not cars).
-  function autoTarget(range, dir) {
-    const p = player; let best = null, bestScore = .26;
+  function autoTarget(range, dir, cone = .26) {
+    const p = player; let best = null, bestScore = cone;
     const check = (q) => {
       const dx = q.x - p.x, dz = q.z - p.z, dist = Math.hypot(dx, dz); if (dist > range || dist < .5) return;
       const ang = Math.acos(clamp((dx * dir.x + dz * dir.z) / dist, -1, 1)), score = ang + dist / range * .08;

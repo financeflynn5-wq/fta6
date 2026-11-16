@@ -209,6 +209,7 @@ async function boot() {
   function advance(dt) {
     if (game.afterSetback && (game.afterSetback.in -= dt) <= 0) finishSetback();
     acc += dt; let n = 0; while (acc >= STEP && n < 3) { step(STEP); acc -= STEP; n++; } if (n === 3) acc = 0;
+    game.alpha = acc / STEP;      // how far this frame sits between the last two physics steps (for smooth drawing)
     const t = game.time;
     game.traffic.syncVisual(dt, t); game.wheels.commit();
     peds.update(dt, t);

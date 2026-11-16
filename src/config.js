@@ -18,11 +18,21 @@ export const CAR = {
     police: { name: 'CRUISER', mass: 1450, maxSpeed: 38.5, accel: 17, health: 140 },
   },
   maxReverse: 11, reverseAccel: 9,
-  brake: 30, handbrakeDecel: 7, engineBrake: 2.2, drag: 0.012,
-  grip: 27, gripHandbrake: 8.5,          // max sideways acceleration (m/s^2) before the tyres let go
-  steerLow: 0.6, steerHigh: 0.13,        // steering lock (rad) at standstill / top speed
-  steerIn: 7, steerOut: 11,              // how fast the wheel turns in / returns to centre
-  yawGrip: 13, yawSlide: 5.5,
+  brake: 30, handbrakeDecel: 6, engineBrake: 2.2, drag: 0.012,
+  // Tyres. grip is the most sideways acceleration (m/s^2) they hold. Steering may only ask for
+  // gripUse of it, so turning the wheel alone never breaks the car loose: only the handbrake does.
+  grip: 26, gripUse: .92, gripHandbrake: 11,
+  steerLock: .6,                          // front wheel lock (rad): the turning circle at parking speed
+  // how fast the steering wheel moves, in full locks per second:
+  // turning in (slow / flat out), returning to centre, and swinging through centre to the other side
+  steerIn: 7.5, steerInFast: 4.4, steerOut: 9, steerFlip: 13,
+  yawGrip: 16, yawSlide: 7,               // how quickly the body answers the wheels: gripping / sliding
+  // handbrake drifts
+  driftMinSpeed: 4.5,                     // below this the handbrake just stops the car
+  driftYaw: 2.2,                          // how fast the car can swing round on the handbrake (rad/s)
+  driftAngle: .65,                        // slide angle (rad) where the swing starts to run out, so drifts don't become spins
+  looseIn: 8, looseOut: 2.8,              // how fast the rear lets go / bites again (per second)
+  slideKeep: .65,                         // share of sideways speed turned back into forward speed when the tyres bite
   damageScale: 1.7, damageMin: 2.2,
 };
 
@@ -50,15 +60,31 @@ export const TRAFFIC = { count: 28, cruise: 11.5, pedCountNear: 5, pedCountFar: 
 export const TIME = { day: 210, dusk: 26, night: 130, dawn: 26 };
 
 // ---------- weapons and combat ----------
-// rate: shots (or swings) per second. spread: radians of random aim drift. mag: rounds per clip.
+// rate: shots (or swings) per second. spread: radians of aim drift before the multipliers in AIM. mag: rounds per clip.
+// zoom: how far aiming zooms in. ads: seconds to bring the gun up. adsSpread / hipSpread: override AIM's multipliers.
 // model: how a weapon sits in the hand when a .glb from assets/weapons/ replaces the stand-in.
 export const WEAPONS = {
   fists:   { name: 'FISTS',    slot: 1, melee: true, damage: 12, range: 1.7, rate: 2.8, knock: 4 },
-  pistol:  { name: 'PISTOL',   slot: 2, damage: 26, rate: 4.5, mag: 12, reload: 1.15, spread: .01,  range: 90,  pellets: 1, auto: false, kick: .05, length: .5, give: 36, loud: 1 },
-  smg:     { name: 'SMG',      slot: 3, damage: 13, rate: 12,  mag: 30, reload: 1.6,  spread: .03,  range: 70,  pellets: 1, auto: true,  kick: .025, length: .82, give: 90, twoHand: true, loud: .8 },
-  shotgun: { name: 'SHOTGUN',  slot: 4, damage: 11, rate: 1.25, mag: 6, reload: 2.1,  spread: .075, range: 32,  pellets: 8, auto: false, kick: .14, length: 1.3, give: 18, twoHand: true, loud: 1.5 },
-  burst:   { name: 'BURST RIFLE', slot: 5, damage: 20, rate: 2.6, burst: 3, burstGap: .07, mag: 30, reload: 1.8, spread: .012, range: 110, pellets: 1, auto: false, kick: .04, length: 1.1, give: 60, twoHand: true, loud: 1.2 },
-  sniper:  { name: 'SNIPER',   slot: 6, damage: 95, rate: .9,  mag: 5,  reload: 2.4,  spread: .002, range: 220, pellets: 1, auto: false, kick: .2, length: 1.5, give: 10, twoHand: true, scope: 14, loud: 1.8 },
+  pistol:  { name: 'PISTOL',   slot: 2, damage: 26, rate: 4.5, mag: 12, reload: 1.15, spread: .01,  range: 90,  pellets: 1, auto: false, kick: .05, length: .5, give: 36, loud: 1, zoom: 1.3, ads: .16 },
+  smg:     { name: 'SMG',      slot: 3, damage: 13, rate: 12,  mag: 30, reload: 1.6,  spread: .03,  range: 70,  pellets: 1, auto: true,  kick: .025, length: .82, give: 90, twoHand: true, loud: .8, zoom: 1.3, ads: .18 },
+  shotgun: { name: 'SHOTGUN',  slot: 4, damage: 11, rate: 1.25, mag: 6, reload: 2.1,  spread: .075, range: 32,  pellets: 8, auto: false, kick: .14, length: 1.3, give: 18, twoHand: true, loud: 1.5, zoom: 1.2, ads: .2, adsSpread: .75, hipSpread: 1.2 },
+  burst:   { name: 'BURST RIFLE', slot: 5, damage: 20, rate: 2.6, burst: 3, burstGap: .07, mag: 30, reload: 1.8, spread: .012, range: 110, pellets: 1, auto: false, kick: .04, length: 1.1, give: 60, twoHand: true, loud: 1.2, zoom: 1.8, ads: .22 },
+  sniper:  { name: 'SNIPER',   slot: 6, damage: 95, rate: .9,  mag: 5,  reload: 2.4,  spread: .002, range: 220, pellets: 1, auto: false, kick: .2, length: 1.5, give: 10, twoHand: true, scope: true, loud: 1.8, ads: .26, adsSpread: 0, hipSpread: 25 },
+};
+
+// ---------- aiming (hold right mouse) ----------
+export const AIM = {
+  sens: 1,                                 // mouse sensitivity to start with ([ and ] change it in the game)
+  adsSens: .8,                             // extra slow-down while aiming, on top of the zoom
+  shoulder: .7, height: 1.68, dist: 2.5,   // the camera while aiming: metres right of, above and behind Rocco
+  zoom: 1.3,                               // zoom while aiming, for weapons that don't set their own
+  time: .2, timeOut: .16,                  // seconds to bring a gun up / lower it
+  level: .03,                              // with nobody in front, the view settles this far below the horizon (rad)
+  snap: .2,                                // start aiming with someone this close to dead ahead (rad) and the crosshair lands on them. 0 = off
+  hipSpread: 1.7, adsSpread: .45, moveSpread: .6,   // spread multipliers: from the hip, aiming, and extra at a full walk
+  bloom: .35, bloomMax: 1.5,               // each shot opens the spread this much, up to this much; it closes again in half a second
+  recoil: .28, recoilReturn: 9,            // share of a weapon's kick that lifts the view, and how fast it settles
+  scopeZoom: [4, 8],                       // scope magnifications (mouse wheel while looking through it)
 };
 
 export const COMBAT = {
