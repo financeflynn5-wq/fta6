@@ -66,6 +66,8 @@ export function createAudio() {
     skid(amount) { if (!ctx) return; skid.gain.gain.setTargetAtTime(clamp(amount, 0, 1) * .22, now(), .05); skid.filter.frequency.setTargetAtTime(1300 + amount * 700, now(), .1); },
     siren(vol) { if (!ctx) return; siren.gain.gain.setTargetAtTime(clamp(vol, 0, 1) * .085, now(), .15); },
     crash(power) { const p = clamp(power, 0, 1); burst(.25 + p * .35, .25 + p * .6, 500 + p * 900); tone('sine', 110, 38, .22, .3 + p * .5); if (p > .5) burst(.5, .25, 3500, 'highpass'); },
+    // a window or a lamp going: bright tinkle. vol 0..1 fades with distance
+    glass(vol = 1) { if (vol < .03) return; burst(.22, .3 * vol, 5200, 'highpass'); for (let i = 0; i < 5; i++) tone('triangle', 2600 + Math.random() * 3800, 1800 + Math.random() * 1500, .05 + Math.random() * .09, .05 * vol, i * .035 + Math.random() * .03); },
     bonk() { tone('sine', 520, 130, .22, .4); tone('triangle', 260, 90, .25, .25, .03); },                    // critter gets bumped
     clank() { for (const f of [820, 1240, 1710, 2330]) tone('square', f * (.95 + Math.random() * .1), f * .8, .16 + Math.random() * .12, .07); burst(.12, .25, 4000, 'highpass'); },
     door() { burst(.09, .5, 700); tone('sine', 150, 70, .1, .35); },

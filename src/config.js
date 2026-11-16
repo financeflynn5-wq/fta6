@@ -45,6 +45,26 @@ export const CAR = {
   damageScale: 1.7, damageMin: 2.2,
 };
 
+// ---------- crash damage you can see (vehicles/damage.js, fx/debris.js) ----------
+// A knock is the sudden change of speed in m/s (the same number CAR.damageMin is compared with).
+export const DAMAGE = {
+  range: 170,                          // only vehicles this close to you are dented (nobody sees the rest)
+  edge: .24,                           // before bending, panels are cut into triangles no longer than this (m): smaller = smoother dents, more work
+  knockMin: 2.2, depthPer: .034,       // dents start at this knock, and go this many metres deeper per m/s above it
+  maxDepth: .5, maxDent: .62,          // the most one hit presses in, and the furthest any point may end up from where it began
+  crumple: .7, crumplePer: 2.2,        // how far behind the hit the body gives way: metres, plus this many per metre of depth
+  wide: { wall: .55, car: .45, post: .22, ledge: .9 },   // half-width of a dent beyond what touched the car
+  buckle: .45, wrinkle: .5,            // how much bonnets and boots tent upwards, and how ragged a dent is
+  scuff: .06, scuffPer: .02,            // paint scraped off by any knock, plus per m/s
+  glassReach: .9, glassReachPer: .13,  // a knock cracks glass this far from it (m), plus per m/s
+  glassPer: .06, glassOut: 1.25,       // how fast glass cracks (1 = crazed all over), and when panes start falling out
+  lightPer: .12,                       // a lamp goes dark once the knocks next to it add up to 1 / this
+  tearAt: .5, tearHit: .13,            // dent depth added up on the nose or tail that tears the bumper off, and the least single hit that does it
+  steamAt: .38,                        // depth added up on the nose that makes the radiator steam
+  shards: 260, shardLife: 14,          // small flying bits: how many at once, and seconds before they are swept up
+  parts: 6, partLife: 45,              // torn-off bumpers lying around at once, and how long they stay
+};
+
 export const PLAYER = {
   radius: 0.36, walk: 4.3, sprint: 7.8, accel: 14,
   health: 100, regen: 3, stamina: 6, staminaRegen: 0.6,

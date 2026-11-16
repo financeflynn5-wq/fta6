@@ -214,5 +214,5 @@ export class Vehicle {
   // The rider is gone for good (thrown off as a pedestrian, or the bike was cleared away). Never the player's own model.
   dropRider() { const m = this.rider; if (!m || m === this.game.player.model) return; this.unseat(); m.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); }
 
-  dispose() { this.dropRider(); this.game.wheels.release(this.wheelSlot); this.wheelSlot = -1; this.game.scene.remove(this.mesh); this.game.physics.remove(this.body); this.gone = true; }
+  dispose() { this.game.damage?.release(this); this.dropRider(); this.game.wheels.release(this.wheelSlot); this.wheelSlot = -1; this.game.scene.remove(this.mesh); this.game.physics.remove(this.body); this.gone = true; }
 }

@@ -1,0 +1,76 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>FTA 6 damage lab</title>
+<!-- A bench for the crash damage: one or more vehicles on a plain floor, dented from the console.
+     Not part of the game. Open dev/damage-lab.html?types=car,truck from a static server, then e.g.
+     lab.hit(0, { ax: 2.3, az: -.6, bx: 2.3, bz: .6, nx: -1, nz: 0, sev: 14, kind: 'wall' }); lab.view(40, 20, 9) -->
+<style>html, body { margin: 0; background: #9aa; overflow: hidden } canvas { display: block }</style>
+<script type="importmap">{"imports":{"three":"../vendor/three/build/three.module.js","three/addons/":"../vendor/three/addons/","rapier":"../vendor/rapier/rapier.mjs"}}</script>
+<canvas id="cv"></canvas>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { makeCarModel, createWheelBatch } from '../src/vehicles/carModel.js';
+import { loadVehicleModels } from '../src/vehicles/vehicleModels.js';
+import { createDamage } from '../src/vehicles/damage.js';
+import { createDebris } from '../src/fx/debris.js';
+import { CAR } from '../src/config.js';
+import { litMaterials, mats, std } from '../src/world/materials.js';
+import { groundY } from '../src/world/terrain.js';
+
+const q = new URLSearchParams(location.search), types = (q.get('types') || 'car').split(',');
+const W = +(q.get('w') || 960), H = +(q.get('h') || 600);
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('cv'), antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H, false); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = .85;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xf3d9c0);
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(renderer), .04).texture;
+const camera = new THREE.PerspectiveCamera(42, W / H, .1, 300);
+scene.add(new THREE.HemisphereLight(0xcfe6ff, 0x8a7a66, .75));
+const sun = new THREE.DirectionalLight(0xffe2b8, 2.6); sun.position.set(-14, 22, 9); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20, near: 1, far: 80 }); sun.shadow.bias = -.0004; sun.shadow.normalBias = .04; scene.add(sun);
+const X0 = +(q.get('x') || 0), Z0 = +(q.get('z') || 0), gy = groundY(X0, Z0);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), std({ color: 0x55585e, roughness: .92 })); floor.rotation.x = -Math.PI / 2; floor.position.set(X0, gy - .001, Z0); floor.receiveShadow = true; scene.add(floor);
+for (const m of litMaterials) m.envMapIntensity = .7;
+
+const vehicles = [], wheels = createWheelBatch(scene);
+const game = { scene, player: { x: X0, z: Z0 }, fx: { smoke() {}, spark() {} }, audio: {}, traffic: { vehicles }, physics: null };
+game.vehiclesReady = loadVehicleModels(q.has('standin') ? '../assets/none/' : '../assets/vehicles/');      // ?standin: the stand-in shapes, as if the model files were missing
+game.debris = createDebris(scene); game.damage = createDamage(game);
+function add(type, x, z, h) {
+  const T = { ...CAR, ...CAR.types[type] };
+  const v = { type, stats: CAR.types[type], tune: T, halfLen: T.halfLen, halfWid: T.halfWid, mesh: makeCarModel(type), x, z, h, y: gy, vx: 0, vz: 0, vf: 0, wrecked: false, rider: null, slot: -1, kind: null,
+    get fx() { return Math.cos(this.h); }, get fz() { return Math.sin(this.h); }, get rx() { return -Math.sin(this.h); }, get rz() { return Math.cos(this.h); } };
+  v.mesh.position.set(x, gy, z); v.mesh.rotation.y = -h; scene.add(v.mesh); vehicles.push(v); return v;
+}
+const colors = (q.get('colors') || '').split(',').filter(Boolean);
+types.forEach((t, i) => { const v = add(t, X0, Z0 + (i - (types.length - 1) / 2) * 4.2, 0); if (colors[i]) v.mesh.userData.color = parseInt(colors[i], 16); });
+function pushWheels() {
+  for (const v of vehicles) {
+    const u = v.mesh.userData; if (v.kind !== u.wheelKind) { wheels.release(v.slot); v.kind = u.wheelKind; v.slot = wheels.alloc(u.wheelKind); }
+    v.mesh.updateMatrixWorld(true); u.wheels.forEach((w, i) => wheels.set(v.slot + i, w.spin.matrixWorld));
+  }
+  wheels.commit();
+}
+const lab = window.lab = {
+  game, vehicles, THREE, scene, camera, renderer, mats, ready: false,
+  hit: (i, spec) => game.damage.hit(vehicles[i], spec),
+  // look at the vehicles from a compass angle (deg, 0 = from the front), elevation (deg) and distance
+  view(az = 35, el = 18, dist = 9, tx = X0, ty = gy + .8, tz = Z0) {
+    const a = az * Math.PI / 180, e = el * Math.PI / 180;
+    camera.position.set(tx + Math.cos(a) * Math.cos(e) * dist, ty + Math.sin(e) * dist, tz + Math.sin(a) * Math.cos(e) * dist); camera.lookAt(tx, ty, tz);
+  },
+  // several views in one picture: [[az, el, dist, tx, ty, tz], ...]
+  grid(views, cols = 2) {
+    const rows = Math.ceil(views.length / cols), w = W / cols, h = H / rows; pushWheels(); renderer.setScissorTest(true);
+    views.forEach((vw, i) => { const x = (i % cols) * w, y = H - (Math.floor(i / cols) + 1) * h; renderer.setViewport(x, y, w, h); renderer.setScissor(x, y, w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); lab.view(...vw); renderer.render(scene, camera); });
+    renderer.setScissorTest(false); lab.held = true;
+  },
+  step(dt = 1 / 60, n = 1) { for (let i = 0; i < n; i++) { game.damage.update(dt); game.debris.update(dt); } },
+  render() { if (lab.held) return; pushWheels(); renderer.render(scene, camera); },
+  night(on) { mats.head.emissiveIntensity = on ? 6 : .4; for (const v of vehicles) v.mesh.userData.tail.emissiveIntensity = on ? 4 : .5; sun.intensity = on ? .12 : 2.6; },
+};
+lab.view();
+game.vehiclesReady.then(() => { lab.step(); lab.render(); lab.ready = true; });
+if (q.has('live')) (function loop() { requestAnimationFrame(loop); lab.step(); lab.render(); })();
+</script>

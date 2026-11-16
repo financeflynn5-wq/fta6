@@ -67,6 +67,27 @@ export async function createPhysics() {
       const dx = bx - ax, dz = bz - az, len = Math.hypot(dx, dz) || 1, ox = -dz / len * 1.25, oz = dx / len * 1.25;
       return physics.blocked(ax + ox, az + oz, bx + ox, bz + oz) < 0 && physics.blocked(ax - ox, az - oz, bx - ox, bz - oz) < 0;
     },
+    // Where a car is being hit right now, in the car's own frame (x forward, y to its right): the contact
+    // carrying the most force. Fills `out` with one or two points (a flat face against a wall touches along
+    // a line), the direction pointing into the car, and what it hit. Returns null when nothing is touching.
+    contactOf(body, out) {
+      const col = body.collider(0); let best = -1;
+      world.contactPairsWith(col, (other) => {
+        world.contactPair(col, other, (m, flipped) => {
+          const n = m.numContacts(); if (!n) return;
+          let force = 0, near = 1e9;
+          for (let i = 0; i < n; i++) { force += Math.abs(m.contactImpulse(i)); near = Math.min(near, m.contactDist(i)); }
+          const score = force > 0 ? 1 + force : 1 / (1 + Math.max(0, near) * 50);     // nothing solved yet: the closest pair
+          if (score <= best) return; best = score;
+          const p0 = flipped ? m.localContactPoint2(0) : m.localContactPoint1(0), p1 = n > 1 ? (flipped ? m.localContactPoint2(1) : m.localContactPoint1(1)) : p0;
+          const nn = flipped ? m.localNormal2() : m.localNormal1();
+          out.ax = p0.x; out.az = p0.y; out.bx = p1.x; out.bz = p1.y; out.nx = -nn.x; out.nz = -nn.y;
+          out.owner = owners.get(other.handle) || null; out.round = other.shapeType() === RAPIER.ShapeType.Ball; out.r = out.round ? other.radius() : 0;
+          out.low = !out.owner && (other.collisionGroups() >>> 16) === GROUP.LOW;
+        });
+      });
+      return best < 0 ? null : out;
+    },
     // Runs one fixed step; onContact(a, b) fires once when two owned things first touch.
     step(onContact) {
       world.step(queue);

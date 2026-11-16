@@ -10,6 +10,8 @@ import { buildCity } from './world/city.js';
 import { createSky } from './world/sky.js';
 import { createEffects } from './fx/effects.js';
 import { createCarLights } from './fx/carLights.js';
+import { createDebris } from './fx/debris.js';
+import { createDamage } from './vehicles/damage.js';
 import { createTraffic } from './vehicles/traffic.js';
 import { AIDriver } from './vehicles/aiDriver.js';
 import { createWheelBatch } from './vehicles/carModel.js';
@@ -68,6 +70,8 @@ async function boot() {
   game.weaponHud = createWeaponHud(game);
   game.weaponsReady = loadWeaponModels();       // Flynn's guns stream in; stand-ins until then
   game.vehiclesReady = loadVehicleModels();     // the Blender vehicles too
+  game.debris = createDebris(engine.scene);     // shards and torn-off parts
+  game.damage = createDamage(game);             // dents, scuffs, broken glass and lamps
   game.traffic.init();
   game.peds.init();
   game.jobs = createJobs(game);
@@ -100,7 +104,8 @@ async function boot() {
     const d = Math.hypot(v.x - player.x, v.z - player.z);
     if (mine) { cam.shake(.2 + power * .6); game.jobs.onCrash(v, impact); if (v.stats.rider && impact > v.stats.throwAt) player.thrown(impact); }
     if (d < 50 && game.time - crashSound > .07) { crashSound = game.time; audio.crash(mine ? power : power * (1 - d / 50) * .7); }
-    if (d < 70) fx.spark(v.x + v.fx * 1.6 * Math.sign(v.vf || 1), v.y + .6, v.z + v.fz * 1.6 * Math.sign(v.vf || 1), 3 + Math.round(power * 10), .6 + power);
+    const hit = game.damage.crash(v, impact);          // dents the body where it was hit; says where that was
+    if (d < 70) { if (hit) fx.spark(hit.x, hit.y, hit.z, 3 + Math.round(power * 10), .6 + power); else fx.spark(v.x + v.fx * 1.6 * Math.sign(v.vf || 1), v.y + .6, v.z + v.fz * 1.6 * Math.sign(v.vf || 1), 3 + Math.round(power * 10), .6 + power); }
   };
 
   game.onWrecked = (v) => {
@@ -228,6 +233,7 @@ async function boot() {
     game.copGuns.update(dt, t);
     game.pickups.update(dt, t);
     game.jobs.update(dt, t);
+    game.damage.update(dt); game.debris.update(dt);
     fx.update(dt);
     game.city.updateLights(t);
     if ((maintainT -= dt) <= 0) { maintainT = 2; game.traffic.maintain(); }

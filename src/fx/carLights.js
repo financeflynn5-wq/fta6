@@ -11,7 +11,7 @@ export function createCarLights(game) {
     update(t) {
       const car = game.player.vehicle, night = clamp((game.env.night - .3) / .4, 0, 1);
       if (car && !car.wrecked && night > 0) {
-        head.intensity = 160 * night;
+        head.intensity = 160 * night * (car.dmg ? (car.dmg.head[0] + car.dmg.head[1]) / 2 : 1);      // smashed headlights light less
         const fx = Math.cos(car.ih), fz = Math.sin(car.ih);
         head.position.set(car.ix + fx * 2.3, car.y + .8, car.iz + fz * 2.3);
         head.target.position.set(car.ix + fx * 24, car.y - .5, car.iz + fz * 24);
