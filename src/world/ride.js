@@ -58,7 +58,7 @@ export function createRide(game) {
             return true;
           }
           if (v.flying) { v.flying = false; game.physics.setFlying(b, false); }
-          land(v, g, groundVy);
+          land(v, g, Math.abs(g - gPrev) > .3 ? 0 : groundVy);     // touching down across a step (a deck's edge): that jump in height isn't speed
         }
         v.qx = x; v.qz = z;
         return true;

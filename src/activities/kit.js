@@ -38,16 +38,18 @@ export function createKit(game) {
     return m;
   }
 
-  // ---------- HUD: activity panel (top centre), banner (middle), hint (above the prompt) ----------
+  // ---------- HUD: activity panel and hint (top centre, stacked), banner (middle) ----------
   const hud = document.getElementById('hud');
-  const el = (cls) => { const d = document.createElement('div'); d.className = cls; d.hidden = true; hud.appendChild(d); return d; };
-  const panel = el('act'), banner = el('actBanner'), hint = el('actHint');
+  const el = (cls, into = hud) => { const d = document.createElement('div'); d.className = cls; d.hidden = true; into.appendChild(d); return d; };
+  const top = el('actTop'); top.hidden = false;
+  const panel = el('act', top), hint = el('actHint', top), banner = el('actBanner'), flash = el('actFlash');
   let panelHtml = '', hintHtml = '', bannerT = 0;
   const ui = {
     // title + big value + small line under it
     panel(title, value = '', sub = '') { const h = title ? `<b>${title}</b><i>${value}</i><span>${sub}</span>` : ''; if (h !== panelHtml) { panel.innerHTML = h; panel.hidden = !h; panelHtml = h; } },
     hint(text) { if (text !== hintHtml) { hint.innerHTML = text; hint.hidden = !text; hintHtml = text; } },
     banner(big, small = '', cls = '', secs = 2.6) { banner.className = 'actBanner ' + cls; banner.innerHTML = `<b>${big}</b><span>${small}</span>`; banner.hidden = false; bannerT = secs; void banner.offsetWidth; banner.classList.add('show'); },
+    flash() { flash.hidden = false; flash.classList.remove('show'); void flash.offsetWidth; flash.classList.add('show'); },      // a camera flash
     update(dt) { if (bannerT > 0 && (bannerT -= dt) <= 0) banner.hidden = true; },
   };
 

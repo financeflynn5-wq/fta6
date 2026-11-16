@@ -28,7 +28,7 @@ export function createStunts(A) {
     if (j && info.dist >= j.min) {
       const first = !done.has(j.id); let pay = first ? C.first : C.again, extra = '';
       if (first) { done.add(j.id); kit.save.set('stunts', [...done]); }
-      if (j.id === 'pier' && Math.abs(v.x) < 7 && v.z < -326 && v.z > -356) { pay += C.barge; extra = '  BARGE LANDING!'; }
+      if (j.id === 'pier' && Math.abs(v.x) < 7 && v.z < -326 && v.z > -368) { pay += C.barge; extra = '  BARGE LANDING!'; }
       game.addMoney(pay); game.audio.evade();
       kit.ui.banner('STUNT JUMP', `${j.name} · ${metres} m  +${cash(pay)}${extra}${first ? `  (${done.size}/${JUMPS.length})` : ''}`, 'stunt', 3.6);
     } else if (j && info.dist > 4) game.hud.toast(`${j.name}: ${metres} m OF ${j.min} m`, 'info');

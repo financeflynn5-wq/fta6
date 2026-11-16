@@ -5,13 +5,15 @@ import { RIDE } from '../config.js';
 import { damp } from '../core/utils.js';
 import { groundY, waterDepth } from './terrain.js';
 import { districtAt } from './map.js';
+import * as THREE from 'three';
 import { createRide } from './ride.js';
 
 export function createWorld(game) {
   game.ride = createRide(game);
   game.markers = [];                 // radar blips anyone can add: { x, z, color, glyph, pin, visible() }
   const vel = { x: 0, y: 0 };
-  let lift = 0, district = '', districtT = 0, swimT = 0;
+  const fwd = new THREE.Vector3();
+  let lift = 0, district = '', districtT = 0, swimT = 0, hazeT = 0;
 
   return {
     ride: game.ride, district: () => district,
@@ -39,6 +41,11 @@ export function createWorld(game) {
         const need = groundY(cam.position.x, cam.position.z) + .7 - cam.position.y;
         lift = need > lift ? need : damp(lift, Math.max(0, need), 5, dt);
         if (lift > .01) { cam.position.y += lift; cam.lookAt(game.cam.lookAt); }
+      }
+      // scenery the haze has swallowed isn't drawn: nothing shows past the far edge of the fog
+      if ((hazeT -= dt) <= 0 && game.scene.fog) {
+        hazeT = .2; cam.getWorldDirection(fwd); const far = game.scene.fog.far + 6, c = cam.position;
+        for (const m of game.city.welded) { const s = m.geometry.boundingSphere.center; m.visible = (s.x - c.x) * fwd.x + (s.y - c.y) * fwd.y + (s.z - c.z) * fwd.z - m.geometry.boundingSphere.radius < far; }
       }
       for (const f of game.city.districts.animated) f(dt, t);
       // splashes while wading

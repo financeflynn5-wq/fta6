@@ -55,7 +55,7 @@ export function buildDistricts(api) {
   function house(cx, cz, w, d, h, signs = false) {
     const ys = [groundY(cx - w / 2, cz - d / 2), groundY(cx + w / 2, cz - d / 2), groundY(cx - w / 2, cz + d / 2), groundY(cx + w / 2, cz + d / 2)];
     const y = Math.max(...ys), lo = Math.min(...ys);
-    api.building(cx, cz, w, d, h, signs, y);
+    api.building(cx, cz, w, d, h, signs, y, signs);      // houses get one roof unit, not a downtown roof's worth
     if (y - lo > .05) box(mats.trim, cx, (y + lo) / 2 - .5, cz, w + .2, y - lo + 1, d + .2);
     keepOut(cx, cz, Math.max(w, d) / 2 + 2.5);
   }
@@ -73,7 +73,7 @@ export function buildDistricts(api) {
   }
   out.ramps.beach = P.ramp(27, -200, -PI / 2, 10, 6, 2.4); keepOut(27, -200, 9);
   // the arch over the pier entrance
-  P.sign('SUNSET BEACH', 0, 7.2, -224.5, 0, 17, 3.4, '#14244f', '#ffd34d');
+  P.sign('SUNSET BEACH', 0, 7.2, -224.5, 0, 17, 3.4, '#14244f', '#ffd34d', 150, true);
   for (const sx of [-8, 8]) { box(mats.trim, sx, 4, -224.5, .5, 8, .5); post(sx, -224.5, .4); }
   keepOut(0, -196, 9);
   scatter(30, -155, -208, 155, -170, (x, z) => P.palm(x, z, rr(.9, 1.2)));
@@ -103,11 +103,11 @@ export function buildDistricts(api) {
   keepOut(0, -270, 9); keepOut(27, -236, 8);                                         // pier, and the landing strip of the promenade ramp
 
   // the barge you land on
-  deck({ x: 0, z: -341, hl: 15, hw: 7, rot: -PI / 2, y0: -.4, plan: '#7d7468' });
-  box(M.hull, 0, -1.65, -341, 14, 2.4, 30); box(mats.darkMetal, 0, -.44, -341, 13.4, .1, 29.4, false);
-  for (const sx of [-6.85, 6.85]) box(mats.yellowPaint, sx, -.3, -341, .3, .3, 30, false);
-  P.container(-3.2, -353.5, 'x', 0, -.4); P.container(3.2, -353.5, 'x', 0, -.4); P.container(0, -353.5, 'x', 1, -.4);
-  out.spots.barge = { x: 0, z: -341 };
+  deck({ x: 0, z: -347, hl: 21, hw: 7, rot: -PI / 2, y0: -.4, plan: '#7d7468' });
+  box(M.hull, 0, -1.65, -347, 14, 2.4, 42); box(mats.darkMetal, 0, -.44, -347, 13.4, .1, 41.4, false);
+  for (const sx of [-6.85, 6.85]) box(mats.yellowPaint, sx, -.3, -347, .3, .3, 42, false);
+  P.container(-3.2, -365.5, 'x', 0, -.4); P.container(3.2, -365.5, 'x', 0, -.4); P.container(0, -365.5, 'x', 1, -.4);
+  out.spots.barge = { x: 0, z: -347 };
 
   // the big wheel
   {
@@ -242,7 +242,7 @@ export function buildDistricts(api) {
   // =====================================================================================
   const onTrack = (x, z) => { const e = Math.hypot((x - RACEWAY.x) / RACEWAY.rx, (z - RACEWAY.z) / RACEWAY.rz); return e > .72 && e < 1.32; };
   for (let i = 0; i < 20; i++) { const a = i / 20 * PI * 2; P.tires(RACEWAY.x + Math.cos(a) * RACEWAY.rx * .76, RACEWAY.z + Math.sin(a) * RACEWAY.rz * .8); }
-  P.sign('DUST DEVIL RACEWAY', -188, groundY(-188, -62) + 7, -62, PI, 18, 3, '#17181f', '#ff8a3d');
+  P.sign('DUST DEVIL RACEWAY', -188, groundY(-188, -62) + 7, -62, PI, 18, 3, '#17181f', '#ff8a3d', 150, true);
   for (const sx of [-9, 9]) { box(mats.trim, -188 + sx, groundY(-188 + sx, -62) + 3.6, -62, .45, 7.4, .45); post(-188 + sx, -62, .35); }
   out.parked.push(['car', -176, -40, -PI / 2], ['car', -176, -48, -PI / 2]);
   out.spots.raceway = { x: -188, z: -58 };

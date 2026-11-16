@@ -8,17 +8,20 @@ import { maxHp } from '../combat/hits.js';
 
 const { PITCH } = WORLD;
 
-// Position on the square path around a block: s is distance walked along it.
-function rectPoint(lane, s) {
-  const side = lane * 2, p = ((s % (side * 4)) + side * 4) % (side * 4), k = Math.floor(p / side), f = p - k * side - lane;
-  return [[f, -lane, 1, 0], [lane, f, 0, 1], [-f, lane, -1, 0], [-lane, -f, 0, -1]][k];
+// Position on the rectangular path a citizen walks (half-sizes hx, hz around a centre): s is distance walked along it.
+function rectPoint(hx, hz, s) {
+  const per = (hx + hz) * 4; let p = ((s % per) + per) % per;
+  if (p < hx * 2) return [p - hx, -hz, 1, 0];
+  if ((p -= hx * 2) < hz * 2) return [hx, p - hz, 0, 1];
+  if ((p -= hz * 2) < hx * 2) return [hx - p, hz, -1, 0];
+  return [-hx, hz - (p - hx * 2), 0, -1];
 }
-// The reverse: closest point on that path to a position (relative to block centre).
-function rectParam(lane, x, z) {
-  const d = [Math.abs(z + lane), Math.abs(x - lane), Math.abs(z - lane), Math.abs(x + lane)];
+// The reverse: closest point on that path to a position (relative to the centre).
+function rectParam(hx, hz, x, z) {
+  const d = [Math.abs(z + hz), Math.abs(x - hx), Math.abs(z - hz), Math.abs(x + hx)];
   let k = 0; for (let i = 1; i < 4; i++) if (d[i] < d[k]) k = i;
-  const f = clamp([x, z, -x, -z][k], -lane, lane);
-  return k * lane * 2 + f + lane;
+  const fx = clamp(x, -hx, hx), fz = clamp(z, -hz, hz);
+  return [fx + hx, hx * 2 + fz + hz, hx * 2 + hz * 2 + hx - fx, hx * 4 + hz * 2 + hz - fz][k];
 }
 const blockCentre = (v) => 27 + PITCH * clamp(Math.round((v - 27) / PITCH), -3, 2);
 
@@ -31,10 +34,10 @@ export function createPedestrians(game) {
     const model = makeCharacter(kind); game.scene.add(model);
     const ped = {
       isPed: true, kind, cop, model, x, z, y: groundY(x, z), vx: 0, vz: 0, vy: 0, air: 0,
-      cx: blockCentre(x), cz: blockCentre(z), lane: rnd(17.6, 19), s: 0, pace: rnd(1.1, 1.7) * (Math.random() < .5 ? 1 : -1),
+      cx: blockCentre(x), cz: blockCentre(z), lane: rnd(17.6, 19), laneZ: 0, s: 0, pace: rnd(1.1, 1.7) * (Math.random() < .5 ? 1 : -1),
       state: 'walk', timer: 0, face: 0, speed: 0, panic: 0,
     };
-    ped.s = rectParam(ped.lane, x - ped.cx, z - ped.cz);
+    ped.laneZ = ped.lane; ped.s = rectParam(ped.lane, ped.laneZ, x - ped.cx, z - ped.cz);
     list.push(ped); return ped;
   }
 
@@ -67,6 +70,11 @@ export function createPedestrians(game) {
       else p.state = 'return';
       p.panic = 8; game.env.touch(); return p;
     },
+    // Someone who strolls a loop of their own outside downtown (a boardwalk, a pier, a hill street): half-sizes hx, hz around (cx, cz).
+    addWalker(kind, cx, cz, hx, hz) {
+      const p = add(kind, cx, cz); p.cx = cx; p.cz = cz; p.lane = hx; p.laneZ = hz; p.s = Math.random() * (hx + hz) * 4;
+      const [x, z] = rectPoint(hx, hz, p.s); p.x = cx + x; p.z = cz + z; return p;
+    },
     // Hand a pedestrian over to another system (police take their beat cops back).
     release(ped) { const i = list.indexOf(ped); if (i >= 0) list.splice(i, 1); return ped; },
     adopt(ped) { ped.cx = blockCentre(ped.x); ped.cz = blockCentre(ped.z); ped.state = 'return'; ped.panic = 0; list.push(ped); },
@@ -93,7 +101,7 @@ export function createPedestrians(game) {
         if (p.state === 'walk') {
           const run = p.panic > 0 ? 3.4 : 1;
           p.s += p.pace * run * dt; p.speed = Math.abs(p.pace) * run;
-          const [x, z, dx, dz] = rectPoint(p.lane, p.s), sg = Math.sign(p.pace);
+          const [x, z, dx, dz] = rectPoint(p.lane, p.laneZ, p.s), sg = Math.sign(p.pace);
           p.x = p.cx + x; p.z = p.cz + z; p.face = Math.atan2(dx * sg, dz * sg);
           if (p.panic > 0) pose = 'flail';
         } else if (p.state === 'dive') {
@@ -109,7 +117,7 @@ export function createPedestrians(game) {
           p.vx *= Math.max(0, 1 - 5 * dt); p.vz *= Math.max(0, 1 - 5 * dt); p.x += p.vx * dt; p.z += p.vz * dt; pose = 'down'; p.speed = 0; p.panic = 0;
           if ((p.timer -= dt) <= 0 || far > 140) { gone.push(p); continue; }
         } else if (p.state === 'return') {
-          const s = rectParam(p.lane, p.x - p.cx, p.z - p.cz), [x, z] = rectPoint(p.lane, s);
+          const s = rectParam(p.lane, p.laneZ, p.x - p.cx, p.z - p.cz), [x, z] = rectPoint(p.lane, p.laneZ, s);
           const dx = p.cx + x - p.x, dz = p.cz + z - p.z, d = Math.hypot(dx, dz);
           p.speed = p.panic > 0 ? 5.5 : 2.2;
           if (d < .3) { p.state = 'walk'; p.s = s; }

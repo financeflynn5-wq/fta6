@@ -92,7 +92,7 @@ export function districtAt(x, z) {
   if (z < -CITY_EDGE && z >= -226 && Math.abs(x) <= CITY_EDGE) return 'PALM PROMENADE';
   if (z < -226 && x > -340 && x < 230) return 'SUNSET BEACH';
   if (x > CITY_EDGE && z < 190) return 'PORT SUNSET';
-  if (z > CITY_EDGE && x >= -CITY_EDGE) return x > 190 ? 'EAST BLUFFS' : 'VISTA HEIGHTS';
+  if (z > CITY_EDGE && x >= -CITY_EDGE) return x > 190 ? 'LIGHTHOUSE BLUFFS' : 'VISTA HEIGHTS';
   if (x < -CITY_EDGE) return z > 190 ? 'HIGH MEADOWS' : 'THE DUSTLANDS';
   return 'SUNSET BEACH';
 }

@@ -23,6 +23,8 @@ There is no build step.
 | H | Horn |
 | T | Skip to night / day |
 | Q | Graphics: high / fast |
+| Tab (hold) | The map of Sunset Coast: everything there is to do and how much of it you've done |
+| X (hold) | Quit the race or job you're in |
 | M | Mute |
 | F11 | Full screen (also on the title and pause menus) |
 | Esc | Pause |
@@ -39,6 +41,13 @@ There is no build step.
 - **Vehicles.** Sedans, taxis, vans, box trucks, stretch limos, the Flamingo GT sports car and motorbikes all drive differently: trucks are slow and heavy and shove traffic aside, the sports car and the bike are quick, and a hard crash throws you off the bike. A bike and a sports car are parked next to where you start.
 - **Chop-shop orders.** Scrap pages you with a car he wants and it shows up pink on the radar with an arrow over it. Steal it, lose any stars, and park it on the pink marker outside Scrap's Chop Shop. Less damage means more cash. Rare cars (the sports car and the limo) pay the most, and every third order is a police cruiser. Any other stolen car parked there is sold for scrap.
 - **Taxi fares.** Sit in a taxi and someone hails you (gold on the radar). Stop next to them, then stop on the gold marker at their destination. A quick, smooth ride earns a tip; fares in a row pay more. Passengers bail if you pick up stars.
+- **The map.** Downtown sits in the middle of a much bigger place: Palm Promenade, the beach and the pier to the south, the steep streets of Vista Heights to the north, Port Sunset's docks to one side and the Dustlands desert to the other. Cars follow the hills, get air over crests and ramps, and stall if you drive them into the sea. Hold Tab for the map.
+- **Races** (blue R on the radar). Stop in the blue ring, wait for GO, hit every gold gate. Six time trials, one of them on foot along the boardwalk, with gold, silver and bronze times.
+- **Stunt jumps** (orange J). Eleven ramps and crests. Leave the ground there and fly far enough to tick it off; land the pier jump on the barge for a bonus. Any long jump pays a little.
+- **Golden tins.** Forty of them hidden around the map. They show on the radar only when you are close.
+- **Pizza run** (orange P, outside Pizza Pier). Four deliveries against the clock; faster drops tip better and four hot pies pay a bonus.
+- **Speed cameras** (white S). Pass one above its limit and it pays for every km/h over.
+- **Car bowling** (red B, in the port). One run-up at ten giant pins.
 - **Wasted** (out of health) bills you and wakes you outside Sunset General (red cross on the radar). You keep your guns.
 - **Nabbed** fines you and lets you out of Sunset PD (blue badge). The cops keep your guns.
 
@@ -47,11 +56,17 @@ There is no build step.
 Each system lives in its own small file, so a change usually touches one place.
 
 ```
-index.html, css/style.css   page, HUD markup and styling
+index.html, css/style.css   page, HUD markup and styling (css/activities.css: activity panel, banner, big map)
 src/main.js                 boot, game loop, and the rules that connect systems (what is a crime, crashes)
-src/config.js               every tunable number: car handling (CAR), aiming (AIM), weapons, police, traffic, day length
+src/config.js               every tunable number: car handling (CAR), aiming (AIM), weapons, police, traffic, day length,
+                            hills and jumps (RIDE), activity pay and medal rules (ACTIVITIES)
 src/core/                   engine (renderer + post), physics (Rapier), input, audio (synthesised), utils
-src/world/                  city (the Sunset Coast scene), materials, sky (day/night), batching, landmarks (hospital, police station)
+src/world/                  city (the downtown scene), materials, sky (day/night), batching, landmarks (hospital, police station),
+                            map (the whole coast as data: heights, land types, roads), terrain (height of the ground anywhere),
+                            ground (builds the land and roads), districts + props (everything outside downtown),
+                            ride (cars on slopes, jumps, water), roads (road lookups), world (ties the land to the game)
+src/activities/             activities (start rings, one-at-a-time), kit (markers, panel, banner, save), races, stunts, tins,
+                            pizza, traps (speed cameras), bowling, bigmap (hold Tab)
 src/vehicles/               vehicle (handling, rider seat), carModel (shapes for every vehicle type), aiDriver (traffic + pursuit), traffic
 src/characters/             models (Critters + Tin Bots), pedestrians
 src/player/                 player (on foot, in/out of cars), camera

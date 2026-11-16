@@ -27,9 +27,12 @@ export function bakeStatic(root, scene, chunkOf) {
       b.list.push(plainGeometry(o.geometry, o.matrixWorld));
     });
   }
+  const made = [];
   for (const b of buckets.values()) {
     const m = new THREE.Mesh(mergeGeometries(b.list), b.material);
     m.castShadow = b.cast; m.receiveShadow = true; m.matrixAutoUpdate = false; scene.add(m);
+    m.geometry.computeBoundingSphere(); made.push(m);
     b.list.forEach(g => g.dispose());
   }
+  return made;      // each has a bounding sphere, so the world can skip the ones lost in the haze
 }

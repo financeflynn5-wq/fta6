@@ -58,7 +58,7 @@ export function makeProps(api, R) {
   };
   M.ramp.map.repeat.set(1, 1);
   const G2 = {
-    blob: blob(1, 0, 0), rock: blob(1, .28, 3), trunk: new THREE.CylinderGeometry(.16, .26, 1, 7), stem: new THREE.CapsuleGeometry(1, 1, 3, 8),
+    blob: blob(1, 0, 0), rock: blob(1, .28, 3), trunk: new THREE.CylinderGeometry(.16, .26, 1, 7), stem: new THREE.CapsuleGeometry(1, 1, 2, 6),
     cone: new THREE.ConeGeometry(1, 1, 10), cyl8: new THREE.CylinderGeometry(1, 1, 1, 8), torus: new THREE.TorusGeometry(.42, .2, 6, 12),
   };
 
@@ -122,8 +122,8 @@ export function makeProps(api, R) {
       }
       return { x, z, rot, len, wid, h, lipX: x + c * len / 2, lipZ: z + s * len / 2, y: y0 + h };
     },
-    // An unlit sign board that glows a little at night. Faces direction `ry` (0 = toward +z).
-    sign(text, x, y, z, ry, w, h, bg = 'rgba(15,16,22,.92)', fg = '#ffd34d', font = 150) {
+    // An unlit sign board that glows a little at night. Faces direction `ry` (0 = toward +z); both = readable from behind too.
+    sign(text, x, y, z, ry, w, h, bg = 'rgba(15,16,22,.92)', fg = '#ffd34d', font = 150, both = false) {
       const t = ctex(1024, (c, s) => {
         const hh = s * h / w, y0 = (s - hh) / 2; c.clearRect(0, 0, s, s);
         if (bg) { c.fillStyle = bg; c.beginPath(); c.roundRect(6, y0 + 6, s - 12, hh - 12, 26); c.fill(); }
@@ -132,8 +132,10 @@ export function makeProps(api, R) {
         c.lineWidth = 10; c.strokeStyle = 'rgba(0,0,0,.55)'; if (!bg) c.strokeText(text, s / 2, s / 2 + 4);
         c.fillStyle = fg; c.fillText(text, s / 2, s / 2 + 4);
       });
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w), new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: .08, side: THREE.DoubleSide }));
-      m.position.set(x, y, z); m.rotation.y = ry; api.realScene.add(m); api.signMats.push(m.material); return m;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w), new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: .08 }));
+      m.position.set(x, y, z); m.rotation.y = ry; api.realScene.add(m); api.signMats.push(m.material);
+      if (both) { const b = new THREE.Mesh(m.geometry, m.material); b.position.copy(m.position); b.rotation.y = ry + Math.PI; api.realScene.add(b); }
+      return m;
     },
   };
   return P;

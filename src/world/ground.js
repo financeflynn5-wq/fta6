@@ -48,10 +48,10 @@ export function buildGround(scene) {
   mats.roadPaint = std({ vertexColors: true, roughness: .6, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   mats.seaTop = std({ color: 0x2b8fa8, roughness: .12, metalness: .25, transparent: true, opacity: .86 });
 
-  // one growing mesh per material per 108 m chunk
+  // one growing mesh per material per 216 m chunk (the ground is cheap to draw, so few big pieces beat many small ones)
   const chunks = new Map();
   function target(kind, x, z) {
-    const k = kind + '|' + Math.floor((x - X0) / (STEP * 2)) + ',' + Math.floor((z - X0) / (STEP * 2));
+    const k = kind + '|' + Math.floor((x - X0) / (STEP * 4)) + ',' + Math.floor((z - X0) / (STEP * 4));
     let t = chunks.get(k); if (!t) chunks.set(k, t = { kind, pos: [], nor: [], uv: [], col: [], idx: [] });
     return t;
   }

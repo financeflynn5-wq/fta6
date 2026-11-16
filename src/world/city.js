@@ -6,7 +6,7 @@ import { rand, pick, V } from '../core/utils.js';
 import { WORLD } from '../config.js';
 import { mats, std, facade, awnings, G, mesh, rbox, ctex } from './materials.js';
 import { bakeStatic } from './batching.js';
-import { CITY_EDGE } from './map.js';
+import { CITY_EDGE, inDowntown } from './map.js';
 import { buildGround } from './ground.js';
 import { buildDistricts, shapeLand } from './districts.js';
 
@@ -88,7 +88,7 @@ export function buildCity(realScene) {
   });
 
   // ---------- buildings ----------
-  function building(cx, cz, w, d, h, downtown, y = .3) {
+  function building(cx, cz, w, d, h, downtown, y = .3, clutter = true) {
     const fm = pick(facade), g = new THREE.Group(); g.position.set(cx, y, cz); scene.add(g);
     solids.boxes.push({ x: cx, z: cz, hw: w / 2, hd: d / 2 });
     const shopH = 4.6;
@@ -121,8 +121,8 @@ export function buildCity(realScene) {
       }
     }
     // roof clutter
-    for (let i = 0; i < 2 + Math.floor(rand() * 3); i++) mesh(rbox(1.6, 1, 1.2, .1), mats.ac, V((rand() - .5) * (w - 3), h + 1.2, (rand() - .5) * (d - 3)), null, g);
-    if (rand() < .45) {
+    for (let i = 0, n = clutter ? 2 + Math.floor(rand() * 3) : 1; i < n; i++) mesh(rbox(1.6, 1, 1.2, .1), mats.ac, V((rand() - .5) * (w - 3), h + 1.2, (rand() - .5) * (d - 3)), null, g);
+    if (clutter && rand() < .45) {
       const t = new THREE.Group(); t.position.set((rand() - .5) * (w - 5), h + .7, (rand() - .5) * (d - 5)); g.add(t);
       for (const [x, z] of [[-.9, -.9], [.9, -.9], [-.9, .9], [.9, .9]]) mesh(G.cyl, mats.darkMetal, V(x, 1, z), V(.08, 2, .08), t);
       mesh(G.cyl, mats.water, V(0, 3.1, 0), V(1.5, 2.4, 1.5), t); mesh(new THREE.ConeGeometry(1.6, 1, 20), mats.water, V(0, 4.8, 0), null, t);
@@ -189,7 +189,9 @@ export function buildCity(realScene) {
   shapeLand(); buildGround(realScene);
   const districts = buildDistricts({ scene, realScene, solids, lampPts, signMats, building, palm, IB, mat4 });
 
-  bakeStatic(scene, realScene, (x, z) => Math.floor((x + 162) / 54) + ',' + Math.floor((z + 162) / 54));
+  // downtown welds in 108 m squares (2 x 2 blocks); the districts around it are sparser, so they weld in 162 m squares.
+  // Bigger squares = fewer draws for the same picture, which pays for the larger map.
+  const welded = bakeStatic(scene, realScene, (x, z) => inDowntown(x, z) ? Math.floor((x + 162) / 108) + ',' + Math.floor((z + 162) / 108) : 'o' + Math.floor((x + 405) / 162) + ',' + Math.floor((z + 405) / 162));
 
   const IBm = {}; for (const k in IB) IBm[k] = IB[k].build();
   IBm.mark.material = std({ color: 0xffffff, roughness: .6 });
@@ -198,5 +200,5 @@ export function buildCity(realScene) {
     for (const [k, ax] of [['ew', 'x'], ['ns', 'z']]) { const st = lightState(ax, t); for (const c of ['r', 'y', 'g']) sig[k][c].emissiveIntensity = st === c ? 3.2 : .04; }
   }
 
-  return { solids, lampPts, signMats, litWindows: IBm.lit, updateLights, districts };
+  return { solids, lampPts, signMats, litWindows: IBm.lit, updateLights, districts, welded };
 }
