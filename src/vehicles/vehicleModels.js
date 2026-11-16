@@ -61,7 +61,7 @@ export function loadVehicleModels(base = 'assets/vehicles/') {
     if (fork) model.fork = { parts: meshParts(fork), head: fork.getWorldPosition(new THREE.Vector3()) };
     for (const t of types) real[t] = model;
     for (let i = waiting.length - 1; i >= 0; i--) if (real[waiting[i].userData.type]) upgrade(waiting.splice(i, 1)[0]);
-  }).catch(() => { /* no file yet: keep the stand-in */ }));
+  }).catch((e) => { console.warn('FTA 6: could not load the ' + file + ' vehicle model, showing a stand-in.', e); }));
   return Promise.all(jobs);
 }
 
