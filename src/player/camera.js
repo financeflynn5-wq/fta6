@@ -11,7 +11,12 @@ export function createCamera(game) {
     update(dt, t) {
       const p = game.player, input = game.input, car = p.vehicle;
       const [mdx, mdy] = input.takeMouse();
-      cam.yaw += mdx * .0026; cam.pitch = clamp(cam.pitch + mdy * .002, .06, 1.2);
+      // aiming: over Rocco's right shoulder, mouse slows down with the zoom, and you can look up
+      const combat = game.combat, aim = car ? 0 : (combat?.aimBlend || 0), w = combat?.def;
+      const sens = cam.fov / 42;
+      cam.yaw += mdx * .0026 * sens; cam.pitch = clamp(cam.pitch + mdy * .002 * sens, lerp(.06, -.5, aim), 1.2);
+      if (combat?.aiming && (cam.aimT = (cam.aimT || 0) + dt) < .3) cam.pitch = damp(cam.pitch, .1, 9, dt);   // level the view as the gun comes up
+      if (!combat?.aiming) cam.aimT = 0;
       const idle = performance.now() - input.lastMouse > 1400;
       let wantDist, height, tx, tz, ty, wantFov = 42;
       if (car) {
@@ -27,8 +32,10 @@ export function createCamera(game) {
         wantDist = 9.2 + s * 2.4; height = 1.7; wantFov = 42 + s * s * 16;
         tx = car.x + car.fx * (1 + s * 2.5); tz = car.z + car.fz * (1 + s * 2.5); ty = car.y + height;
       } else {
-        if (idle && p.speed > 1) cam.yaw += angleDiff(Math.atan2(p.vz, p.vx), cam.yaw) * Math.min(1, dt * 1.1);
-        wantDist = 6.6; tx = p.x; tz = p.z; ty = p.y + 1.55;
+        if (idle && p.speed > 1 && !p.aiming) cam.yaw += angleDiff(Math.atan2(p.vz, p.vx), cam.yaw) * Math.min(1, dt * 1.1);
+        const sh = aim * 1.2;   // shoulder offset to the right
+        wantDist = lerp(6.6, 3.9, aim); tx = p.x - Math.sin(cam.yaw) * sh; tz = p.z + Math.cos(cam.yaw) * sh; ty = p.y + 1.55 + aim * .3;
+        wantFov = lerp(42, w?.scope ? 42 / w.scope * 2 : 34, aim);
       }
       cam.tx = damp(cam.tx, tx, 14, dt); cam.tz = damp(cam.tz, tz, 14, dt); cam.ty = damp(cam.ty, ty, 10, dt);
       if (Math.hypot(cam.tx - tx, cam.tz - tz) > 30) { cam.tx = tx; cam.tz = tz; }
@@ -41,7 +48,7 @@ export function createCamera(game) {
       const pitch = cam.pitch + (1.25 - cam.pitch) * cam.lift, cp = Math.cos(pitch);
       const allowed = Math.max(2.2, free / cp);
       cam.dist = allowed < cam.dist ? allowed : damp(cam.dist, Math.min(wantDist, allowed), 5, dt);
-      cam.fov = damp(cam.fov, wantFov, 4, dt);
+      cam.fov = damp(cam.fov, wantFov, aim > .01 ? 14 : 4, dt);
       if (Math.abs(camera.fov - cam.fov) > .01) { camera.fov = cam.fov; camera.updateProjectionMatrix(); }
 
       cam.trauma = Math.max(0, cam.trauma - dt * 1.6);

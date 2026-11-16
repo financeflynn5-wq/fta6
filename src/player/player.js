@@ -15,7 +15,7 @@ export function createPlayer(game) {
   const player = {
     isPlayer: true, model, body, mode: 'foot', vehicle: null, nearCar: null,
     x: PLAYER.spawn.x, z: PLAYER.spawn.z, y: .3, vx: 0, vz: 0, speed: 0, face: Math.PI,
-    health: PLAYER.health, stamina: PLAYER.stamina, tumble: 0, winded: false, stepT: 0, frozen: false,
+    health: PLAYER.health, armor: 0, aiming: false, stamina: PLAYER.stamina, tumble: 0, winded: false, stepT: 0, frozen: false,
 
     preStep(dt) {
       const input = game.input;
@@ -40,11 +40,11 @@ export function createPlayer(game) {
       const wantSprint = input.down('ShiftLeft', 'ShiftRight') && moving && !player.winded;
       player.stamina = clamp(player.stamina + (wantSprint ? -dt : dt * PLAYER.staminaRegen * (moving ? 1 : 2)), 0, PLAYER.stamina);
       if (player.stamina <= 0) player.winded = true; else if (player.stamina > PLAYER.stamina * .35) player.winded = false;
-      const top = wantSprint ? PLAYER.sprint : PLAYER.walk;
+      const top = player.aiming ? PLAYER.walk * (game.combat?.aiming ? .55 : .8) : wantSprint ? PLAYER.sprint : PLAYER.walk;
       const v = body.linvel();
       vel.x = damp(v.x, moving ? mx * top : 0, PLAYER.accel, dt); vel.y = damp(v.y, moving ? mz * top : 0, PLAYER.accel, dt);
       body.setLinvel(vel, true);
-      if (moving) player.face += angleDiff(Math.atan2(mx, mz), player.face) * Math.min(1, dt * 14);
+      if (moving && !player.aiming) player.face += angleDiff(Math.atan2(mx, mz), player.face) * Math.min(1, dt * 14);   // when aiming, combat turns Rocco
 
       // which car could we take?
       let best = null, bd = PLAYER.enterRange;
@@ -98,12 +98,18 @@ export function createPlayer(game) {
       body.setLinvel({ x: car.vx * .9, y: car.vz * .9 }, true); player.tumble = 1.4;
       player.hurt(rel * 2.1); game.audio.bonk(); game.cam.shake(.5);
     },
-    hurt(d) { player.health = Math.max(0, player.health - d); game.hud.hurt(); if (player.health <= 0) game.knockedOut(); },
+    // Armor soaks damage first.
+    hurt(d) {
+      if (game.over) return;
+      const soak = Math.min(player.armor, d); player.armor -= soak; d -= soak;
+      player.health = Math.max(0, player.health - d); game.hud.hurt(); if (player.health <= 0) game.knockedOut();
+    },
 
-    respawn() {
+    // spot: { x, z, face } outside the hospital or police station; defaults to the start.
+    respawn(spot = { x: PLAYER.spawn.x, z: PLAYER.spawn.z, face: Math.PI }) {
       if (player.mode === 'car') { const car = player.vehicle; car.driver = null; player.vehicle = null; player.mode = 'foot'; model.visible = true; body.setEnabled(true); }
-      body.setTranslation({ x: PLAYER.spawn.x, y: PLAYER.spawn.z }, true); body.setLinvel({ x: 0, y: 0 }, true);
-      player.x = PLAYER.spawn.x; player.z = PLAYER.spawn.z; player.health = PLAYER.health; player.stamina = PLAYER.stamina; player.tumble = 0; player.face = Math.PI;
+      body.setTranslation({ x: spot.x, y: spot.z }, true); body.setLinvel({ x: 0, y: 0 }, true);
+      player.x = spot.x; player.z = spot.z; player.health = PLAYER.health; player.armor = 0; player.stamina = PLAYER.stamina; player.tumble = 0; player.face = spot.face;
     },
 
     update(dt, t) {

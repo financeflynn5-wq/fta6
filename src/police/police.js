@@ -1,6 +1,6 @@
 // The law: wanted stars, cruisers that hunt you through the streets, officers who jump
 // out to grab you on foot, and losing them by breaking line of sight.
-import { POLICE, WORLD, CAR } from '../config.js';
+import { POLICE, WORLD, CAR, COMBAT } from '../config.js';
 import { clamp, choose, damp, angleDiff } from '../core/utils.js';
 import { groundY } from '../world/city.js';
 import { animateCharacter, COPS } from '../characters/models.js';
@@ -65,6 +65,15 @@ export function createPolice(game) {
       const ped = o.ped; retire(o, false);
       ped.state = 'air'; ped.air = .01; ped.vy = 3.5 + car.speed * .2; ped.vx = car.vx * .8; ped.vz = car.vz * .8; game.peds.list.push(ped);
       game.onPedHit(ped, car);
+    },
+
+    // Shot or punched. Returns true when the officer is knocked out.
+    hurtOfficer(o, dmg, dx, dz, push = 1.5) {
+      if (!officers.includes(o)) return false;
+      o.hp = (o.hp ?? COMBAT.hp.officer) - dmg; o.grab = 0; o.stun = Math.max(o.stun || 0, .3 + push * .05);
+      o.body.setLinvel({ x: dx * push, y: dz * push }, true);
+      if (o.hp > 0) return false;
+      const ped = o.ped; retire(o, false); game.peds.knockOut(ped, dx * 3, dz * 3); return true;
     },
 
     update(dt, t) {
@@ -198,6 +207,11 @@ export function createPolice(game) {
     for (const o of officers.slice()) {
       const ped = o.ped, pos = o.body.translation(), v = o.body.linvel();
       ped.x = pos.x; ped.z = pos.y;
+      if (o.stun > 0) {          // reeling from a punch or a bullet
+        o.stun -= dt; vel.x = v.x * Math.max(0, 1 - 6 * dt); vel.y = v.y * Math.max(0, 1 - 6 * dt); o.body.setLinvel(vel, true);
+        ped.y = damp(ped.y, groundY(ped.x, ped.z), 16, dt); ped.model.position.set(ped.x, ped.y, ped.z);
+        animateCharacter(ped.model, t, dt, 0, 'flail', police.stars > 0); continue;
+      }
       let tx = p.x, tz = p.z, speed = POLICE.footSpeed + (police.stars >= 3 ? .5 : 0);
       if (police.stars === 0 || o.state === 'return') {
         if (o.unit && !o.unit.car.wrecked && o.unit.car.driver === o.unit.driver) {
@@ -211,7 +225,8 @@ export function createPolice(game) {
       const moving = Math.hypot(v.x, v.y);
       if (moving < speed * .35 && d > 2) { o.stuck += dt; if (o.stuck > .35 && o.sideT <= 0) { o.side = Math.random() < .5 ? 1 : -1; o.sideT = .9; } } else o.stuck = 0;
       if ((o.sideT -= dt) > 0) { const sx = -mz * o.side, sz = mx * o.side; mx = mx * .25 + sx; mz = mz * .25 + sz; const l = Math.hypot(mx, mz); mx /= l; mz /= l; }
-      const stop = d < .9 || (inCar && police.stars > 0 && o.state === 'chase' && p.vehicle.distanceTo(ped.x, ped.z) < .75);
+      // armed officers (set by combat) hold back at gun range while they can see you
+      const stop = d < .9 || (inCar && police.stars > 0 && o.state === 'chase' && p.vehicle.distanceTo(ped.x, ped.z) < .75) || (o.hold > 0 && o.state === 'chase' && d < o.hold && game.physics.canSee(ped.x, ped.z, p.x, p.z));
       vel.x = damp(v.x, stop ? 0 : mx * speed, 12, dt); vel.y = damp(v.y, stop ? 0 : mz * speed, 12, dt); o.body.setLinvel(vel, true);
       ped.face += angleDiff(Math.atan2(mx, mz), ped.face) * Math.min(1, dt * 12); ped.speed = moving;
 

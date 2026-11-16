@@ -76,5 +76,24 @@ export function createAudio() {
     evade() { [523, 659, 784, 1047].forEach((f, i) => tone('triangle', f, f, .16, .2, i * .09)); },
     busted() { [392, 330, 262, 196].forEach((f, i) => tone('sawtooth', f, f * .97, .26, .16, i * .2)); },
     step() { burst(.04, .05, 900 + Math.random() * 500, 'bandpass', 2); },
+    // ---------- weapons ----------
+    // vol 0..1 fades shots with distance; loud is the weapon's punch (sniper > shotgun > pistol > SMG)
+    shot(loud = 1, vol = 1) {
+      const v = clamp(vol, 0, 1) * Math.min(1.3, loud); if (v < .02) return;
+      burst(.07 + loud * .08, .55 * v, 3200 - loud * 900);               // crack
+      burst(.18 + loud * .2, .35 * v, 700, 'lowpass');                     // body
+      tone('square', 160 + 60 / loud, 40, .06 + loud * .05, .22 * v);      // thump
+      if (loud > 1.4) tone('sine', 70, 30, .35, .35 * v);                  // big ones boom
+    },
+    punch() { tone('sine', 170, 55, .11, .5); burst(.06, .45, 1100); },
+    whoosh() { burst(.13, .12, 1600, 'bandpass', 1.2); },
+    oof() { tone('triangle', 330 + Math.random() * 90, 140, .16, .22); },
+    ting() { tone('triangle', 2400 + Math.random() * 800, 1700, .12, .06); burst(.04, .2, 5000, 'highpass'); },
+    click() { tone('square', 2200, 1800, .025, .08); },
+    reload() { tone('square', 900, 700, .03, .09); tone('square', 600, 500, .04, .1, .35); burst(.05, .2, 2500, 'bandpass', 3); },
+    pickup() { tone('triangle', 880, 880, .07, .18); tone('triangle', 1320, 1320, .12, .18, .06); },
+    equip() { burst(.05, .18, 3000, 'bandpass', 2); tone('square', 700, 600, .03, .07, .05); },
+    hitmark() { tone('square', 2600, 2600, .03, .05); },
+    wasted() { [330, 262, 196, 131].forEach((f, i) => tone('triangle', f, f * .96, .4, .2, i * .28)); },
   };
 }

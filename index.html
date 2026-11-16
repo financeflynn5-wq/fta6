@@ -26,8 +26,13 @@
     <div class="money" id="money">$0</div>
     <div class="stars" id="stars"></div>
     <div class="bar health"><i id="healthBar"></i></div>
+    <div class="bar armor"><i id="armorBar"></i></div>
     <div class="bar stamina"><i id="staminaBar"></i></div>
+    <div class="weapon" id="weapon"><span id="weaponName">FISTS</span><b id="ammo"></b><div class="bar reload"><i id="reloadBar"></i></div></div>
   </div>
+  <div class="crosshair" id="crosshair"><i></i><i></i><i></i><i></i></div>
+  <div class="hitmark" id="hitmark"><i></i><i></i><i></i><i></i></div>
+  <div class="scope" id="scope" hidden></div>
   <canvas id="minimap" width="220" height="220"></canvas>
   <div class="speedo" id="speedo" hidden>
     <div class="carname" id="carName">SEDAN</div>
@@ -42,12 +47,16 @@
 <div class="overlay" id="title">
   <div class="panel">
     <div class="biglogo">FLYNN<br>THEFT AUTO<small>SUNSET COAST</small></div>
-    <p class="tag">You are Rocco. Steal a ride. Lose the cops. Keep the cash.</p>
+    <p class="tag">You are Rocco. Steal a ride. Grab a gun. Lose the cops. Keep the cash.</p>
     <div class="keys">
       <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>Walk / drive</span></div>
       <div><kbd>E</kbd><span>Steal a car / get out</span></div>
       <div><kbd>Space</kbd><span>Handbrake (drift!)</span></div>
       <div><kbd>Shift</kbd><span>Sprint</span></div>
+      <div><kbd>L-Click</kbd><span>Punch / shoot</span></div>
+      <div><kbd>R-Click</kbd><span>Aim (hold)</span></div>
+      <div><kbd>1</kbd>–<kbd>6</kbd><span>Weapons (or wheel)</span></div>
+      <div><kbd>R</kbd><span>Reload</span></div>
       <div><kbd>Mouse</kbd><span>Look around</span></div>
       <div><kbd>H</kbd><span>Horn</span></div>
       <div><kbd>T</kbd><span>Day / night</span></div>

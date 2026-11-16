@@ -20,6 +20,12 @@ import { createCamera } from './player/camera.js';
 import { createPolice } from './police/police.js';
 import { createHud } from './ui/hud.js';
 import { createMinimap } from './ui/minimap.js';
+import { createWeaponHud } from './ui/weaponHud.js';
+import { createLandmarks } from './world/landmarks.js';
+import { loadWeaponModels } from './combat/weaponModels.js';
+import { createCombat } from './combat/combat.js';
+import { createCopGuns } from './combat/copGuns.js';
+import { createPickups } from './combat/pickups.js';
 
 const STEP = 1 / 60;
 const $ = (id) => document.getElementById(id);
@@ -50,6 +56,12 @@ async function boot() {
   game.minimap = createMinimap(game);
   game.minimap.setBuildings(game.city.solids.boxes);
   game.carLights = createCarLights(game);
+  game.landmarks = createLandmarks(game);
+  game.combat = createCombat(game);
+  game.copGuns = createCopGuns(game);
+  game.pickups = createPickups(game);
+  game.weaponHud = createWeaponHud(game);
+  game.weaponsReady = loadWeaponModels();       // Flynn's guns stream in; stand-ins until then
   game.traffic.init();
   game.peds.init();
   game.env.touch();
@@ -118,20 +130,26 @@ async function boot() {
     else if (who.isOfficer) police.knockOfficer(who, car);
   }
 
-  function setback(title, line, fineRate) {
+  // Wasted: wake up outside Sunset General, keep your guns. Nabbed: walk out of Sunset PD, guns confiscated.
+  function setback(title, line, fineRate, where) {
     if (game.over) return;
-    game.over = true; player.frozen = true; audio.busted();
+    game.over = true; player.frozen = true; where === 'hospital' ? audio.wasted() : audio.busted();
+    if (where === 'hospital' && player.mode === 'foot') player.tumble = 5;      // down he goes
     const fine = Math.min(game.money, Math.max(100, Math.round(game.money * fineRate)));
-    $('bustText').textContent = title; $('bustSub').textContent = fine > 0 ? line.replace('$X', '$' + fine.toLocaleString('en-US')) : 'You had nothing worth taking.';
+    const lost = where === 'station' && game.combat.owned.size > 1 ? ' They kept your guns too.' : '';
+    $('bustText').textContent = title; $('bustSub').textContent = (fine > 0 ? line.replace('$X', '$' + fine.toLocaleString('en-US')) : 'You had nothing worth taking.') + lost;
     $('busted').hidden = false;
-    game.afterSetback = { in: 2.8, fine };
+    game.afterSetback = { in: 3, fine, where };
   }
   function finishSetback() {
-    game.money -= game.afterSetback.fine; game.afterSetback = null;
-    police.clear(); player.respawn(); player.frozen = false; game.over = false; $('busted').hidden = true; cam.yaw = -Math.PI / 2;
+    const { fine, where } = game.afterSetback, spot = game.landmarks[where];
+    game.money -= fine; game.afterSetback = null;
+    police.clear(); game.combat.reset(where === 'station'); player.respawn(spot); player.frozen = false; game.over = false; $('busted').hidden = true;
+    cam.yaw = spot ? Math.atan2(Math.cos(spot.face), Math.sin(spot.face)) : -Math.PI / 2;
+    if (spot) hud.toast(spot.name, 'info');
   }
-  game.busted = () => setback('NABBED!', 'The cops kept $X for the donut fund.', .25);
-  game.knockedOut = () => setback('KNOCKED OUT!', 'Sunset General billed you $X.', .15);
+  game.busted = () => setback('NABBED!', 'The cops kept $X for the donut fund.', .25, 'station');
+  game.knockedOut = () => setback('WASTED', 'Sunset General billed you $X.', .15, 'hospital');
 
   // ---------- menus ----------
   const setState = (s) => {
@@ -160,6 +178,7 @@ async function boot() {
   function step(dt) {
     game.time += dt;
     player.preStep(dt);
+    game.combat.preStep(dt);
     game.traffic.preStep(dt, game.time);
     game.physics.step(onContact);
     game.traffic.postStep(dt);
@@ -180,7 +199,10 @@ async function boot() {
     game.traffic.syncVisual(dt, t); game.wheels.commit();
     peds.update(dt, t);
     player.update(dt, t);
+    game.combat.update(dt, t);
     police.update(dt, t);
+    game.copGuns.update(dt, t);
+    game.pickups.update(dt, t);
     fx.update(dt);
     game.city.updateLights(t);
     if ((maintainT -= dt) <= 0) { maintainT = 2; game.traffic.maintain(); }
@@ -190,7 +212,7 @@ async function boot() {
     } else cam.update(dt, t);
     game.env.update(dt, engine.camera.position, cam.lookAt);
     game.carLights.update(t);
-    hud.update(dt, t); game.minimap.update(t);
+    hud.update(dt, t); game.weaponHud.update(dt, t); game.minimap.update(t);
     const car = player.vehicle;
     audio.engine(!!car && !car.wrecked && game.state === 'playing', car ? car.rpm : 0, car ? Math.abs(car.controls.throttle) : 0);
     audio.skid(car && car.sliding ? clamp(.35 + car.slip / 9, 0, 1) : 0);

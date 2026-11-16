@@ -30,6 +30,18 @@ export function createMinimap(game) {
         x.fillStyle = cop ? (v.siren ? (Math.floor(t * 6) % 2 ? '#ff3048' : '#3d7bff') : '#7fb0ff') : v.wrecked ? '#333' : '#f1f1f1';
         x.fillRect(-3, -1.6, 6, 3.2); x.restore();
       }
+      // hospital (red cross), police station (blue badge), pickups (small dots)
+      for (const k in game.landmarks) {
+        const m = game.landmarks[k], hosp = k === 'hospital';
+        x.fillStyle = hosp ? '#ffffff' : '#2d55c8'; x.strokeStyle = '#111'; x.lineWidth = 1.5; x.beginPath(); x.arc(m.x, m.z, 6, 0, 7); x.fill(); x.stroke();
+        x.fillStyle = hosp ? '#e8203a' : '#ffd34d';
+        if (hosp) { x.fillRect(m.x - 1.4, m.z - 4, 2.8, 8); x.fillRect(m.x - 4, m.z - 1.4, 8, 2.8); } else { x.beginPath(); x.arc(m.x, m.z, 2.6, 0, 7); x.fill(); }
+      }
+      for (const it of game.pickups.list) {
+        if (it.wait > 0 || Math.abs(it.x - p.x) > 120 || Math.abs(it.z - p.z) > 120) continue;
+        x.fillStyle = it.kind === 'armor' ? '#4da6ff' : it.kind === 'health' ? '#5dff8a' : '#ffc94d';
+        x.beginPath(); x.arc(it.x, it.z, 2.4, 0, 7); x.fill();
+      }
       for (const o of game.police.officers) { x.fillStyle = Math.floor(t * 6) % 2 ? '#ff3048' : '#3d7bff'; x.beginPath(); x.arc(o.ped.x, o.ped.z, 2.2, 0, 7); x.fill(); }
       if (game.police.searching) { const k = game.police.lastKnown; x.strokeStyle = 'rgba(255,211,77,.9)'; x.lineWidth = 1.5; x.beginPath(); x.arc(k.x, k.z, 9 + Math.sin(t * 5) * 2, 0, 7); x.stroke(); }
       x.restore();

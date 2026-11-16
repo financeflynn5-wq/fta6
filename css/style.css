@@ -59,4 +59,25 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 .overlay.flash{background:rgba(10,12,20,.72);align-content:center;gap:10px}
 .bustText{font-family:var(--display);font-size:clamp(3rem,11vw,7rem);color:var(--accent);-webkit-text-stroke:3px #111;paint-order:stroke fill;transform:rotate(-5deg);text-shadow:0 8px 0 rgba(0,0,0,.5);animation:starpop .5s cubic-bezier(.2,2,.4,1)}
 .bustSub{font:700 1.05rem var(--body);color:#e6e8ee;text-align:center}
+/* ---------- combat ---------- */
+.bar.armor{height:6px;transition:opacity .3s}.bar.armor i{background:linear-gradient(90deg,#3d8bff,#8fc4ff)}
+.weapon{display:grid;justify-items:end;margin-top:4px;line-height:1;transition:opacity .2s}
+.weapon span{font-size:.72rem;letter-spacing:.16em;color:var(--gold);text-shadow:0 2px 0 rgba(0,0,0,.5)}
+.weapon b{font-weight:400;font-size:clamp(1.3rem,2.6vw,1.9rem);-webkit-text-stroke:1.5px #111;paint-order:stroke fill;text-shadow:0 3px 0 rgba(0,0,0,.4);font-variant-numeric:tabular-nums}
+.weapon b small{font-size:.55em;opacity:.75;margin-left:4px;-webkit-text-stroke:1px #111}
+.weapon.empty b{color:#ff6b86}
+.bar.reload{width:90px;height:4px;margin-top:3px;border:0}.bar.reload i{background:var(--gold);transition:none}
+.crosshair,.hitmark{position:absolute;left:50%;top:50%;width:0;height:0;opacity:0;--gap:6px}
+.crosshair i,.hitmark i{position:absolute;background:#fff;box-shadow:0 0 0 1.5px rgba(0,0,0,.55);border-radius:2px}
+.crosshair i{width:2px;height:9px;left:-1px;top:-4.5px}
+.crosshair i:nth-child(1){transform:translateY(calc(-1 * var(--gap) - 4px))}.crosshair i:nth-child(2){transform:translateY(calc(var(--gap) + 4px))}
+.crosshair i:nth-child(3){transform:rotate(90deg) translateY(calc(-1 * var(--gap) - 4px))}.crosshair i:nth-child(4){transform:rotate(90deg) translateY(calc(var(--gap) + 4px))}
+.crosshair::after{content:"";position:absolute;left:-1.5px;top:-1.5px;width:3px;height:3px;border-radius:50%;background:#fff;box-shadow:0 0 0 1.5px rgba(0,0,0,.55)}
+.hitmark i{width:2.5px;height:10px;left:-1.25px;top:-5px}
+.hitmark i:nth-child(1){transform:rotate(45deg) translateY(-11px)}.hitmark i:nth-child(2){transform:rotate(135deg) translateY(-11px)}
+.hitmark i:nth-child(3){transform:rotate(225deg) translateY(-11px)}.hitmark i:nth-child(4){transform:rotate(315deg) translateY(-11px)}
+.hitmark.kill i{background:#ff4d6d;height:14px}
+.scope{position:fixed;inset:0;background:radial-gradient(circle at center,transparent 0 33vmin,rgba(0,0,0,.92) 33.4vmin);pointer-events:none}
+.scope::before,.scope::after{content:"";position:absolute;left:50%;top:50%;background:rgba(0,0,0,.85)}
+.scope::before{width:66vmin;height:1.5px;transform:translate(-50%,-50%)}.scope::after{width:1.5px;height:66vmin;transform:translate(-50%,-50%)}
 @media (max-width:620px){.keys{grid-template-columns:1fr}.logo{display:none}}

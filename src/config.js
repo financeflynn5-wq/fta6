@@ -48,3 +48,36 @@ export const POLICE = {
 export const TRAFFIC = { count: 28, cruise: 11.5, pedCountNear: 5, pedCountFar: 2 };
 
 export const TIME = { day: 210, dusk: 26, night: 130, dawn: 26 };
+
+// ---------- weapons and combat ----------
+// rate: shots (or swings) per second. spread: radians of random aim drift. mag: rounds per clip.
+// model: how a weapon sits in the hand when a .glb from assets/weapons/ replaces the stand-in.
+export const WEAPONS = {
+  fists:   { name: 'FISTS',    slot: 1, melee: true, damage: 12, range: 1.7, rate: 2.8, knock: 4 },
+  pistol:  { name: 'PISTOL',   slot: 2, damage: 26, rate: 4.5, mag: 12, reload: 1.15, spread: .01,  range: 90,  pellets: 1, auto: false, kick: .05, length: .5, give: 36, loud: 1 },
+  smg:     { name: 'SMG',      slot: 3, damage: 13, rate: 12,  mag: 30, reload: 1.6,  spread: .03,  range: 70,  pellets: 1, auto: true,  kick: .025, length: .82, give: 90, twoHand: true, loud: .8 },
+  shotgun: { name: 'SHOTGUN',  slot: 4, damage: 11, rate: 1.25, mag: 6, reload: 2.1,  spread: .075, range: 32,  pellets: 8, auto: false, kick: .14, length: 1.3, give: 18, twoHand: true, loud: 1.5 },
+  burst:   { name: 'BURST RIFLE', slot: 5, damage: 20, rate: 2.6, burst: 3, burstGap: .07, mag: 30, reload: 1.8, spread: .012, range: 110, pellets: 1, auto: false, kick: .04, length: 1.1, give: 60, twoHand: true, loud: 1.2 },
+  sniper:  { name: 'SNIPER',   slot: 6, damage: 95, rate: .9,  mag: 5,  reload: 2.4,  spread: .002, range: 220, pellets: 1, auto: false, kick: .2, length: 1.5, give: 10, twoHand: true, scope: 14, loud: 1.8 },
+};
+
+export const COMBAT = {
+  armor: 100,                                   // max armor; armor soaks damage before health does
+  hp: { critter: 45, bot: 70, officer: 80 },
+  headshot: 2.2,                                // damage multiplier above the shoulders
+  aimAssist: .045,                              // radians: a near miss on a body still counts as a hit
+  // heat added, and the stars it forces
+  crime: { shotsFired: [5, 1], assault: [10, 1], ko: [22, 1], copAssault: [40, 2], copKo: [80, 3], carShot: [6, 0] },
+  witnessRange: 45,                             // shots fired this close to a cop are noticed
+  // armed cops: officers on foot draw pistols at this many stars and keep their distance
+  copGunStars: 2, copRange: 32, copHold: 8, copRate: .85, copDamage: 7, copAccuracy: .5,
+  pickupRespawn: 60,
+  koTime: 14,                                   // how long a knocked-out citizen lies there
+};
+
+// Where you wake up: Sunset General after you're wasted, Sunset PD after you're nabbed.
+// block: the city block (index into WORLD.blocksIdx); side: which street the front door faces.
+export const RESPAWN = {
+  hospital: { block: [1, -1], side: [1, 0], name: 'SUNSET GENERAL' },
+  station:  { block: [-2, 1], side: [0, -1], name: 'SUNSET PD' },
+};
