@@ -12,7 +12,9 @@ export class Vehicle {
     this.game = game; this.type = type; this.stats = CAR.types[type];
     this.isVehicle = true;
     this.mesh = makeCarModel(type); game.scene.add(this.mesh);
-    this.body = game.physics.addCar(this, x, z, heading, CAR.halfLen, CAR.halfWid, this.stats.mass);
+    // Every handling number is read through `tune`: the shared CAR numbers, with this type's own on top.
+    this.tune = { ...CAR, ...CAR.types[type] }; this.halfLen = this.tune.halfLen; this.halfWid = this.tune.halfWid;
+    this.body = game.physics.addCar(this, x, z, heading, this.halfLen, this.halfWid, this.stats.mass);
     this.controls = { throttle: 0, steer: 0, handbrake: false };
     this.driver = null;            // null | 'player' | AI driver object
     this.health = this.stats.health; this.wrecked = false;
@@ -40,7 +42,7 @@ export class Vehicle {
     if (!this.driver && b.isSleeping()) { this.speed = this.vf = this.vl = 0; this.sliding = false; this.loose = 0; return; }
     if (this.game.ride?.preStep(this, dt)) return;      // terrain: slopes and flight (world/ride.js)
     const v = b.linvel(); this.h = b.rotation();
-    const fx = this.fx, fz = this.fz, rx = this.rx, rz = this.rz, S = this.stats;
+    const fx = this.fx, fz = this.fz, rx = this.rx, rz = this.rz, S = this.stats, H = this.tune;
     let vf = v.x * fx + v.y * fz, vl = v.x * rx + v.y * rz, w = b.angvel();
     const driven = this.driver && !this.wrecked;
     const c = this.controls, thr = driven ? clamp(c.throttle, -1, 1) : 0, hb = driven ? c.handbrake : true;
@@ -48,26 +50,26 @@ export class Vehicle {
 
     // forward / back
     let a = 0; this.braking = false;
-    if (thr > 0) { if (vf > -.5) { const x = vf / (S.maxSpeed * dmg); a = S.accel * thr * Math.max(0, 1 - x * x) * (vf < 8 ? 1.25 : 1); } else { a = CAR.brake * thr; this.braking = true; } }
-    else if (thr < 0) { if (vf > 1) { a = CAR.brake * thr; this.braking = true; } else a = CAR.reverseAccel * thr * Math.max(0, 1 + vf / CAR.maxReverse); }
+    if (thr > 0) { if (vf > -.5) { const x = vf / (S.maxSpeed * dmg); a = S.accel * thr * Math.max(0, 1 - x * x) * (vf < 8 ? 1.25 : 1); } else { a = H.brake * thr; this.braking = true; } }
+    else if (thr < 0) { if (vf > 1) { a = H.brake * thr; this.braking = true; } else a = H.reverseAccel * thr * Math.max(0, 1 + vf / H.maxReverse); }
     const before = vf;
     vf += a * dt;
-    let resist = CAR.drag * vf * Math.abs(vf) + (thr === 0 ? CAR.engineBrake * Math.sign(vf) : 0);
-    if (hb) { resist += CAR.handbrakeDecel * Math.sign(vf); this.braking = true; }
+    let resist = H.drag * vf * Math.abs(vf) + (thr === 0 ? H.engineBrake * Math.sign(vf) : 0);
+    if (hb) { resist += H.handbrakeDecel * Math.sign(vf); this.braking = true; }
     if (!driven) resist += 3 * Math.sign(vf);
     const nv = vf - resist * dt; vf = (Math.sign(nv) !== Math.sign(vf) && thr === 0) ? 0 : nv;
     if (this.braking && before * vf < 0) vf = 0;
 
     // The rear tyres only let go on the handbrake, and bite again over a moment instead of snapping.
-    const drifting = hb && driven && Math.abs(vf) > CAR.driftMinSpeed;
-    this.loose = drifting ? Math.min(1, this.loose + CAR.looseIn * dt) : Math.max(0, this.loose - CAR.looseOut * dt);
-    const grip = driven ? lerp(CAR.grip, CAR.gripHandbrake, this.loose) : CAR.gripHandbrake * .7;
+    const drifting = hb && driven && Math.abs(vf) > H.driftMinSpeed;
+    this.loose = drifting ? Math.min(1, this.loose + H.looseIn * dt) : Math.max(0, this.loose - H.looseOut * dt);
+    const grip = driven ? lerp(H.grip, H.gripHandbrake, this.loose) : H.gripHandbrake * .7;
 
     // sideways: tyres cancel the slide, up to their grip limit
     const vl0 = vl, got = clamp(-vl / dt, -grip, grip);
     vl += got * dt;
     // ...and what they cancel pushes the car forward again, so coming out of a drift keeps its speed
-    if (driven && !hb) vf = Math.sign(vf || 1) * Math.sqrt(vf * vf + CAR.slideKeep * (thr > 0 ? 1 : .5) * clamp((Math.abs(vf) - 3) / 6, 0, 1) * Math.max(0, vl0 * vl0 - vl * vl));
+    if (driven && !hb) vf = Math.sign(vf || 1) * Math.sqrt(vf * vf + H.slideKeep * (thr > 0 ? 1 : .5) * clamp((Math.abs(vf) - 3) / 6, 0, 1) * Math.max(0, vl0 * vl0 - vl * vl));
     this.slip = Math.abs(vl);
     const burnout = driven && thr > .9 && Math.abs(vf) < 7 && Math.abs(before) < 6;
     this.sliding = this.slip > 2.2 || drifting || burnout;
@@ -76,17 +78,17 @@ export class Vehicle {
     // steering wheel: moves at a steady rate, a touch slower at speed so a tap is a lane change, not a lurch
     const av = Math.abs(vf), sp = clamp(av / S.maxSpeed, 0, 1);
     const target = driven ? clamp(c.steer, -1, 1) : 0;
-    const rate = target === 0 ? CAR.steerOut : target * this.steer < 0 ? CAR.steerFlip : lerp(CAR.steerIn, CAR.steerInFast, sp);
+    const rate = target === 0 ? H.steerOut : target * this.steer < 0 ? H.steerFlip : lerp(H.steerIn, H.steerInFast, sp);
     this.steer += clamp(target - this.steer, -rate * dt, rate * dt);
     // Full lock asks for the tightest turn the tyres can hold at this speed and no more, so the car goes
     // where it is pointed. On the handbrake the tail is free to swing round faster than that.
-    const most = lerp(CAR.gripUse * CAR.grip / Math.max(av, 1), CAR.driftYaw, this.loose);
-    let wT = this.steer * clamp(vf * Math.tan(CAR.steerLock) / CAR.wheelbase, -most, most);
+    const most = lerp(H.gripUse * H.grip / Math.max(av, 1), H.driftYaw, this.loose);
+    let wT = this.steer * clamp(vf * Math.tan(H.steerLock) / H.wheelbase, -most, most);
     if (this.loose > 0 && wT * vl < 0) {       // swinging deeper into the slide: ease off before it becomes a spin
       const ang = Math.atan2(this.slip, av);
-      wT *= lerp(1, clamp(1 - (ang - CAR.driftAngle) / .35, .12, 1), this.loose);
+      wT *= lerp(1, clamp(1 - (ang - H.driftAngle) / .35, .12, 1), this.loose);
     }
-    if (driven) w = damp(w, wT, lerp(CAR.yawGrip, CAR.yawSlide, this.loose), dt);
+    if (driven) w = damp(w, wT, lerp(H.yawGrip, H.yawSlide, this.loose), dt);
     else w *= Math.max(0, 1 - 2.5 * dt);
 
     this.accelLong = damp(this.accelLong, (vf - before) / dt, 10, dt);
@@ -104,8 +106,8 @@ export class Vehicle {
     if (b.isSleeping()) this.impact = 0;
     this.x = p.x; this.z = p.y; this.h = b.rotation(); this.vx = v.x; this.vz = v.y; this.speed = Math.hypot(v.x, v.y);
     if (Math.abs(this.x - this.px) + Math.abs(this.z - this.pz) > 4) { this.px = this.x; this.pz = this.z; this.ph = this.h; }   // moved by hand, not driven
-    if (this.impact > CAR.damageMin) {
-      this.damage((this.impact - CAR.damageMin) * CAR.damageScale * (this.driver === 'player' ? .75 : 1));
+    if (this.impact > this.tune.damageMin) {
+      this.damage((this.impact - this.tune.damageMin) * this.tune.damageScale * (this.driver === 'player' ? .75 : 1));
       this.game.onCrash(this, this.impact);
     }
     this.idleTime = this.driver ? 0 : this.idleTime + dt;
@@ -181,7 +183,7 @@ export class Vehicle {
   // Signed position of a world point in the car's own frame (x forward, z right).
   local(px, pz) { const dx = px - this.x, dz = pz - this.z; return [dx * this.fx + dz * this.fz, dx * this.rx + dz * this.rz]; }
   // Distance from a point to the car's body outline.
-  distanceTo(px, pz) { const [lx, lz] = this.local(px, pz); return Math.hypot(Math.max(0, Math.abs(lx) - CAR.halfLen), Math.max(0, Math.abs(lz) - CAR.halfWid)); }
+  distanceTo(px, pz) { const [lx, lz] = this.local(px, pz); return Math.hypot(Math.max(0, Math.abs(lx) - this.halfLen), Math.max(0, Math.abs(lz) - this.halfWid)); }
 
   teleport(x, z, h) {
     this.body.setTranslation({ x, y: z }, true); this.body.setRotation(h, true); this.body.setLinvel({ x: 0, y: 0 }, true); this.body.setAngvel(0, true);

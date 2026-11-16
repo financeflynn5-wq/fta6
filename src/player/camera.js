@@ -74,9 +74,9 @@ export function createCamera(game) {
           cam.yaw += angleDiff(dir, cam.yaw) * Math.min(1, dt * (3 + car.speed * .1));
           cam.pitch = damp(cam.pitch, .24, 2, dt);
         }
-        const k = clamp(car.speed / 38, 0, 1);
-        wantDist = 9.2 + k * 2.4; wantFov = HIP_FOV + k * k * 16;
-        tx = car.ix + fx * (1 + k * 2.5); tz = car.iz + fz * (1 + k * 2.5); ty = car.y + 1.7;
+        const k = clamp(car.speed / 38, 0, 1), big = car.stats.cam ?? 1;      // bigger vehicles are followed from further back and higher
+        wantDist = (9.2 + k * 2.4) * big; wantFov = HIP_FOV + k * k * 16;
+        tx = car.ix + fx * (1 + k * 2.5); tz = car.iz + fz * (1 + k * 2.5); ty = car.y + 1.7 * big;
       } else {
         if (idle && p.speed > 1 && !p.aiming) cam.yaw += angleDiff(Math.atan2(p.vz, p.vx), cam.yaw) * Math.min(1, dt * 1.1);
         wantDist = 6.6; tx = p.ix; tz = p.iz; ty = p.y + 1.55;
