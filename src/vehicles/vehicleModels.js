@@ -1,6 +1,7 @@
 // Vehicle models built in Blender (sources: /mnt/project-files/models/vehicles/src). Each type loads from
-// assets/vehicles/<file>.gltf.json: geometry embedded, kept as .json so any static host serves it.
-// Every file shares one texture atlas (atlas_color / atlas_mr / atlas_emit .png) through one "details"
+// assets/vehicles/<file>.gltf.json: geometry embedded, kept as .json so any static host serves it, read
+// through loadEmbeddedGltf (nothing fetched but the file). The files carry no pictures: all of them share
+// one texture atlas (atlas_color / atlas_mr / atlas_emit .png, loaded once as images) through one "details"
 // material: trim, lamps, badges, plates and the wheels. Body materials are swapped for the game's own:
 // paint -> paint(colour), paint2 -> the white second paint, glass -> mats.carGlass, light_tail -> the car's
 // brake-light material, light_red / light_blue -> the cruiser's light bar.
@@ -8,6 +9,7 @@
 // on the road swaps to the real model the moment it arrives.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { loadEmbeddedGltf } from '../core/embeddedGltf.js';
 import { mats, std, paint } from '../world/materials.js';
 
 // game type -> model file and wheel kind. Wheel radius per kind (m): the spin rate follows it.
@@ -40,7 +42,7 @@ export function loadVehicleModels(base = 'assets/vehicles/') {
   detailsMaterial(base);
   const files = {};
   for (const [type, [file]] of Object.entries(MODELS)) (files[file] ||= []).push(type);
-  const jobs = Object.entries(files).map(([file, types]) => loader.loadAsync(base + file + '.gltf.json').then(gltf => {
+  const jobs = Object.entries(files).map(([file, types]) => loadEmbeddedGltf(base + file + '.gltf.json', loader).then(gltf => {
     const [, kind] = MODELS[types[0]];
     let body = null, fork = null; const wheels = [];
     gltf.scene.updateMatrixWorld(true);
