@@ -50,8 +50,8 @@ src/characters/             models (Critters + Tin Bots), pedestrians
 src/player/                 player (on foot, in/out of cars), camera
 src/police/                 police (stars, cruisers, officers on foot)
 src/combat/                 combat (Rocco's weapons, aim, punch), hits (damage rules), copGuns (cops shoot back),
-                            pickups, gunfx (tracers, muzzle flash), weaponModels (loads assets/weapons/*.glb)
-assets/weapons/             Flynn's guns as .glb (barrel along +Z, grip down -Y); converted from GrappleStrikeGuns.fbx
+                            pickups, gunfx (tracers, muzzle flash), weaponModels (loads assets/weapons/*.gltf.json)
+assets/weapons/             Flynn's guns as self-contained glTF (.gltf.json), converted from GrappleStrikeGuns.fbx
 src/ui/                     hud, weaponHud (ammo, armor, crosshair, scope), minimap
 src/fx/                     effects (tyre marks, smoke, sparks), carLights
 vendor/                     three.js r160 and Rapier 2D, vendored so the game works offline

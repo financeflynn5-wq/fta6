@@ -1,4 +1,5 @@
-// Weapon meshes. Flynn's guns load from assets/weapons/<id>.glb (barrel along +Z, grip down -Y).
+// Weapon meshes. Flynn's guns load from assets/weapons/<id>.gltf.json: self-contained glTF (barrel
+// along +Z, grip down -Y), kept as .json so any static host, artifacts included, serves them.
 // Until a file has loaded (or if it is missing) a plain stand-in is shown, and every gun already
 // handed out swaps to the real model the moment it arrives.
 import * as THREE from 'three';
@@ -14,7 +15,7 @@ const standInMat = std({ color: 0x1d1f24, roughness: .45, metalness: .7 });
 
 export function loadWeaponModels(base = 'assets/weapons/') {
   const loader = new GLTFLoader();
-  const jobs = Object.keys(WEAPONS).filter(id => !WEAPONS[id].melee).map(id => loader.loadAsync(base + id + '.glb').then(gltf => {
+  const jobs = Object.keys(WEAPONS).filter(id => !WEAPONS[id].melee).map(id => loader.loadAsync(base + id + '.gltf.json').then(gltf => {
     const scene = gltf.scene, L = WEAPONS[id].length;
     const box = new THREE.Box3().setFromObject(scene), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
     const k = L / size.z; scene.scale.setScalar(k);
