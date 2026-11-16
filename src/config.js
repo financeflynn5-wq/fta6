@@ -76,7 +76,7 @@ export const WEAPONS = {
 export const AIM = {
   sens: 1,                                 // mouse sensitivity to start with ([ and ] change it in the game)
   adsSens: .8,                             // extra slow-down while aiming, on top of the zoom
-  shoulder: .7, height: 1.68, dist: 2.5,   // the camera while aiming: metres right of, above and behind Rocco
+  shoulder: 1, height: 1.85, dist: 3.4,    // the camera while aiming: metres right of, above and behind Rocco
   zoom: 1.3,                               // zoom while aiming, for weapons that don't set their own
   time: .2, timeOut: .16,                  // seconds to bring a gun up / lower it
   level: .03,                              // with nobody in front, the view settles this far below the horizon (rad)

@@ -16,7 +16,8 @@ There is no build step.
 | Space | Handbrake |
 | Shift | Sprint |
 | Left click | Punch / shoot (hold for the SMG) |
-| Right click (hold) | Aim over the shoulder; the sniper zooms |
+| Right click (hold) | Aim over the shoulder; the sniper looks through its scope (mouse wheel: 4× / 8×) |
+| [ and ] | Mouse sensitivity down / up (remembered) |
 | 1 to 6 / mouse wheel | Fists, pistol, SMG, shotgun, burst rifle, sniper |
 | R | Reload |
 | H | Horn |
@@ -28,6 +29,8 @@ There is no build step.
 
 ## How the game works
 
+- **Driving.** Steering alone never breaks the tyres loose: the car turns as tight as its grip allows at that speed and no tighter. Hold the handbrake and steer to swing the tail round; let go and the tyres bite again within half a second, keeping most of the speed.
+- **Aiming.** Hold right mouse and the camera drops over Rocco's shoulder. Shots go exactly down the crosshair, anywhere inside its four arms (they open with spread). It turns red over someone you can hit, and lands on whoever is nearly dead ahead when the gun comes up.
 - **Steal a car.** Parked cars may set off an alarm. Taking one with a driver in it always gets you a star.
 - **Stars.** More trouble means more stars, and more (and angrier) cruisers. Officers jump out if you stop.
 - **Lose them.** Break line of sight until the stars stop flashing. You get paid for every chase you escape.
@@ -45,7 +48,7 @@ Each system lives in its own small file, so a change usually touches one place.
 ```
 index.html, css/style.css   page, HUD markup and styling
 src/main.js                 boot, game loop, and the rules that connect systems (what is a crime, crashes)
-src/config.js               every tunable number: car handling, police, traffic, day length
+src/config.js               every tunable number: car handling (CAR), aiming (AIM), weapons, police, traffic, day length
 src/core/                   engine (renderer + post), physics (Rapier), input, audio (synthesised), utils
 src/world/                  city (the Sunset Coast scene), materials, sky (day/night), batching, landmarks (hospital, police station)
 src/vehicles/               vehicle (handling), carModel, aiDriver (traffic + pursuit), traffic

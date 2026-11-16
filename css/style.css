@@ -80,15 +80,15 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 .crosshair i,.crosshair::after{transition:background .08s}.crosshair.hot i,.crosshair.hot::after{background:#ff4d6d}
 /* sniper scope: black surround with a soft lens edge, fine cross hairs, heavy posts and a centre dot */
 .scope{position:fixed;inset:0;pointer-events:none;opacity:0;--ink:rgba(8,10,14,.92);background:
-  linear-gradient(var(--ink),var(--ink)) calc(50% - 21.5vmin) 50%/21vmin 3px no-repeat,
-  linear-gradient(var(--ink),var(--ink)) calc(50% + 21.5vmin) 50%/21vmin 3px no-repeat,
-  linear-gradient(var(--ink),var(--ink)) 50% calc(50% + 21.5vmin)/3px 21vmin no-repeat,
-  linear-gradient(90deg,var(--ink) 0 47.5%,transparent 47.5% 52.5%,var(--ink) 52.5%) 50% 50%/64vmin 1px no-repeat,
-  linear-gradient(var(--ink) 0 47.5%,transparent 47.5% 52.5%,var(--ink) 52.5%) 50% 50%/1px 64vmin no-repeat,
-  radial-gradient(circle at center,transparent 0 30vmin,rgba(0,0,0,.28) 32vmin,rgba(0,0,0,.6) 32.9vmin,#04060a 33.3vmin)}
+  linear-gradient(var(--ink),var(--ink)) calc(50% - 28.5vmin) 50%/28vmin 3px no-repeat,
+  linear-gradient(var(--ink),var(--ink)) calc(50% + 28.5vmin) 50%/28vmin 3px no-repeat,
+  linear-gradient(var(--ink),var(--ink)) 50% calc(50% + 28.5vmin)/3px 28vmin no-repeat,
+  linear-gradient(90deg,var(--ink) 0 48%,transparent 48% 52%,var(--ink) 52%) 50% 50%/84vmin 1px no-repeat,
+  linear-gradient(var(--ink) 0 48%,transparent 48% 52%,var(--ink) 52%) 50% 50%/1px 84vmin no-repeat,
+  radial-gradient(circle at center,transparent 0 39vmin,rgba(0,0,0,.28) 41.5vmin,rgba(0,0,0,.6) 42.6vmin,#04060a 43.2vmin)}
 .scope i{position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:#ff4d6d;box-shadow:0 0 0 1px rgba(0,0,0,.5)}
 .scope.hot i{box-shadow:0 0 0 1px rgba(0,0,0,.5),0 0 8px 2px rgba(255,77,109,.9)}
-.scope b{position:absolute;left:calc(50% + 17vmin);top:calc(50% + 19vmin);font:400 clamp(.8rem,2vmin,1.1rem) var(--display);color:rgba(255,255,255,.75);letter-spacing:.08em;text-shadow:0 1px 0 #000}
+.scope b{position:absolute;left:calc(50% + 23vmin);top:calc(50% + 25vmin);font:400 clamp(.8rem,2vmin,1.1rem) var(--display);color:rgba(255,255,255,.75);letter-spacing:.08em;text-shadow:0 1px 0 #000}
 button.ghost{background:transparent;border:2px solid rgba(255,255,255,.35);box-shadow:none;font-size:.95rem;padding:9px 20px;display:inline-flex;align-items:center;gap:10px}
 button.ghost kbd{font:700 .7rem var(--body);background:#fff;color:#111;border-radius:5px;padding:2px 6px}
 /* ---------- jobs ---------- */
