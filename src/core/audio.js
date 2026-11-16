@@ -56,9 +56,9 @@ export function createAudio() {
     start,
     toggleMute() { muted = !muted; if (master) master.gain.value = muted ? 0 : .5; return muted; },
     suspend() { ctx?.suspend(); }, resume() { ctx?.resume(); },
-    // rpm 0..1, load 0..1; on=false silences the engine (on foot)
-    engine(on, rpm, load) {
-      if (!ctx) return; const t = now(), f = 42 + rpm * 118;
+    // rpm 0..1, load 0..1; on=false silences the engine (on foot); pitch: trucks rumble, bikes buzz
+    engine(on, rpm, load, pitch = 1) {
+      if (!ctx) return; const t = now(), f = (42 + rpm * 118) * pitch;
       engine.osc[0].frequency.setTargetAtTime(f, t, .03); engine.osc[1].frequency.setTargetAtTime(f * 1.005, t, .03); engine.osc[2].frequency.setTargetAtTime(f * .5, t, .03);
       engine.filter.frequency.setTargetAtTime(260 + rpm * 900 + load * 900, t, .05);
       engine.gain.gain.setTargetAtTime(on ? .1 + load * .1 + rpm * .05 : 0, t, .06);

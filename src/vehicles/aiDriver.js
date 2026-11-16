@@ -73,7 +73,7 @@ export class AIDriver {
       this.from = B; this.to = C; this.next = pickNext(B, C); this.turning = false;
       return this.cruise(0, t);
     }
-    let want = this.scared > 0 ? 19 : TRAFFIC.cruise, aimX, aimZ;
+    let want = this.scared > 0 ? 19 : TRAFFIC.cruise * (v.stats.cruise ?? 1), aimX, aimZ;
     const look = 5 + v.speed * .6;
     if (turn && s > SPAN - BOX - 2.5) this.turning = true;
     if (turn && this.turning) { aimX = exitX; aimZ = exitZ; want = Math.min(want, 5.2); }
@@ -93,10 +93,11 @@ export class AIDriver {
       if (o === v) continue;
       const ddx = o.x - v.x, ddz = o.z - v.z; if (Math.abs(ddx) > 26 || Math.abs(ddz) > 26) continue;
       const lx = ddx * v.fx + ddz * v.fz, lz = ddx * v.rx + ddz * v.rz;
-      if (lx > 0 && Math.abs(lz) < 1.9 && lx - 4.8 < gap) { gap = lx - 4.8; who = o; }
+      const room = v.halfLen + o.halfLen + .2;
+      if (lx > 0 && Math.abs(lz) < Math.max(1.9, v.halfWid + o.halfWid) && lx - room < gap) { gap = lx - room; who = o; }
     }
     const p = g.player;
-    if (p.mode === 'foot') { const [lx, lz] = v.local(p.x, p.z); if (lx > 0 && lx < 20 && Math.abs(lz) < 1.5 && lx - 3 < gap) { gap = lx - 3; who = p; } }
+    if (p.mode === 'foot') { const [lx, lz] = v.local(p.x, p.z); if (lx > 0 && lx < 20 && Math.abs(lz) < v.halfWid + .55 && lx - v.halfLen - .7 < gap) { gap = lx - v.halfLen - .7; who = p; } }
     if (this.scared <= 0 || who === p) want = Math.min(want, Math.sqrt(12 * Math.max(0, gap - 1.6)));
     if (gap < 3 && v.speed < .5) {
       this.blockedFor += dt;

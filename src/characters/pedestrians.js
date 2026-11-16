@@ -123,7 +123,7 @@ export function createPedestrians(game) {
             if (v.speed < 2.4) continue;
             const ddx = p.x - v.x, ddz = p.z - v.z; if (Math.abs(ddx) > 16 || Math.abs(ddz) > 16) continue;
             const lx = ddx * v.fx + ddz * v.fz, lz = ddx * v.rx + ddz * v.rz;
-            if (Math.abs(lx) < 2.55 && Math.abs(lz) < 1.25) {            // bonk
+            if (Math.abs(lx) < v.halfLen + .25 && Math.abs(lz) < v.halfWid + .3) {            // bonk
               p.state = 'air'; p.air = .01; p.vy = 3.5 + v.speed * .2;
               const side = (lz >= 0 ? 1 : -1) * rnd(1, 3);
               p.vx = v.vx * .8 + v.rx * side; p.vz = v.vz * .8 + v.rz * side;
@@ -132,7 +132,7 @@ export function createPedestrians(game) {
             }
             // about to be run over: jump clear, away from the car's line
             const ahead = v.vf > 0 ? lx : -lx;
-            if (p.state !== 'dive' && v.speed > 5 && ahead > 0 && ahead < 3 + v.speed * .55 && Math.abs(lz) < 1.9) {
+            if (p.state !== 'dive' && v.speed > 5 && ahead > 0 && ahead < v.halfLen + .7 + v.speed * .55 && Math.abs(lz) < v.halfWid + .95) {
               const sg = lz >= 0 ? 1 : -1; p.state = 'dive'; p.timer = .45; p.vx = v.rx * sg * 6; p.vz = v.rz * sg * 6; p.face = Math.atan2(p.vx, p.vz);
             }
           }

@@ -67,17 +67,20 @@ export function createPlayer(game) {
       if (old instanceof AIDriver && old.mode !== 'wait') {
         // whoever was driving gets tossed out of the driver's door
         const cop = car.type === 'police';
-        game.peds.spawn(cop ? 'pigeon' : (old.kind || undefined) ?? pickCivilian(), car.x - car.rx * 1.9, car.z - car.rz * 1.9, -car.rx * 4 + car.vx * .4, -car.rz * 4 + car.vz * .4, cop);
+        const out = car.halfWid + .95;
+        game.peds.spawn(cop ? 'pigeon' : (old.kind || undefined) ?? pickCivilian(), car.x - car.rx * out, car.z - car.rz * out, -car.rx * 4 + car.vx * .4, -car.rz * 4 + car.vz * .4, cop);
       }
       car.driver = 'player'; player.vehicle = car; player.mode = 'car'; player.nearCar = null;
-      body.setEnabled(false); model.visible = false;
+      car.dropRider();                                   // whoever was riding is now that pedestrian
+      body.setEnabled(false); if (!car.seat(model)) model.visible = false;      // on a bike you can see Rocco ride
       game.onCarTaken(car, old, speed);
     },
 
     exit() {
       const car = player.vehicle, ph = game.physics;
       // driver's side first, then passenger side, then out the back
-      const spots = [[-car.rx * 1.75, -car.rz * 1.75], [car.rx * 1.75, car.rz * 1.75], [-car.fx * 3.2, -car.fz * 3.2], [car.fx * 3.2, car.fz * 3.2]];
+      const side = car.halfWid + .8, end = car.halfLen + .9;
+      const spots = [[-car.rx * side, -car.rz * side], [car.rx * side, car.rz * side], [-car.fx * end, -car.fz * end], [car.fx * end, car.fz * end]];
       let sx = car.x + spots[0][0], sz = car.z + spots[0][1];
       for (const [ox, oz] of spots) {
         const x = car.x + ox, z = car.z + oz;
@@ -85,6 +88,7 @@ export function createPlayer(game) {
         if (game.traffic.vehicles.some(o => o !== car && o.distanceTo(x, z) < .6)) continue;
         sx = x; sz = z; break;
       }
+      if (car.rider === model) { car.unseat(); game.scene.add(model); }
       body.setEnabled(true); body.setTranslation({ x: sx, y: sz }, true);
       player.x = player.px = sx; player.z = player.pz = sz; player.face = -car.h + Math.PI / 2;
       car.driver = null; car.controls.throttle = 0; player.vehicle = null; player.mode = 'foot'; model.visible = true;
@@ -101,6 +105,13 @@ export function createPlayer(game) {
       body.setLinvel({ x: car.vx * .9, y: car.vz * .9 }, true); player.tumble = 1.4;
       player.hurt(rel * 2.1); game.audio.bonk(); game.cam.shake(.5);
     },
+    // Knocked off a motorbike by a crash.
+    thrown(impact) {
+      const car = player.vehicle; if (!car || game.over) return;
+      const vx = car.vx, vz = car.vz;
+      player.exit(); body.setLinvel({ x: vx * .6, y: vz * .6 }, true);
+      player.tumble = Math.max(player.tumble, 1.5); player.hurt(impact * 1.5); game.cam.shake(.5); game.hud.toast('WIPEOUT!', 'bad');
+    },
     // Armor soaks damage first.
     hurt(d) {
       if (game.over) return;
@@ -110,7 +121,7 @@ export function createPlayer(game) {
 
     // spot: { x, z, face } outside the hospital or police station; defaults to the start.
     respawn(spot = { x: PLAYER.spawn.x, z: PLAYER.spawn.z, face: Math.PI }) {
-      if (player.mode === 'car') { const car = player.vehicle; car.driver = null; player.vehicle = null; player.mode = 'foot'; model.visible = true; body.setEnabled(true); }
+      if (player.mode === 'car') { const car = player.vehicle; if (car.rider === model) { car.unseat(); game.scene.add(model); } car.driver = null; player.vehicle = null; player.mode = 'foot'; model.visible = true; body.setEnabled(true); }
       body.setTranslation({ x: spot.x, y: spot.z }, true); body.setLinvel({ x: 0, y: 0 }, true);
       player.x = player.px = spot.x; player.z = player.pz = spot.z; player.health = PLAYER.health; player.armor = 0; player.stamina = PLAYER.stamina; player.tumble = 0; player.face = spot.face;
     },

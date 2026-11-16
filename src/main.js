@@ -92,7 +92,7 @@ async function boot() {
   game.onCrash = (v, impact) => {
     const power = clamp((impact - 2) / 14, 0, 1), mine = v.driver === 'player';
     const d = Math.hypot(v.x - player.x, v.z - player.z);
-    if (mine) { cam.shake(.2 + power * .6); game.jobs.onCrash(v, impact); }
+    if (mine) { cam.shake(.2 + power * .6); game.jobs.onCrash(v, impact); if (v.stats.rider && impact > v.stats.throwAt) player.thrown(impact); }
     if (d < 50 && game.time - crashSound > .07) { crashSound = game.time; audio.crash(mine ? power : power * (1 - d / 50) * .7); }
     if (d < 70) fx.spark(v.x + v.fx * 1.6 * Math.sign(v.vf || 1), v.y + .6, v.z + v.fz * 1.6 * Math.sign(v.vf || 1), 3 + Math.round(power * 10), .6 + power);
   };
@@ -104,7 +104,8 @@ async function boot() {
       police.carWrecked(v);
       if (near) { game.addMoney(250); hud.toast('CRUISER WRECKED  +$250', 'good'); police.crime(25, 0); }
     } else if (v.driver instanceof AIDriver) {
-      peds.spawn(v.driver.kind || CIVILIANS[Math.floor(Math.random() * CIVILIANS.length)], v.x - v.rx * 1.9, v.z - v.rz * 1.9);
+      v.dropRider();
+      peds.spawn(v.driver.kind || CIVILIANS[Math.floor(Math.random() * CIVILIANS.length)], v.x - v.rx * (v.halfWid + .95), v.z - v.rz * (v.halfWid + .95));
       v.driver = null;
     }
   };
@@ -230,7 +231,7 @@ async function boot() {
     game.carLights.update(t);
     hud.update(dt, t); game.weaponHud.update(dt, t); game.minimap.update(t);
     const car = player.vehicle;
-    audio.engine(!!car && !car.wrecked && game.state === 'playing', car ? car.rpm : 0, car ? Math.abs(car.controls.throttle) : 0);
+    audio.engine(!!car && !car.wrecked && game.state === 'playing', car ? car.rpm : 0, car ? Math.abs(car.controls.throttle) : 0, car ? car.stats.pitch ?? 1 : 1);
     audio.skid(car && car.sliding ? clamp(.35 + car.slip / 9, 0, 1) : 0);
     audio.siren(game.state === 'playing' ? police.sirenLevel() : 0);
     if (!game.noRender) engine.render();

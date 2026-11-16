@@ -25,7 +25,7 @@ export function createHits(game) {
   // A car as a box on the ground. Returns entry distance or -1.
   function carBox(ox, oy, oz, dx, dy, dz, v, tmin, tmax) {
     const fx = v.fx, fz = v.fz, rx = v.rx, rz = v.rz, px = ox - v.x, pz = oz - v.z;
-    const lo = [px * fx + pz * fz, px * rx + pz * rz], ld = [dx * fx + dz * fz, dx * rx + dz * rz], half = [CAR.halfLen, CAR.halfWid];
+    const lo = [px * fx + pz * fz, px * rx + pz * rz], ld = [dx * fx + dz * fz, dx * rx + dz * rz], half = [v.halfLen, v.halfWid];
     let t0 = tmin, t1 = tmax;
     for (let i = 0; i < 2; i++) {
       if (Math.abs(ld[i]) < 1e-6) { if (Math.abs(lo[i]) > half[i]) return -1; continue; }

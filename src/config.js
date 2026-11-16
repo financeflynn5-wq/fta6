@@ -16,6 +16,14 @@ export const CAR = {
     car:    { name: 'SEDAN',   mass: 1200, maxSpeed: 36, accel: 15, health: 100 },
     taxi:   { name: 'TAXI',    mass: 1250, maxSpeed: 33, accel: 13, health: 110 },
     police: { name: 'CRUISER', mass: 1450, maxSpeed: 38.5, accel: 17, health: 140 },
+    // Any CAR number can be overridden per vehicle (size, grip, steering, brakes...). Extras:
+    //   lean / leanMax: body roll (negative lean tips into the turn, like a bike)   pitch: engine note
+    //   cam: how far back the camera sits   cruise: traffic speed multiplier   rider: the driver sits on it, in the open
+    sport:  { name: 'FLAMINGO GT', mass: 1050, maxSpeed: 47, accel: 21, health: 85, halfWid: .98, grip: 31, gripHandbrake: 12, brake: 36, steerInFast: 5, lean: .6, pitch: 1.3 },
+    van:    { name: 'VAN',         mass: 1900, maxSpeed: 30, accel: 11, health: 150, halfLen: 2.6, halfWid: 1.03, wheelbase: 3.2, grip: 21, steerLock: .64, lean: 1.7, leanMax: .11, pitch: .85, cam: 1.15, cruise: .95 },
+    truck:  { name: 'BOX TRUCK',   mass: 4200, maxSpeed: 26, accel: 8, health: 260, halfLen: 3.7, halfWid: 1.25, wheelbase: 4.9, grip: 18, gripHandbrake: 10, brake: 22, steerLock: .8, steerIn: 5, steerInFast: 3, lean: 1.4, leanMax: .09, pitch: .6, cam: 1.55, cruise: .85 },
+    limo:   { name: 'STRETCH',     mass: 1800, maxSpeed: 34, accel: 12, health: 130, halfLen: 3.1, wheelbase: 4.4, grip: 23, steerLock: .75, lean: 1.2, pitch: .9, cam: 1.2, cruise: .95 },
+    bike:   { name: 'MOTORBIKE',   mass: 260, maxSpeed: 44, accel: 23, health: 55, halfLen: 1.05, halfWid: .32, wheelbase: 1.55, grip: 29, gripHandbrake: 13, brake: 34, steerLock: .5, steerIn: 9, steerInFast: 6, lean: -18, leanMax: .7, pitch: 1.75, cam: .82, cruise: 1.1, rider: true, throwAt: 7 },
   },
   maxReverse: 11, reverseAccel: 9,
   brake: 30, handbrakeDecel: 6, engineBrake: 2.2, drag: 0.012,
@@ -55,7 +63,11 @@ export const POLICE = {
   crime: { carjack: 10, alarm: 6, pedHit: 14, copRam: 16, copPedHit: 45, copCarTheft: 35, perSecond: 1.1 },
 };
 
-export const TRAFFIC = { count: 28, cruise: 11.5, pedCountNear: 5, pedCountFar: 2 };
+export const TRAFFIC = {
+  count: 28, cruise: 11.5, pedCountNear: 5, pedCountFar: 2,
+  // how often each vehicle turns up: [driving around, parked]
+  mix: { car: [48, 54], taxi: [14, 8], van: [12, 12], bike: [10, 9], truck: [6, 4], sport: [6, 8], limo: [4, 5] },
+};
 
 export const TIME = { day: 210, dusk: 26, night: 130, dawn: 26 };
 
@@ -114,8 +126,11 @@ export const JOBS = {
   chop: { block: [1, 2], side: [-1, 0], name: "SCRAP'S CHOP SHOP", radius: 5 },
   orders: {
     first: 14, gap: 16, life: 360,                 // seconds: before the first order, between orders, until an ignored order is swapped
-    pay: { car: 500, taxi: 650, police: 2200 },    // a delivered order car, in mint condition (plus a little for distance)
-    scrap: { car: 90, taxi: 110, police: 450 },    // any other stolen car is still worth scrap
+    // a delivered order, in mint condition (plus a little for distance); any other stolen vehicle is still worth scrap
+    pay:   { car: 500, taxi: 650, van: 600, bike: 450, truck: 900, limo: 1400, sport: 1700, police: 2200 },
+    scrap: { car: 90, taxi: 110, van: 120, bike: 60, truck: 200, limo: 280, sport: 340, police: 450 },
+    want:  { car: 4, taxi: 2, van: 2, bike: 2, truck: 1, limo: 1, sport: 2 },   // how often Scrap asks for each
+    rare: ['sport', 'limo'],
     minDist: 90,                                   // order cars are parked at least this far from you
     hotEvery: 3,                                   // every third order is a police cruiser
   },

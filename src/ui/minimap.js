@@ -28,7 +28,7 @@ export function createMinimap(game) {
         const cop = v.type === 'police' && (v.siren || v.driver);
         x.save(); x.translate(v.x, v.z); x.rotate(v.h);
         x.fillStyle = cop ? (v.siren ? (Math.floor(t * 6) % 2 ? '#ff3048' : '#3d7bff') : '#7fb0ff') : v.wrecked ? '#333' : '#f1f1f1';
-        x.fillRect(-3, -1.6, 6, 3.2); x.restore();
+        const hl = v.halfLen * 1.3, hw = Math.max(1.1, v.halfWid * 1.7); x.fillRect(-hl, -hw, hl * 2, hw * 2); x.restore();
       }
       // hospital (red cross), police station (blue badge), pickups (small dots)
       for (const k in game.landmarks) {

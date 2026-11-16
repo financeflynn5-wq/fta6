@@ -82,22 +82,25 @@ export function createJobs(game) {
   arrow.rotation.x = Math.PI; arrow.visible = false; game.scene.add(arrow);
 
   // ---------- chop-shop orders ----------
-  let order = null, orderWait = O.first, done = 0, warnT = 0, scrapped = 0;
+  let order = null, orderWait = O.first, done = 0, warnT = 0, scrapped = 0, sinceHot = 0;
   const isOrderCar = (car) => !!(order && car && !car.wrecked && (order.car ? order.car === car : car.type === order.type));
   const orderValue = (car) => round10(order.pay * (.4 + .6 * car.health / car.stats.health));
   const scrapValue = (car) => Math.max(20, round10(O.scrap[car.type] * car.health / car.stats.health));
 
   function newOrder() {
-    if ((done + 1) % O.hotEvery === 0) {
+    if (++sinceHot >= O.hotEvery) {
+      sinceHot = 0;
       order = { type: 'police', car: null, pay: O.pay.police, life: O.life };
       hud.toast(`HOT ORDER: A COP CRUISER  ${money(order.pay)}`, 'job');
     } else {
-      const type = Math.random() < .3 ? 'taxi' : 'car', away = (x, z) => Math.hypot(x - chop.x, z - chop.z) > 60;
+      let total = 0, type = 'car'; for (const k in O.want) total += O.want[k];
+      let pickN = Math.random() * total; for (const k in O.want) { pickN -= O.want[k]; if (pickN < 0) { type = k; break; } }
+      const away = (x, z) => Math.hypot(x - chop.x, z - chop.z) > 60;
       const parked = traffic.vehicles.filter(v => v.type === type && !v.driver && !v.stolen && !v.wrecked && dist(v, player) > O.minDist && away(v.x, v.z));
       const car = parked.length ? choose(parked) : traffic.spawnParked(type, O.minDist, away);
       if (!car) { orderWait = 4; return; }
       order = { type, car, pay: round10(O.pay[type] + dist(car, chop) * 1.2), life: O.life };
-      hud.toast(`SCRAP WANTS A ${car.stats.name}  ${money(order.pay)}`, 'job');
+      hud.toast(`${O.rare.includes(type) ? 'RARE ORDER:' : 'SCRAP WANTS'} A ${car.stats.name}  ${money(order.pay)}`, 'job');
     }
     audio.pager();
   }

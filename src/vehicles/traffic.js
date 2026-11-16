@@ -1,10 +1,21 @@
 // Owns every car in the city: parked cars, cruising traffic, and keeping the streets stocked.
-import { WORLD, TRAFFIC, PLAYER } from '../config.js';
+import { WORLD, TRAFFIC, PLAYER, CAR } from '../config.js';
 import { rand, choose } from '../core/utils.js';
 import { Vehicle } from './vehicle.js';
 import { AIDriver } from './aiDriver.js';
+import { makeCharacter, CIVILIANS } from '../characters/models.js';
 
 const N = WORLD.nodes, LAST = N.length - 1;
+
+// Long vehicles aren't parked close to a corner, where turning traffic would clip them.
+const tooLong = (type, t) => (CAR.types[type].halfLen ?? CAR.halfLen) > 2.8 && WORLD.roadsAt.some(q => Math.abs(t - q) < 22);
+
+// Pick a vehicle type by how common it is. col 0 = driving around, 1 = parked; r is a 0..1 random number.
+function pickType(col, r) {
+  const mix = TRAFFIC.mix; let total = 0; for (const k in mix) total += mix[k][col];
+  let n = r * total; for (const k in mix) { n -= mix[k][col]; if (n < 0) return k; }
+  return 'car';
+}
 
 export function createTraffic(game) {
   const vehicles = [];
@@ -32,7 +43,9 @@ export function createTraffic(game) {
     spawnCruiser(type, minDist = 0) {
       const s = traffic.findRoadSpot(minDist); if (!s) return null;
       const v = traffic.add(type, s.x, s.z, s.h); v.temp = true;
-      new AIDriver(game, v, s.from, s.to); return v;
+      const driver = new AIDriver(game, v, s.from, s.to);
+      if (v.stats.rider) { driver.kind = choose(CIVILIANS); v.seat(makeCharacter(driver.kind)); game.env?.touch(); }   // bikes show who's riding
+      return v;
     },
 
     // A fresh parked car at a random kerb on the main streets, away from the player
@@ -43,7 +56,7 @@ export function createTraffic(game) {
         const r = choose([-54, 0, 54]), t = -135 + Math.random() * 270, side = Math.random() < .5 ? 1 : -1, alongX = Math.random() < .5;
         if (WORLD.roadsAt.some(q => Math.abs(t - q) < 14)) continue;
         const x = alongX ? t : r + side * 5.6, z = alongX ? r + side * 5.6 : t;
-        if (Math.hypot(x - p.x, z - p.z) < minDist || !ok(x, z)) continue;
+        if (Math.hypot(x - p.x, z - p.z) < minDist || !ok(x, z) || tooLong(type, t)) continue;
         if (vehicles.some(v => Math.abs(v.x - x) < 7 && Math.abs(v.z - z) < 7)) continue;
         return traffic.add(type, x, z, alongX ? (side > 0 ? 0 : Math.PI) : (side > 0 ? -Math.PI / 2 : Math.PI / 2));
       }
@@ -54,15 +67,17 @@ export function createTraffic(game) {
       // parked cars along the three main streets, as in the concept
       for (const r of [-54, 0, 54]) for (const axis of ['x', 'z']) for (let t = -140; t < 140; t += 11) {
         if (WORLD.roadsAt.some(q => Math.abs(t - q) < 14) || rand() < .45) continue;
-        const side = rand() < .5 ? 1 : -1, type = rand() < .1 ? 'taxi' : 'car';
+        const side = rand() < .5 ? 1 : -1; let type = pickType(1, rand());
+        if (tooLong(type, t)) type = 'van';
         if (axis === 'x') traffic.add(type, t, r + side * 5.6, side > 0 ? 0 : Math.PI);
         else traffic.add(type, r + side * 5.6, t, side > 0 ? -Math.PI / 2 : Math.PI / 2);
       }
       // one guaranteed ride right next to where Rocco starts
       const sx = -48.4, sz = PLAYER.spawn.z - 7;
-      for (const v of vehicles.slice()) if (Math.abs(v.x - sx) < 3 && Math.abs(v.z - sz) < 7) traffic.remove(v);
-      traffic.add('car', sx, sz, -Math.PI / 2);
-      for (let i = 0; i < TRAFFIC.count; i++) traffic.spawnCruiser(Math.random() < .16 ? 'taxi' : 'car');
+      // ...with a motorbike and a sports car a few steps further along the same kerb
+      for (const v of vehicles.slice()) if (Math.abs(v.x - sx) < 3 && v.z > sz - 17 && v.z < sz + 18) traffic.remove(v);
+      traffic.add('car', sx, sz, -Math.PI / 2); traffic.add('bike', sx + .5, sz + 11, -Math.PI / 2); traffic.add('sport', sx, sz - 10.5, -Math.PI / 2);
+      for (let i = 0; i < TRAFFIC.count; i++) traffic.spawnCruiser(pickType(0, Math.random()));
     },
 
     preStep(dt, t) {
@@ -82,7 +97,7 @@ export function createTraffic(game) {
         if (abandoned && far > 115 && !game.physics.canSee(v.x, v.z, p.x, p.z)) traffic.remove(v);
         else if (v.wrecked && v.idleTime > 90 && far > 60) traffic.remove(v);
       }
-      if (cruising < TRAFFIC.count) traffic.spawnCruiser(Math.random() < .16 ? 'taxi' : 'car', 95);
+      if (cruising < TRAFFIC.count) traffic.spawnCruiser(pickType(0, Math.random()), 95);
     },
   };
   return traffic;

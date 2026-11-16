@@ -135,10 +135,11 @@ export class Vehicle {
       curb = Math.atan2(yf - yr, 2.8);
     }
     if (!dt) { this.pushWheels(); return; }
-    this.roll = damp(this.roll, clamp(-this.vf * this.omega * .0042, -.085, .085), 8, dt);
+    const lean = this.tune.lean ?? 1, leanMax = this.tune.leanMax ?? .085;      // cars roll out of a turn; bikes (negative lean) tip into it
+    this.roll = damp(this.roll, clamp(-this.vf * this.omega * .0042 * lean, -leanMax, leanMax), 8, dt);
     this.pitch = damp(this.pitch, clamp(this.accelLong * .0035, -.06, .05) + curb, 9, dt);
     u.chassis.rotation.x = this.roll; u.chassis.rotation.z = this.pitch;
-    u.chassis.position.y = Math.abs(this.roll) * .5 + (this.driver && !this.wrecked ? Math.sin(t * 38 + this.x) * .004 : 0);
+    u.chassis.position.y = (lean < 0 ? 0 : Math.abs(this.roll) * .5) + (this.driver && !this.wrecked ? Math.sin(t * 38 + this.x) * .004 : 0);
     this.spin -= this.vf * dt / .4;
     const burn = this.driver && this.controls.throttle > .9 && Math.abs(this.vf) < 7;
     for (const w of u.wheels) {
@@ -152,8 +153,8 @@ export class Vehicle {
     // tyre marks and smoke
     const fxs = g.fx;
     if (this.sliding && this.speed > 1.5 || (burn && this.sliding)) {
-      for (let i = 0; i < 2; i++) {
-        const side = i ? .86 : -.86, ch = Math.cos(this.ih), sh = Math.sin(this.ih), wx = this.ix - ch * 1.42 - sh * side, wz = this.iz - sh * 1.42 + ch * side;
+      for (let i = 0; i < u.rear.length; i++) {
+        const rw = u.rear[i], ch = Math.cos(this.ih), sh = Math.sin(this.ih), wx = this.ix + ch * rw.x - sh * rw.z, wz = this.iz + sh * rw.x + ch * rw.z;
         const prev = this.skidPrev[i];
         if (prev) { if (Math.hypot(wx - prev.x, wz - prev.z) > .45) { fxs.skid(prev.x, prev.z, wx, wz, groundY(wx, wz)); prev.x = wx; prev.z = wz; } }
         else this.skidPrev[i] = { x: wx, z: wz };
@@ -164,8 +165,9 @@ export class Vehicle {
     if (this.health < this.stats.health * .45 && (this.smokeT -= dt) <= 0) {
       const bad = 1 - this.health / (this.stats.health * .45);
       this.smokeT = lerp(.16, .04, bad);
-      fxs.smoke(this.x + this.fx * 1.7, this.y + 1.05, this.z + this.fz * 1.7, lerp(.6, .12, bad), .9 + bad, 1.1 + bad * .8, this.vx * .5, this.vz * .5);
-      if (this.wrecked && Math.random() < .5) fxs.spark(this.x + this.fx * 1.7, this.y + 1.1, this.z + this.fz * 1.7, 1);
+      const nose = this.halfLen * .74;
+      fxs.smoke(this.x + this.fx * nose, this.y + 1.05, this.z + this.fz * nose, lerp(.6, .12, bad), .9 + bad, 1.1 + bad * .8, this.vx * .5, this.vz * .5);
+      if (this.wrecked && Math.random() < .5) fxs.spark(this.x + this.fx * nose, this.y + 1.1, this.z + this.fz * nose, 1);
     }
     // fake gearbox for the engine note
     const s = Math.abs(this.vf); let gi = 1; while (gi < 5 && s > GEARS[gi]) gi++;
@@ -176,7 +178,7 @@ export class Vehicle {
   pushWheels() {
     if (this.wheelSlot < 0) return;
     const ws = this.mesh.userData.wheels; this.mesh.updateMatrixWorld(true);
-    for (let i = 0; i < 4; i++) this.game.wheels.set(this.wheelSlot + i, ws[i].spin.matrixWorld);
+    for (let i = 0; i < ws.length; i++) this.game.wheels.set(this.wheelSlot + i, ws[i].spin.matrixWorld);     // bikes use two of their four slots
     this.wheelsDirty = this.speed > .02;
   }
 
@@ -189,5 +191,24 @@ export class Vehicle {
     this.body.setTranslation({ x, y: z }, true); this.body.setRotation(h, true); this.body.setLinvel({ x: 0, y: 0 }, true); this.body.setAngvel(0, true);
     this.x = this.px = x; this.z = this.pz = z; this.h = this.ph = h; this.loose = 0; this.syncVisual(0, 0);
   }
-  dispose() { this.game.wheels.release(this.wheelSlot); this.game.scene.remove(this.mesh); this.game.physics.remove(this.body); this.gone = true; }
+  // A rider you can see (motorbikes): the character sits on the seat and leans with the bike.
+  seat(model) {
+    const s = this.mesh.userData.seat; if (!s) return false;
+    this.dropRider(); this.rider = model; this.mesh.userData.chassis.add(model);
+    model.position.set(s.x, s.y, s.z); model.rotation.set(0, Math.PI / 2, 0); model.visible = true;
+    const u = model.userData; u.lie = 0; u.body.position.set(0, 0, 0); u.body.rotation.set(.3, 0, 0);
+    u.legs.forEach((l, i) => l.rotation.set(-.95, 0, i ? .28 : -.28)); u.arms.forEach(a => { a.rotation.x = -1.2; });
+    return true;
+  }
+  // Take the rider off and stand them up straight again. The caller decides where the model goes next.
+  unseat() {
+    const m = this.rider; if (!m) return null;
+    this.rider = null; m.removeFromParent(); m.rotation.set(0, 0, 0);
+    const u = m.userData; u.body.rotation.set(0, 0, 0); u.legs.forEach(l => l.rotation.set(0, 0, 0)); u.arms.forEach(a => { a.rotation.x = 0; });
+    return m;
+  }
+  // The rider is gone for good (thrown off as a pedestrian, or the bike was cleared away). Never the player's own model.
+  dropRider() { const m = this.rider; if (!m || m === this.game.player.model) return; this.unseat(); m.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); }
+
+  dispose() { this.dropRider(); this.game.wheels.release(this.wheelSlot); this.game.scene.remove(this.mesh); this.game.physics.remove(this.body); this.gone = true; }
 }

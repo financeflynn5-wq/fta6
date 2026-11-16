@@ -36,7 +36,8 @@ There is no build step.
 - **Lose them.** Break line of sight until the stars stop flashing. You get paid for every chase you escape.
 - **Weapons.** Guns lie on the sidewalks (yellow dots on the radar), with body armor (blue) and first-aid kits (green). They come back a minute after you take them. Knocked-out cops drop ammo.
 - **Fighting.** Hitting or shooting people raises your stars if a cop sees it; hurting a cop always does. From two stars, officers on foot draw pistols and shoot back. Armor soaks damage before health.
-- **Chop-shop orders.** Scrap pages you with a car he wants and it shows up pink on the radar with an arrow over it. Steal it, lose any stars, and park it on the pink marker outside Scrap's Chop Shop. Less damage means more cash. Every third order is a police cruiser. Any other stolen car parked there is sold for scrap.
+- **Vehicles.** Sedans, taxis, vans, box trucks, stretch limos, the Flamingo GT sports car and motorbikes all drive differently: trucks are slow and heavy and shove traffic aside, the sports car and the bike are quick, and a hard crash throws you off the bike. A bike and a sports car are parked next to where you start.
+- **Chop-shop orders.** Scrap pages you with a car he wants and it shows up pink on the radar with an arrow over it. Steal it, lose any stars, and park it on the pink marker outside Scrap's Chop Shop. Less damage means more cash. Rare cars (the sports car and the limo) pay the most, and every third order is a police cruiser. Any other stolen car parked there is sold for scrap.
 - **Taxi fares.** Sit in a taxi and someone hails you (gold on the radar). Stop next to them, then stop on the gold marker at their destination. A quick, smooth ride earns a tip; fares in a row pay more. Passengers bail if you pick up stars.
 - **Wasted** (out of health) bills you and wakes you outside Sunset General (red cross on the radar). You keep your guns.
 - **Nabbed** fines you and lets you out of Sunset PD (blue badge). The cops keep your guns.
@@ -51,7 +52,7 @@ src/main.js                 boot, game loop, and the rules that connect systems 
 src/config.js               every tunable number: car handling (CAR), aiming (AIM), weapons, police, traffic, day length
 src/core/                   engine (renderer + post), physics (Rapier), input, audio (synthesised), utils
 src/world/                  city (the Sunset Coast scene), materials, sky (day/night), batching, landmarks (hospital, police station)
-src/vehicles/               vehicle (handling), carModel, aiDriver (traffic + pursuit), traffic
+src/vehicles/               vehicle (handling, rider seat), carModel (shapes for every vehicle type), aiDriver (traffic + pursuit), traffic
 src/characters/             models (Critters + Tin Bots), pedestrians
 src/player/                 player (on foot, in/out of cars), camera
 src/police/                 police (stars, cruisers, officers on foot)
