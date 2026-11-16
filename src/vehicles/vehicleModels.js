@@ -108,6 +108,8 @@ function upgrade(g) {
   const add = (parts, parent) => {
     for (const [geo, name] of parts) {
       const m = new THREE.Mesh(geo, material(name)), lamp = name.startsWith('light_');
+      m.name = name;                                             // the Blender material name: paint, paint2, glass, light_*, details
+      m.material.userData.role ??= lamp ? 'light' : name.startsWith('paint') ? 'paint' : name === 'glass' ? 'glass' : 'details';
       m.castShadow = !lamp && name !== 'glass'; m.receiveShadow = true; parent.add(m);
       if (name === 'light_red') bar[0] = m; else if (name === 'light_blue') bar[1] = m;
     }
