@@ -23,6 +23,7 @@ There is no build step.
 | T | Skip to night / day |
 | Q | Graphics: high / fast |
 | M | Mute |
+| F11 | Full screen (also on the title and pause menus) |
 | Esc | Pause |
 
 ## How the game works

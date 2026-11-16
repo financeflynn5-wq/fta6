@@ -161,6 +161,17 @@ async function boot() {
   $('playBtn').textContent = 'Hit the streets'; $('playBtn').disabled = false;
   $('playBtn').addEventListener('click', () => { cam.yaw = -Math.PI / 2; play(); hud.toast('FIND A RIDE', 'info'); });
   $('resumeBtn').addEventListener('click', play);
+  // Full screen: F11 or the menu buttons. Going full screen from a menu also starts / resumes play.
+  const fullscreen = () => {
+    const on = !!document.fullscreenElement;
+    const req = on ? document.exitFullscreen?.() : document.documentElement.requestFullscreen?.({ navigationUI: 'hide' });
+    Promise.resolve(req).catch(() => hud.toast('FULL SCREEN BLOCKED HERE: OPEN THE GAME IN ITS OWN TAB', 'info'));
+    if (!on && game.state !== 'playing') { if (game.state === 'title') $('playBtn').click(); else play(); }
+    else if (!on) game.input.lock();
+  };
+  document.querySelectorAll('.fsBtn').forEach(b => b.addEventListener('click', fullscreen));
+  window.addEventListener('keydown', (e) => { if (e.code === 'F11') { e.preventDefault(); if (!e.repeat) fullscreen(); } });
+  document.addEventListener('fullscreenchange', () => { engine.resize(); if (document.fullscreenElement && game.state === 'playing') game.input.lock(); });
   let lockedOnce = false;
   document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement) lockedOnce = true; else if (lockedOnce && game.state === 'playing') setState('paused'); });
   document.addEventListener('visibilitychange', () => { if (document.hidden && game.state === 'playing') setState('paused'); });

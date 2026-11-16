@@ -80,4 +80,6 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 .scope{position:fixed;inset:0;background:radial-gradient(circle at center,transparent 0 33vmin,rgba(0,0,0,.92) 33.4vmin);pointer-events:none}
 .scope::before,.scope::after{content:"";position:absolute;left:50%;top:50%;background:rgba(0,0,0,.85)}
 .scope::before{width:66vmin;height:1.5px;transform:translate(-50%,-50%)}.scope::after{width:1.5px;height:66vmin;transform:translate(-50%,-50%)}
+button.ghost{background:transparent;border:2px solid rgba(255,255,255,.35);box-shadow:none;font-size:.95rem;padding:9px 20px;display:inline-flex;align-items:center;gap:10px}
+button.ghost kbd{font:700 .7rem var(--body);background:#fff;color:#111;border-radius:5px;padding:2px 6px}
 @media (max-width:620px){.keys{grid-template-columns:1fr}.logo{display:none}}
