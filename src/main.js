@@ -25,6 +25,7 @@ import { createLandmarks } from './world/landmarks.js';
 import { createWorld } from './world/world.js';
 import { createActivities } from './activities/activities.js';
 import { loadWeaponModels } from './combat/weaponModels.js';
+import { loadVehicleModels } from './vehicles/vehicleModels.js';
 import { createCombat } from './combat/combat.js';
 import { createCopGuns } from './combat/copGuns.js';
 import { createPickups } from './combat/pickups.js';
@@ -66,6 +67,7 @@ async function boot() {
   game.pickups = createPickups(game);
   game.weaponHud = createWeaponHud(game);
   game.weaponsReady = loadWeaponModels();       // Flynn's guns stream in; stand-ins until then
+  game.vehiclesReady = loadVehicleModels();     // the Blender vehicles too
   game.traffic.init();
   game.peds.init();
   game.jobs = createJobs(game);

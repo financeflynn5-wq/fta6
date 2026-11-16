@@ -67,7 +67,8 @@ src/world/                  city (the downtown scene), materials, sky (day/night
                             ride (cars on slopes, jumps, water), roads (road lookups), world (ties the land to the game)
 src/activities/             activities (start rings, one-at-a-time), kit (markers, panel, banner, save), races, stunts, tins,
                             pizza, traps (speed cameras), bowling, bigmap (hold Tab)
-src/vehicles/               vehicle (handling, rider seat), carModel (shapes for every vehicle type), aiDriver (traffic + pursuit), traffic
+src/vehicles/               vehicle (handling, rider seat), carModel (stand-in shapes + the wheel batch), vehicleModels (loads the
+                            Blender models from assets/vehicles/ and swaps them in), aiDriver (traffic + pursuit), traffic
 src/characters/             models (Critters + Tin Bots), pedestrians
 src/player/                 player (on foot, in/out of cars), camera
 src/police/                 police (stars, cruisers, officers on foot)
@@ -75,6 +76,8 @@ src/missions/               jobs (chop-shop orders, taxi fares, their markers an
 src/combat/                 combat (Rocco's weapons, aim, punch), hits (damage rules), copGuns (cops shoot back),
                             pickups, gunfx (tracers, muzzle flash), weaponModels (loads assets/weapons/*.gltf.json)
 assets/weapons/             Flynn's guns as self-contained glTF (.gltf.json), converted from GrappleStrikeGuns.fbx
+assets/vehicles/            the eight vehicles built in Blender (.gltf.json) + their shared texture atlas (atlas_*.png).
+                            Sources, .blend files and .glb copies: /mnt/project-files/models/vehicles/
 src/ui/                     hud, weaponHud (ammo, armor, crosshair, scope), minimap
 src/fx/                     effects (tyre marks, smoke, sparks), carLights
 vendor/                     three.js r160 and Rapier 2D, vendored so the game works offline

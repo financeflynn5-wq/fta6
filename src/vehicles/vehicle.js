@@ -28,7 +28,7 @@ export class Vehicle {
     this.roll = 0; this.pitch = 0; this.y = groundY(x, z); this.accelLong = 0;
     this.smokeT = 0; this.skidPrev = [null, null]; this.spin = 0; this.idleTime = 0;
     this._set = { x: 0, y: 0 };
-    this.wheelSlot = game.wheels.alloc(); this.wheelsDirty = true;
+    this.wheelSlot = -1; this.wheelKind = null; this.wheelsDirty = true;      // slot taken in pushWheels, in the batch for this model's wheels
     this.syncVisual(0, 0);
   }
 
@@ -140,13 +140,13 @@ export class Vehicle {
     this.pitch = damp(this.pitch, clamp(this.accelLong * .0035, -.06, .05) + curb, 9, dt);
     u.chassis.rotation.x = this.roll; u.chassis.rotation.z = this.pitch;
     u.chassis.position.y = (lean < 0 ? 0 : Math.abs(this.roll) * .5) + (this.driver && !this.wrecked ? Math.sin(t * 38 + this.x) * .004 : 0);
-    this.spin -= this.vf * dt / .4;
+    this.spin -= this.vf * dt / (u.wheelR || .4);
     const burn = this.driver && this.controls.throttle > .9 && Math.abs(this.vf) < 7;
     for (const w of u.wheels) {
       w.spin.rotation.z = w.front || !burn ? this.spin : this.spin * 3;
       if (w.front) w.steer.rotation.y = -this.steer * lerp(.55, .2, Math.min(1, Math.abs(this.vf) / 30));
     }
-    if (this.driver || this.speed > .02 || this.wheelsDirty) this.pushWheels();
+    if (this.driver || this.speed > .02 || this.wheelsDirty || this.wheelKind !== u.wheelKind) this.pushWheels();
     u.tail.emissiveIntensity = g.env.tailBase * (this.braking && this.driver ? 5 : 1);
     if (u.bar) { const on = this.siren ? Math.floor(t * 7) % 2 : -1; u.bar[0].material.emissiveIntensity = on === 1 ? 5 : 0; u.bar[1].material.emissiveIntensity = on === 0 ? 5 : 0; }
 
@@ -176,8 +176,12 @@ export class Vehicle {
 
   // Copy the wheel positions into the shared wheel batch.
   pushWheels() {
+    const u = this.mesh.userData, w = this.game.wheels;
+    if (this.wheelKind !== u.wheelKind) {          // first time, or the stand-in just became the real model
+      w.release(this.wheelSlot); this.wheelKind = u.wheelKind; this.wheelSlot = w.alloc(u.wheelKind);
+    }
     if (this.wheelSlot < 0) return;
-    const ws = this.mesh.userData.wheels; this.mesh.updateMatrixWorld(true);
+    const ws = u.wheels; this.mesh.updateMatrixWorld(true);
     for (let i = 0; i < ws.length; i++) this.game.wheels.set(this.wheelSlot + i, ws[i].spin.matrixWorld);     // bikes use two of their four slots
     this.wheelsDirty = this.speed > .02;
   }
@@ -210,5 +214,5 @@ export class Vehicle {
   // The rider is gone for good (thrown off as a pedestrian, or the bike was cleared away). Never the player's own model.
   dropRider() { const m = this.rider; if (!m || m === this.game.player.model) return; this.unseat(); m.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); }
 
-  dispose() { this.dropRider(); this.game.wheels.release(this.wheelSlot); this.game.scene.remove(this.mesh); this.game.physics.remove(this.body); this.gone = true; }
+  dispose() { this.dropRider(); this.game.wheels.release(this.wheelSlot); this.wheelSlot = -1; this.game.scene.remove(this.mesh); this.game.physics.remove(this.body); this.gone = true; }
 }

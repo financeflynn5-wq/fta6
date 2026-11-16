@@ -1,11 +1,13 @@
 // Vehicle meshes. The sedan, taxi and cruiser are straight from the concept: one rounded body, glass
 // cab, chrome wheels. The sports car, van, box truck, limo and motorbike are built the same way.
 // Structure: group -> chassis (leans and dips) + wheels (steer + spin). A bike's wheels lean with it.
+// These shapes are stand-ins: the Blender models (vehicleModels.js) replace them in place once loaded.
 import * as THREE from 'three';
 import { V, choose } from '../core/utils.js';
 import { mats, std, paint, G, mesh, rbox, ctex } from '../world/materials.js';
 import { plainGeometry } from '../world/batching.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { dressCar, wheelParts } from './vehicleModels.js';
 
 const bodyShape = (() => {
   const s = new THREE.Shape(); s.moveTo(-2.15, .34); s.lineTo(2.1, .34); s.quadraticCurveTo(2.32, .36, 2.3, .62); s.lineTo(2.24, .86); s.quadraticCurveTo(1.9, .98, 1.1, 1.0);
@@ -31,17 +33,35 @@ const wheelGeo = mergeGeometries([flat(tireGeo), at(G.box, 0, 0, .172, .42, .07,
 const hubGeo = flat(rimGeo);
 let taxiMat = null;
 
-// All wheels in the city are drawn in two calls. Cars borrow four slots each.
+// All wheels in the city are drawn in a few calls: one batch per kind of wheel ('stand' = the stand-in
+// tyre + hub, then 'std', 'sport', 'truck' and 'bike' from the models). Cars borrow four slots each in
+// their kind's batch; the slot number carries the kind (kind index * capacity + slot).
 export function createWheelBatch(scene, capacity = 640) {
-  const tires = new THREE.InstancedMesh(wheelGeo, mats.tire, capacity), hubs = new THREE.InstancedMesh(hubGeo, mats.rim, capacity);
-  const hidden = new THREE.Matrix4().makeScale(0, 0, 0), free = [];
-  for (let i = capacity - 4; i >= 0; i -= 4) free.push(i);
-  for (const im of [tires, hubs]) { im.castShadow = im.receiveShadow = true; im.frustumCulled = false; for (let i = 0; i < capacity; i++) im.setMatrixAt(i, hidden); scene.add(im); }
+  const hidden = new THREE.Matrix4().makeScale(0, 0, 0), kinds = [], byName = {};
+  function kind(name) {
+    if (byName[name]) return byName[name];
+    const parts = name === 'stand' ? [[wheelGeo, mats.tire], [hubGeo, mats.rim]] : wheelParts(name);
+    const k = { index: kinds.length, ims: parts.map(([geo, mat]) => new THREE.InstancedMesh(geo, mat, capacity)), free: [], top: 0, used: 0, dirty: false };
+    for (let i = capacity - 4; i >= 0; i -= 4) k.free.push(i);
+    for (const im of k.ims) { im.castShadow = im.receiveShadow = true; im.frustumCulled = false; im.count = 0; for (let i = 0; i < capacity; i++) im.setMatrixAt(i, hidden); scene.add(im); }
+    kinds.push(k); byName[name] = k; return k;
+  }
+  kind('stand');
+  const of = (slot) => kinds[Math.floor(slot / capacity)];
   return {
-    alloc: () => free.pop() ?? -1,
-    release(slot) { if (slot < 0) return; for (let i = 0; i < 4; i++) { tires.setMatrixAt(slot + i, hidden); hubs.setMatrixAt(slot + i, hidden); } free.push(slot); },
-    set(i, m) { tires.setMatrixAt(i, m); hubs.setMatrixAt(i, m); },
-    commit() { tires.instanceMatrix.needsUpdate = true; hubs.instanceMatrix.needsUpdate = true; },
+    alloc(name = 'stand') {
+      const k = kind(name), s = k.free.pop(); if (s === undefined) return -1;
+      k.used++; if (s + 4 > k.top) { k.top = s + 4; for (const im of k.ims) im.count = k.top; }      // only draw the slots in use
+      return k.index * capacity + s;
+    },
+    release(slot) {
+      if (slot < 0) return; const k = of(slot), s = slot % capacity;
+      for (let i = 0; i < 4; i++) for (const im of k.ims) im.setMatrixAt(s + i, hidden);
+      k.free.push(s); k.dirty = true;
+      if (--k.used === 0) { k.top = 0; for (const im of k.ims) im.count = 0; }         // e.g. the stand-ins, once every model is in
+    },
+    set(i, m) { const k = of(i); for (const im of k.ims) im.setMatrixAt(i % capacity, m); k.dirty = true; },
+    commit() { for (const k of kinds) if (k.dirty) { k.dirty = false; for (const im of k.ims) im.instanceMatrix.needsUpdate = true; } },
   };
 }
 
@@ -153,14 +173,15 @@ export function makeCarModel(type) {
     bar = [mesh(rbox(.32, .16, .5, .05), std({ color: 0x220000, emissive: 0xff2030, emissiveIntensity: 0 }), V(-.45, 1.8, .28), null, chassis),
     mesh(rbox(.32, .16, .5, .05), std({ color: 0x000022, emissive: 0x2050ff, emissiveIntensity: 0 }), V(-.45, 1.8, -.28), null, chassis)];
   }
-  g.userData = { chassis, wheels, rear: wheels.filter(w => !w.front), bar, tail, seat: null };
-  return g;
+  g.userData = { type, color: col, chassis, wheels, rear: wheels.filter(w => !w.front), bar, tail, seat: null, wheelKind: 'stand', wheelR: .4 };
+  return dressCar(g);
 }
 
 
 function makeFromShape(type) {
   const S = shapeOf(type), g = new THREE.Group(), chassis = new THREE.Group(); g.add(chassis);
-  mesh(S.shell, paint(choose(S.colors)), null, null, chassis);
+  const col = choose(S.colors);
+  mesh(S.shell, paint(col), null, null, chassis);
   if (S.white) mesh(S.white, paint(0xf4f1ea), null, null, chassis);
   if (S.glass) mesh(S.glass, mats.carGlass, null, null, chassis);
   if (S.trim) mesh(S.trim, dark, null, null, chassis);
@@ -172,6 +193,6 @@ function makeFromShape(type) {
   }
   const tail = std({ color: 0x550000, emissive: 0xff1a1a, emissiveIntensity: .5 });
   mesh(S.head, mats.head, null, null, chassis, false); mesh(S.tail, tail, null, null, chassis, false);
-  g.userData = { chassis, wheels, rear: wheels.filter(w => !w.front), bar: null, tail, seat: S.seat || null };
-  return g;
+  g.userData = { type, color: col, chassis, wheels, rear: wheels.filter(w => !w.front), bar: null, tail, seat: S.seat || null, wheelKind: 'stand', wheelR: .4 * (S.wheels[0][2] || 1) };
+  return dressCar(g);
 }
