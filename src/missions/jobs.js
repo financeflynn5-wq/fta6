@@ -256,7 +256,7 @@ export function createJobs(game) {
       chopMark.pulse(t, car ? 1 : .45); stopMark.pulse(t * 1.3);
       const tagged = order?.car && !holding ? order.car : null;
       arrow.visible = !!tagged;
-      if (tagged) { arrow.position.set(tagged.x, tagged.y + 3.5 + Math.sin(t * 4) * .25, tagged.z); arrow.rotation.y = t * 2.5; }
+      if (tagged) { arrow.position.set(tagged.ix, tagged.y + 3.5 + Math.sin(t * 4) * .25, tagged.iz); arrow.rotation.y = t * 2.5; }
       if (game.state !== 'playing' || game.over) return;
 
       // orders
