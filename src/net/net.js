@@ -20,21 +20,36 @@ const r2 = (n) => Math.round(n * 100) / 100, r1 = (n) => Math.round(n * 10) / 10
 
 export function createNet(game) {
   const remotes = new Map(), targets = [], owned = [], taken = new Map();
-  let tr = null, clock = 0, sendT = 0, serial = 0, joined = 0, wasOver = false, lastHit = null, lastState = null, beat = 0;
-  const handlers = [];
+  let tr = null, clock = 0, sendT = 0, serial = 0, joined = 0, wasOver = false, lastHit = null, lastState = null, beat = 0, hosting = false;
+  const handlers = [], extra = new Map();
 
   const net = {
     active: false, id: null, room: '', kind: '', host: false, note: '', name: 'Player', remotes, targets,
     get count() { return remotes.size + (net.active ? 1 : 0); },
     get clock() { return clock; },
     onChange(fn) { handlers.push(fn); },
+    poke() { changed(); },                             // the player list should be redrawn (a match changed its colours)
+    // Who keeps the score for the room. With direct connections it is whoever opened the room. Otherwise it is whoever
+    // already says they do; when nobody does (the room is new, or that player left) the lowest id present takes it up.
+    get hostId() {
+      if (!net.active) return null; if (net.kind === 'direct') return net.host ? net.id : 'fta6-sc-' + net.room;
+      let h = hosting ? net.id : null; for (const r of remotes.values()) if (r.hosting && (h === null || r.id < h)) h = r.id;
+      return h;
+    },
+    get isHost() { return net.active && net.hostId === net.id; },
+    // Hooks for a game mode on top (match.js): more fields in my snapshot, a look at everyone else's, its own events,
+    // who may be hurt, and whether I can be.
+    pack: null, unpack: null, canHit: () => true, shielded: () => false,
+    on(type, fn) { extra.set(type, fn); },
+    send(type, d, to) { if (net.active) tr.emit(type, d, to); },
+    hitter() { return lastHit && clock - lastHit.at < 6 ? lastHit.from : null; },
 
     // Join a room (anyone who joins the same code sees each other). Resolves once connected.
     async join(room, name, transport) {
       if (net.active) net.leave();
       net.room = cleanRoom(room); net.name = String(name || 'Player').slice(0, 14) || 'Player';
       tr = transport || await openTransport(net.room);
-      net.id = tr.id; net.kind = tr.kind; net.host = tr.host; net.note = tr.note; net.active = true; clock = 0; sendT = 0; wasOver = game.over;
+      net.id = tr.id; net.kind = tr.kind; net.host = tr.host; net.note = tr.note; net.active = true; clock = 0; sendT = 0; wasOver = game.over; hosting = false;
       for (const v of owned) v.netId = net.id + '.' + (++serial);
       tr.onState(onState); tr.onEvent(onEvent); tr.onLeave(drop);
       tr.onClose(() => { net.leave(); game.hud.toast('THE HOST LEFT: THE ROOM IS CLOSED', 'bad'); });
@@ -71,8 +86,8 @@ export function createNet(game) {
     // combat.js / hits.js
     shot(weapon, muzzle, ends) { tr.emit('shot', { w: weapon, m: [r2(muzzle.x), r2(muzzle.y), r2(muzzle.z)], e: ends.map(r1) }); },
     swing() { if (net.active) tr.emit('swing', 0); },
-    hitRival(r, damage, head, dx, dz, knock) { tr.emit('hit', { d: damage, hd: head ? 1 : 0, dx: r2(dx), dz: r2(dz), kn: knock }, r.id); },
-    carHit(ghost, d) { tr.emit('carhit', { id: ghost.netId, d: r1(d) }, ghost.owner.id); },
+    hitRival(r, damage, head, dx, dz, knock) { if (net.canHit(r)) tr.emit('hit', { d: damage, hd: head ? 1 : 0, dx: r2(dx), dz: r2(dz), kn: knock }, r.id); },
+    carHit(ghost, d) { if (net.canHit(ghost.owner)) tr.emit('carhit', { id: ghost.netId, d: r1(d) }, ghost.owner.id); },
     horn(v) { if (net.active && v.netId) tr.emit('horn', { id: v.netId }); },
 
     // ---------- once per physics step ----------
@@ -90,13 +105,17 @@ export function createNet(game) {
       targets.length = 0;
       for (const r of remotes.values()) {
         r.update(dt, t, camPos);
-        if (!r.inCar && !r.away && r.model) targets.push(r);
+        if (!r.inCar && !r.away && r.model && net.canHit(r)) targets.push(r);
         if (clock - r.heard > (net.kind === 'tabs' ? 8 : 20)) drop(r.id);
       }
       for (let i = owned.length - 1; i >= 0; i--) if (owned[i].gone) owned.splice(i, 1);
       for (const [id, until] of taken) if (clock > until) taken.delete(id);
+      if (net.kind !== 'direct') {                       // see hostId
+        let other = null, low = net.id; for (const r of remotes.values()) { if (r.hosting && (other === null || r.id < other)) other = r.id; if (r.id < low) low = r.id; }
+        if (other !== null) { if (!hosting || other < net.id) hosting = false; } else if (!hosting && clock > 1.5 && low === net.id) hosting = true;
+      }
       // knocked out with other players around: tell them who did it
-      if (game.over && !wasOver) tr.emit('down', { by: lastHit && clock - lastHit.at < 6 ? lastHit.from : null });
+      if (game.over && !wasOver && !game.match?.on) tr.emit('down', { by: lastHit && clock - lastHit.at < 6 ? lastHit.from : null });
       wasOver = game.over;
       if ((sendT -= dt) <= 0) { sendT += RATE; if (sendT < -RATE) sendT = 0; tr.setState(lastState = snapshot()); }
     },
@@ -114,6 +133,8 @@ export function createNet(game) {
     // my car first, then the last few I left standing
     if (car && !car.ghost) { if (owned[0] !== car) net.own(car); s.c.push(packCar(car)); }
     for (const v of owned) { if (s.c.length >= KEEP_CARS) break; if (v !== car && v.netId) s.c.push(packCar(v)); }
+    if (hosting) s.hs = 1;
+    net.pack?.(s);
     return s;
   }
 
@@ -127,7 +148,8 @@ export function createNet(game) {
       game.hud.toast(`${r.name.toUpperCase()} JOINED`, 'info'); changed();
     } else if (s.nm !== r.name || s.who !== r.who || (s.who === 'bighead' && JSON.stringify(s.lk) !== r.lookJson)) { const n = r.name; r.dress(s.who, s.lk, s.nm); if (n !== r.name) changed(); }
     r.lookJson = s.who === 'bighead' ? JSON.stringify(s.lk) : '';
-    r.heard = clock;
+    r.heard = clock; r.hosting = !!s.hs;
+    net.unpack?.(r, s);
     if (s.t <= r.lastT && r.lastT - s.t < 2) return;             // an older report that arrived late (or the same one again)
     r.lastT = s.t;
     // their clock on ours: the freshest report sets it, a pause on their side resets it
@@ -172,17 +194,19 @@ export function createNet(game) {
       game.audio.shot(w.loud, near(mx, mz, 140)); game.peds.scare(mx, mz, 40, 8);
     } else if (type === 'swing') { r.swingT = .3; r.swingSide ^= 1; if (near(r.x, r.z, 25) > 0) game.audio.whoosh(); }
     else if (type === 'hit') {
-      if (game.over || p.mode !== 'foot' || !(d?.d > 0)) return;
+      if (game.over || p.mode !== 'foot' || !(d?.d > 0) || net.shielded()) return;
       lastHit = { from, at: clock };
       p.hurt(Math.min(200, d.d) * (d.hd ? COMBAT.headshot : 1)); game.cam.shake(.22);
       if (d.kn > 0 && !game.over) { p.body.setLinvel({ x: d.dx * d.kn * 1.2, y: d.dz * d.kn * 1.2 }, true); p.tumble = Math.max(p.tumble, .7); game.audio.punch(); }
     } else if (type === 'carhit') {
-      const v = owned.find(o => o.netId === d?.id); if (v && d.d > 0) { v.damage(Math.min(400, d.d)); lastHit = { from, at: clock }; }
+      const v = owned.find(o => o.netId === d?.id); if (v && d.d > 0 && !net.shielded()) { v.damage(Math.min(400, d.d)); lastHit = { from, at: clock }; }
     } else if (type === 'take') {
       const v = owned.find(o => o.netId === d?.id);
       if (v && v.driver !== 'player') { owned.splice(owned.indexOf(v), 1); game.traffic.remove(v); }
     } else if (type === 'horn') { const g = r.cars.get(d?.id); if (g) game.audio.horn(g, false); }
+    else if (extra.has(type)) extra.get(type)(from, d, r);
     else if (type === 'down') {
+      if (game.match?.on) return;                       // a match tells its own story
       const by = d?.by === net.id ? 'YOU' : remotes.get(d?.by)?.name.toUpperCase();
       game.hud.toast(by ? `${by} TOOK DOWN ${r.name.toUpperCase()}` : `${r.name.toUpperCase()} IS DOWN`, by === 'YOU' ? 'good' : 'info');
     }

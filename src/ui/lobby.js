@@ -19,7 +19,7 @@ export function createLobby(game, play) {
       const name = who(); nameIn.value = name;
       await net.join(roomIn.value, name);
       write('fta6.name', name); write('fta6.room', roomIn.value.toUpperCase());
-      play(); game.hud.toast(`ROOM ${net.room.toUpperCase()}`, 'info');
+      play(); game.hud.toast(`ROOM ${net.room.toUpperCase()}: PRESS ESC FOR COPS VS ROBBERS`, 'info');
     } catch (e) { note.textContent = 'Could not join: ' + (e?.message || e); }
     btn.disabled = false; refresh();
   }
@@ -30,7 +30,7 @@ export function createLobby(game, play) {
   function refresh() {
     const on = net.active;
     btn.textContent = on ? 'Back to the room' : 'Join room'; nameIn.disabled = roomIn.disabled = on;
-    note.textContent = !on ? 'Pick a room code and tell your friends. Everyone who joins the same code plays in the same city.'
+    note.textContent = !on ? 'Pick a room code and tell your friends. Everyone who joins the same code plays in the same city. Once you are in, press Esc to set up Cops vs Robbers.'
       : net.kind === 'tabs' ? 'You are in, but only on this computer' + (net.note ? ' (' + net.note + ')' : '') + '. Open the game in a second window and join the same code to try it.'
         : net.host ? 'You are hosting this room. Friends who open the game and join the same code will appear. If you close the game, the room closes.'
           : 'You are in. Friends who join the same code will appear.';
@@ -38,8 +38,8 @@ export function createLobby(game, play) {
     list.textContent = ''; if (!on) return;
     const head = document.createElement('b'); head.textContent = `ROOM ${net.room.toUpperCase()}`; list.append(head);
     const row = (name, color) => { const s = document.createElement('span'), dot = document.createElement('i'); if (color) dot.style.background = color; s.append(dot, name); list.append(s); };
-    row(net.name + ' (you)');
-    for (const r of net.remotes.values()) row(r.name, r.color);
+    const m = game.match; row(net.name + ' (you)', m?.on && m.team >= 0 ? m.teams[m.team].color : undefined);
+    for (const r of net.remotes.values()) row(r.name, r.marker.color);
     status.textContent = `Room ${net.room.toUpperCase()}: ${net.count} ${net.count === 1 ? 'player' : 'players'}. The city keeps going while this menu is open.`;
   }
   net.onChange(refresh);

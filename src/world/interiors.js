@@ -391,7 +391,7 @@ export function createInteriors(game) {
           if (game.time < here.till) { if (!here.told) hud.toast('THE TILL IS EMPTY', 'info'); here.told = true; }
           else if ((robT += dt) > C.robTime) {
             const take = C.robCash[0] + Math.floor(Math.random() * (C.robCash[1] - C.robCash[0]) / 10) * 10;
-            robT = 0; here.till = game.time + C.tillRefill; here.scared = 6; here.told = true; game.addMoney(take); hud.toast(`HOLD-UP  +${cash(take)}`, 'good');
+            robT = 0; here.till = game.time + C.tillRefill; here.scared = 6; here.told = true; game.addMoney(take); hud.toast(`HOLD-UP  +${cash(take)}`, 'good'); game.match?.robbed(here);
             game.police.crime(C.robHeat, C.robStars, 'ARMED ROBBERY!'); game.peds.scare(here.door.x, here.door.z, 18);
           } else if (robT > .3 && Math.floor(robT * 2) !== Math.floor((robT - dt) * 2)) audio.cash();
         } else { robT = 0; here.told = false; }

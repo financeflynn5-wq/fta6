@@ -127,6 +127,7 @@ export function createPlaces(game) {
         const closing = Math.abs(-v.vx * b.sin + v.vz * b.cos);        // speed straight at the panel
         if (b.hard ? closing < SMASH.through : v.speed < SMASH.touch && !(shove && nose)) continue;
         const sp = v.speed || 1; smash(b, v.vx / sp, v.vz / sp, v.vx, v.vz, clamp(v.speed / 20, .3, 1.5));
+        if (v.driver === 'player') game.match?.smashed(b);
         if (b.hard || KINDS[b.kind].prop && !KINDS[b.kind].soft) {       // bursting through costs a little speed and paint
           const keep = b.hard ? SMASH.keep : SMASH.keepProp, lv = v.body.linvel(); v.body.setLinvel({ x: lv.x * keep, y: lv.y * keep }, true); v._set.x *= keep; v._set.y *= keep;
           v.damage(b.hard ? SMASH.damage : SMASH.damage * .4); if (v.driver === 'player') game.cam.shake(b.hard ? .3 : .15);

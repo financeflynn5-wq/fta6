@@ -20,6 +20,7 @@ export function createPolice(game) {
 
     // Something illegal happened. amount feeds the heat meter; minStars forces at least that level.
     crime(amount, minStars = 0, label = null) {
+      if (game.match?.on) return;                      // in a Cops vs Robbers match the cops are other players
       const p = game.player, before = police.stars;
       police.heat += amount;
       let s = 0; for (let i = 1; i <= 5; i++) if (police.heat >= POLICE.heat[i]) s = i;

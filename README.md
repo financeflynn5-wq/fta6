@@ -25,6 +25,7 @@ There is no build step.
 | Q | Graphics: high / fast |
 | Tab (hold) | The map of Sunset Coast: everything there is to do and how much of it you've done |
 | X (hold) | Quit the race or job you're in |
+| C (hold) | Cops vs Robbers, as a cop: cuff the robber standing next to you |
 | M | Mute |
 | F11 | Full screen (also on the title and pause menus) |
 | Esc | Pause |
@@ -91,6 +92,44 @@ There is no build step.
 - **Wasted** (out of health) bills you and wakes you outside Sunset General (red cross on the radar). You keep your guns.
 - **Nabbed** fines you and lets you out of Sunset PD (blue badge). The cops keep your guns.
 
+## Playing together
+
+The title menu has a name, a room code and **Join room**. Everyone who joins the same code is in the same city: you see each
+other walk, drive and shoot, and you can hurt each other. Each player's own game stays in charge of their own body, their own
+cars and their own health, and tells the others about them 20 times a second; the others play that back a moment (0.11 s) later.
+A car belongs to whoever drove it last. Street traffic, pedestrians and the AI police are not shared yet: every screen has its own.
+
+How the players reach each other (`src/net/transport.js`, tried in this order):
+
+- **room**: the live room of a Claude page, when the game is published as one with the `room` capability (topic `ev` open to
+  everyone it is shared with).
+- **direct**: browser to browser (WebRTC, through the vendored PeerJS). The first player to join a code hosts the room and passes
+  everything along; PeerJS's free public service only introduces the browsers. If the host leaves, the room closes.
+  `?peer=host:port` uses a PeerJS server of your own.
+- **tabs**: windows of one browser on one computer (`?tabs` forces it). For trying multiplayer alone, and the fallback when the
+  introduction service cannot be reached.
+
+### Cops vs Robbers
+
+With two or more players in a room, the pause menu (Esc) shows two sides, CRITTERS and TIN BOTS. Pick one (anyone who does not
+is put on the smaller side), and the host picks 4, 6 or 10 minute halves and starts the match.
+
+- Two halves. CRITTERS rob first while TIN BOTS police; at half time the sides swap.
+- **Robbers** earn by mugging people, driving through things that break, holding up stores (the big one: the cops hear the alarm
+  and see where), selling Scrap his cars and anything else that pays. That money is only *carried*. It counts once you stand in
+  a green stash ring ($ on the radar) for 3 seconds.
+- Carrying $3,000 or more makes a robber **hot**: the cops see them on the radar wherever they are. Otherwise cops see robbers
+  within 90 m, and robbers see cops within 160 m.
+- **Cops** start at Sunset PD with a pistol, a shotgun and a cruiser (the blue C on the radar). They bust a robber by taking
+  their health to zero, or by holding C next to one who is on foot for 1.5 seconds.
+- A busted robber loses everything they carry, and the cops' team *recovers* it. Robbers are back after 8 seconds at a safehouse
+  far from the cops, cops after 12 seconds at the station; both get 5 seconds in which they cannot be hurt.
+- No friendly fire. The AI police stay out of it.
+- **Winning:** the team that stashed more over its half as robbers. Recovered money breaks a tie.
+
+The host's game keeps the clock, the sides and the score; every player's own game decides what happens to that player. All the
+numbers are in `MATCH` in `src/config.js`.
+
 ## Code layout
 
 Each system lives in its own small file, so a change usually touches one place.
@@ -134,19 +173,25 @@ src/combat/                 combat (Rocco's weapons, aim, punch), hits (damage r
 assets/weapons/             Flynn's guns as self-contained glTF (.gltf.json), converted from GrappleStrikeGuns.fbx
 assets/vehicles/            the eight vehicles built in Blender (.gltf.json) + their shared texture atlas (atlas_*.png).
                             Sources, .blend files and .glb copies: /mnt/project-files/models/vehicles/
-src/ui/                     hud, weaponHud (ammo, armor, crosshair, scope), minimap, whoPicker ("Play as" on the menus)
+src/ui/                     hud, weaponHud (ammo, armor, crosshair, scope), minimap, whoPicker ("Play as" on the menus),
+                            lobby (name, room code and player list for playing together)
+src/net/                    net (my snapshots out, everyone else's in, shots and hits between players), transport (room,
+                            direct, tabs: three ways to carry the same messages), remote (another player on this screen),
+                            ghostCar (another player's car on this screen), match (Cops vs Robbers: the rules, the bar at the
+                            top, the lobby on the pause menu, the final score)
 src/fx/                     effects (tyre marks, smoke, sparks), carLights, debris (shards and torn-off parts)
 dev/damage-lab.html         a bench for the crash damage: vehicles on a plain floor, dented from the console (not part of the game)
 dev/cast-lab.html           a bench for the characters: a line-up of any cast members, e.g. ?kinds=sal,dale,tiff,bighead*9
-vendor/                     three.js r160 and Rapier 2D, vendored so the game works offline
+vendor/                     three.js r160, Rapier 2D and PeerJS 1.5.5, vendored so the game needs no build and no CDN
 ```
 
 Tuning the feel of the game almost always means editing `src/config.js`.
 
 Add `?test` to the URL to stop the game loop and drive frames by hand from the console
-(`__fta.advance(1/60)`), which is how the automated playtests run.
+(`__fta.advance(1/60)`), which is how the automated playtests run. `?test&room=CODE&name=Ann&auto&tabs` also joins a room
+straight away, so two pages in one browser can play each other; a test moves both forward a few frames at a time.
 
 ## Credits
 
-Built with [three.js](https://threejs.org) (MIT) and [Rapier](https://rapier.rs) (Apache-2.0).
+Built with [three.js](https://threejs.org) (MIT), [Rapier](https://rapier.rs) (Apache-2.0) and [PeerJS](https://peerjs.com) (MIT).
 All art, sound and code are original to this project. The weapon models are Flynn's own.

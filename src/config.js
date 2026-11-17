@@ -284,3 +284,26 @@ export const BASE = {
   grace: 4,                                     // seconds inside the fence before the alarm goes
   heat: 70,                                     // heat added when it does
 };
+
+// ---------- Cops vs Robbers (net/match.js) ----------
+// Two teams, two halves. One team robs while the other polices, then they swap; the team that stashed more wins.
+export const MATCH = {
+  teams: [{ name: 'CRITTERS', color: '#ff6b8b' }, { name: 'TIN BOTS', color: '#4de3ff' }],   // team 0 robs in the first half
+  lengths: [240, 360, 600], halfTime: 360,       // seconds a half can last (the host picks), and the usual pick
+  countdown: 5, breakTime: 10,                   // seconds frozen before each half; seconds of half time
+  // robbers
+  holdUp: [1000, 2500], tillRefill: 120,         // what a till pays in a match, and how long until it fills again
+  mug: [50, 200], smash: [20, 100],              // knocking a citizen out; driving through something breakable
+  hotAt: 3000,                                   // carrying this much puts you on every cop's radar
+  stashTime: 3, stashRadius: 4,                  // seconds standing in a stash ring; how wide the ring is
+  stashes: ['tower', 'guns', 'hospital', 'gunsNorth', 'chop'],      // rooms (world/interiors.js) whose front door has a stash ring, plus the chop shop
+  safehouses: ['motel', 'noodle', 'crab', 'taco', 'donut'],          // where robbers start and come back
+  robberKit: { pistol: 36 }, robberDown: 8,      // their guns; seconds out after going down
+  // cops
+  copKit: { pistol: 60, shotgun: 24 }, copDown: 12,
+  cuffRange: 2.6, cuffTime: 1.5,                 // hold C this close to a robber on foot for this long
+  seeRange: 90,                                  // a robber closer than this shows on a cop's radar (hot ones and alarms always do)
+  copRange: 160,                                 // a cop closer than this shows on a robber's radar
+  alarmTime: 20,                                 // seconds a store alarm stays on the cops' radar
+  shield: 5,                                     // seconds nobody can hurt you after coming back
+};

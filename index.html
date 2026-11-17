@@ -71,6 +71,7 @@
       <div><kbd>T</kbd><span>Day / night</span></div>
       <div><kbd>Q</kbd><span>Graphics high / fast</span></div>
       <div><kbd>M</kbd><span>Mute</span></div>
+      <div><kbd>C</kbd><span>Cuff a robber (hold, Cops vs Robbers)</span></div>
       <div><kbd>Esc</kbd><span>Pause</span></div>
     </div>
     <button id="playBtn" disabled>Building the city…</button>
@@ -81,7 +82,7 @@
         <input id="mpRoom" maxlength="12" placeholder="Room code" autocomplete="off" spellcheck="false" aria-label="Room code">
         <button id="mpBtn" type="button" class="ghost" disabled>Join room</button>
       </div>
-      <p class="tip" id="mpNote">Pick a room code and tell your friends. Everyone who joins the same code plays in the same city.</p>
+      <p class="tip" id="mpNote">Pick a room code and tell your friends. Everyone who joins the same code plays in the same city. Once you are in, press <kbd>Esc</kbd> to set up <b>Cops vs Robbers</b>.</p>
     </div>
     <button class="ghost fsBtn" type="button">Full screen <kbd>F11</kbd></button>
   </div>
@@ -93,6 +94,17 @@
     <div class="who" hidden></div>
     <button id="resumeBtn">Back to the streets</button>
     <p class="tip" id="mpStatus" hidden></p>
+    <div class="mLobby" id="mLobby" hidden>
+      <div class="mpHead">Cops vs Robbers</div>
+      <div class="mSides">
+        <div class="mSide"><b></b><small>robbers first</small><ul id="mList0"></ul><button id="mJoin0" type="button" class="ghost">Join</button></div>
+        <div class="mSide"><b></b><small>cops first</small><ul id="mList1"></ul><button id="mJoin1" type="button" class="ghost">Join</button></div>
+      </div>
+      <p class="tip" id="mWho"></p>
+      <div class="mLen" id="mLen"><span>Each half</span></div>
+      <button id="mStart" type="button">Start the match</button>
+      <button id="mStop" type="button" class="ghost" hidden>End the match</button>
+    </div>
     <button class="ghost" id="mpLeave" type="button" hidden>Leave the room</button>
     <button class="ghost fsBtn" type="button">Full screen <kbd>F11</kbd></button>
   </div>
@@ -101,6 +113,17 @@
 <div class="overlay flash" id="busted" hidden>
   <div class="bustText" id="bustText">NABBED!</div>
   <div class="bustSub" id="bustSub"></div>
+</div>
+
+<div class="overlay results" id="results" hidden>
+  <div class="panel">
+    <div class="resTitle" id="resTitle"></div>
+    <p class="resSub" id="resSub"></p>
+    <div class="resBody" id="resBody"></div>
+    <p class="tip" id="resAwards"></p>
+    <button id="resBack" type="button">Back to the lobby</button>
+    <p class="tip" id="resWait" hidden></p>
+  </div>
 </div>
 
 <script type="module" src="src/main.js"></script>

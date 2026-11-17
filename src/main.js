@@ -43,6 +43,7 @@ import { createWallet } from './story/wallet.js';
 import { createStory } from './story/story.js';
 import { createNet } from './net/net.js';
 import { createLobby } from './ui/lobby.js';
+import { createMatch } from './net/match.js';
 
 const STEP = 1 / 60;
 const $ = (id) => document.getElementById(id);
@@ -94,6 +95,7 @@ async function boot() {
   game.indoors = createInteriors(game);         // shops and lobbies you can walk into
   game.places = createPlaces(game);             // the valley: glass and fences that break, the mall roof, the base
   game.net = createNet(game);                   // other players, once a room is joined
+  game.match = createMatch(game);               // cops vs robbers, played in a room
   game.env.touch();
   engine.resize();
 
@@ -101,7 +103,7 @@ async function boot() {
   const { police, player, hud, audio, fx, peds, cam } = game;
   let crashSound = 0;
 
-  game.addMoney = (n) => { game.money = Math.max(0, game.money + n); if (n > 0) { audio.cash(); hud.moneyPop(); } };
+  game.addMoney = (n) => { if (game.match?.on && !game.match.earns(n)) return; game.money = Math.max(0, game.money + n); if (n > 0) { audio.cash(); hud.moneyPop(); } };
   game.honk = (v) => { audio.horn(v, v === player.vehicle); game.net.horn(v); };
 
   game.onCarTaken = (car, old, speed) => {
@@ -187,7 +189,7 @@ async function boot() {
     if (spot) hud.toast(spot.name, 'info');
   }
   game.busted = () => setback('NABBED!', 'The cops kept $X for the donut fund.', .25, 'station');
-  game.knockedOut = () => setback('WASTED', 'Sunset General billed you $X.', .15, 'hospital');
+  game.knockedOut = () => (game.match?.on ? game.match.down() : setback('WASTED', 'Sunset General billed you $X.', .15, 'hospital'));
 
   // ---------- menus ----------
   const setState = (s) => {
@@ -258,6 +260,7 @@ async function boot() {
     player.update(dt, t);
     game.combat.update(dt, t);
     game.net.update(dt, t);
+    game.match.update(dt, t);
     police.update(dt, t);
     game.copGuns.update(dt, t);
     game.pickups.update(dt, t);

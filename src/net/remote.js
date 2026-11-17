@@ -15,9 +15,9 @@ const HALF_PI = Math.PI / 2;
 function nameTag(text, color) {
   const c = document.createElement('canvas'); c.width = 384; c.height = 96;
   const x = c.getContext('2d'); x.font = '900 52px "Archivo Black",Impact,sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
-  x.lineWidth = 12; x.lineJoin = 'round'; x.strokeStyle = 'rgba(10,12,20,.85)'; x.strokeText(text, 192, 50, 360); x.fillStyle = color; x.fillText(text, 192, 50, 360);
+  x.lineWidth = 12; x.lineJoin = 'round'; x.strokeStyle = 'rgba(10,12,20,.85)'; x.strokeText(text, 192, 50, 360); x.fillStyle = '#fff'; x.fillText(text, 192, 50, 360);
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false, fog: false }));
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color, transparent: true, depthWrite: false, toneMapped: false, fog: false }));
   s.renderOrder = 20; s.userData.base = [2.4, .6];
   return s;
 }
@@ -34,8 +34,11 @@ export function createRemote(game, id, index) {
     state: 'stand',                 // 'stand' | 'move' | 'down' (hits.js reads this to know they are lying flat)
     inCar: false, weapon: 'fists', ready: false, hp: PLAYER.health, up: false, away: false,
     aimPitch: 0, swingT: 0, swingSide: 0, reloading: 0, kick: 0,          // what holdPose reads
+    team: -1, carried: 0, hot: false, show: true,           // set by a match (match.js): which side, what they carry, whether we may see them
     buf: [], off: null, heard: 0, lastT: -1, cars: new Map(), carId: null, visible: false,
     marker: { x: 0, z: 0, color, glyph: 'P', pin: true, size: 7, visible: () => r.visible },
+    // The colour of their name and blip (a match paints teams).
+    tint(c) { if (c === r.marker.color) return; r.marker.color = c; tag?.material.color.set(c); },
 
     // Who they are and what they look like (rebuilt only when it changes).
     dress(who, look, name) {
@@ -55,7 +58,7 @@ export function createRemote(game, id, index) {
       if (name !== shownName) {
         shownName = r.name = name; r.marker.glyph = name[0].toUpperCase();
         if (tag) { tag.material.map.dispose(); tag.material.dispose(); tag.removeFromParent(); }
-        tag = nameTag(name, color); game.scene.add(tag);
+        tag = nameTag(name, r.marker.color); game.scene.add(tag);
       }
     },
 
@@ -105,10 +108,10 @@ export function createRemote(game, id, index) {
         for (const k in guns) guns[k].visible = k === r.weapon;
         if (r.state !== 'down') holdPose(model.userData.arms, w, r, t, r.ready);
       }
-      r.visible = !r.away; r.marker.x = tx; r.marker.z = tz;
+      r.visible = !r.away && r.show; r.marker.x = tx; r.marker.z = tz;
       if (tag) {
         const d = Math.hypot(tx - camPos.x, ty - camPos.y, tz - camPos.z), k = Math.max(1, Math.min(7, d / 13));
-        tag.visible = d < 160 && !r.away; tag.position.set(tx, ty + (k - 1) * .12, tz); tag.scale.set(tag.userData.base[0] * k, tag.userData.base[1] * k, 1);
+        tag.visible = d < 160 && r.visible; tag.position.set(tx, ty + (k - 1) * .12, tz); tag.scale.set(tag.userData.base[0] * k, tag.userData.base[1] * k, 1);
       }
     },
 

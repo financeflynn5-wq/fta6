@@ -74,6 +74,7 @@ export function createHits(game) {
         ped.hp = (ped.hp ?? maxHp(ped)) - damage * (h.head ? COMBAT.headshot : 1);
         const out = ped.hp <= 0;
         if (out) peds.knockOut(ped, dx * (3 + knock * .4), dz * (3 + knock * .4));
+        if (out && byPlayer && !ped.cop) game.match?.mugged(ped);
         else if (melee) peds.knockDown(ped, dx * knock, dz * knock);
         else ped.panic = 9;
         peds.scare(ped.x, ped.z, 25);
