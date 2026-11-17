@@ -14,6 +14,7 @@ import { makeCharacter, CIVILIANS } from '../characters/models.js';
 
 const H = TRAFFIC.highway;
 const EXIT_PLAN = 90, EXIT_BRAKE = 4;       // metres before an exit a driver decides to take it, and how gently they slow for it (m/s^2)
+const TURN_ROOM = 45;                      // metres past an exit a cruiser going the other way turns round, to come back to it
 
 export function createHighwayTraffic(game) {
   const hw = game.city.highway, here = {}, tgt = {}, spot = {};
@@ -48,6 +49,30 @@ export function createHighwayTraffic(game) {
     const L = d.lane;
     for (const ex of L.exits) if (fwdGap(L, d.s, ex.s) < 4) return ex;
     return null;
+  }
+  // Which exit should a cruiser on the Loop leave by to reach the player? None while the player is on the Loop too.
+  //   - the player is on one of the roads that leave the Loop (Highway 6, a ramp): that one
+  //   - the player is down on the streets: the exit that makes the shortest trip, counting the way round to it
+  function wayOff(d, p, up) {
+    const M = hw.main[0], v = d.v, sameWay = d.lane === M || d.lane === M.side;
+    lanePoint(M, laneS(M, p.x, p.z), spot); const onMain = Math.abs(spot.y - p.y) < 2.5 ? Math.hypot(spot.x - p.x, spot.z - p.z) : 1e9;
+    for (const ex of M.exits) {
+      const s = laneS(ex.to, p.x, p.z); if (s < 10) continue;
+      lanePoint(ex.to, s, spot);
+      const far = Math.hypot(spot.x - p.x, spot.z - p.z);
+      if (far < 5 && far + 2 < onMain && Math.abs(spot.y - p.y) < 2.5) return ex;
+    }
+    if (up) return null;
+    let best = null, bd = 1e9; const at = laneS(M, v.x, v.z);
+    for (const ex of M.exits) {
+      const e = ex.to.pts[ex.to.pts.length - 1];
+      const round = fwdGap(M, at, ex.s);
+      // going the other way, the cruiser has to turn round: now if the exit is close behind, or else once it has passed it
+      const way = sameWay ? round : (round < M.len * .5 ? Math.max(round, TURN_ROOM) : M.len - round + TURN_ROOM) + 60;
+      const c = way + ex.to.len + Math.hypot(e.x - p.x, e.z - p.z) * 1.3;
+      if (c < bd) { bd = c; best = ex; }
+    }
+    return best;
   }
   // Gap to whatever is in the way ahead on the same level, and how fast it is going our way.
   function ahead(v, reach) {
@@ -179,11 +204,15 @@ export function createHighwayTraffic(game) {
       if (!track(d) || (!v.up && here.y - v.y > 3)) { d.lane = null; return null; }
       let L = d.lane;
       const dist = Math.hypot(p.x - v.x, p.z - v.z), level = Math.abs(p.y - v.y) < 2.5;
-      if (up && level && dist < 34 && v.up) return null;               // close enough to go straight at them
+      if (up && level && dist < 34 && v.up && !(L.main && d.wayOff)) return null;      // close enough to go straight at them (not across the rails of a fork)
       if ((d.planT = (d.planT || 0) - dt) <= 0) {
         d.planT = .7;
-        if (!up) {                                                     // they went back down: take the next way off
-          if (L.main && !L.exits.length) { const o = hw.main[0]; d.lane = o; d.s = laneS(o, v.x, v.z); L = o; }
+        d.wayOff = L.main ? wayOff(d, p, up) : null;
+        if (d.wayOff) {
+          // they have left the Loop: get into the lane the exits are on. A cruiser going the other way carries on
+          // until it is just past the exit, and turns round there
+          const M = hw.main[0], at = laneS(M, v.x, v.z), past = fwdGap(M, at, d.wayOff.s);
+          if (L === M.side || (L !== M && past > TURN_ROOM && past < M.len * .5)) { d.lane = L = M; d.s = at; }
         } else if (L.main) {
           // the short way round to them: carry on, or turn round and use the lanes going the other way
           const gap = fwdGap(L, d.s, laneS(L, p.x, p.z));
@@ -191,7 +220,7 @@ export function createHighwayTraffic(game) {
         }
       }
       const ex = exitHere(d);
-      if (ex && !up && d.lastExit !== ex) { d.lastExit = ex; L = d.lane = ex.to; d.s = 0; } else if (!ex) d.lastExit = null;
+      if (ex && ex === d.wayOff) { L = d.lane = ex.to; d.s = 0; d.wayOff = null; }
       lanePoint(L, d.s + 5 + v.speed * .55, tgt); const aimX = tgt.x, aimZ = tgt.z;
       let want = Math.min(d.maxSpeed, tgt.v * 1.25 + 2);
       lanePoint(L, d.s + 10 + v.speed * 1.3, tgt); want = Math.min(want, tgt.v * 1.25 + 5);
