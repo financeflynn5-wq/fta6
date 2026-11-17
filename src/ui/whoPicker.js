@@ -71,5 +71,5 @@ export function createWhoPicker(game) {
     row.hidden = false;
   }
   refresh();
-  return { pick, refresh };
+  return { pick, refresh, portrait, size: SIZE };       // portrait: the talking scenes in story mode draw their faces with it
 }

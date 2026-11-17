@@ -100,6 +100,7 @@ export function createPlaces(game) {
   function smash(b, dx, dz, vx = 0, vz = 0, power = 1) {
     if (!b.alive) return;
     const K = KINDS[b.kind]; b.alive = false; K.im.setMatrixAt(b.i, hidden); K.im.instanceMatrix.needsUpdate = true; broken.push(b);
+    game.onSmash?.(b);                           // the smash spree counts these
     if (b.col) { ph.world.removeCollider(b.col, true); b.col = null; }
     const far = Math.hypot(b.x - p.x, b.z - p.z); if (far > 90) return;
     const n = b.kind === 'glass' ? Math.round(6 + b.w * b.h * 1.6) : K.prop ? 12 : 9, h = b.kind === 'glass' ? b.h : K.tall || 1;
@@ -150,6 +151,8 @@ export function createPlaces(game) {
       }
       return false;
     },
+    // Put everything broken inside a box back at once (the smash spree starts with a whole mall).
+    mend(x0, x1, z0, z1) { broken = broken.filter(b => { if (b.x < x0 || b.x > x1 || b.z < z0 || b.z > z1) return true; b.alive = true; place(b); wall(b); return false; }); },
     update(dt, t) {
       const north = p.z > 330;
       for (const k in KINDS) if (KINDS[k].im) KINDS[k].im.visible = north;

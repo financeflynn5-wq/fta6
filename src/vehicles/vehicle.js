@@ -107,9 +107,10 @@ export class Vehicle {
     this.x = p.x; this.z = p.y; this.h = b.rotation(); this.vx = v.x; this.vz = v.y; this.speed = Math.hypot(v.x, v.y);
     if (Math.abs(this.x - this.px) + Math.abs(this.z - this.pz) > 4) { this.px = this.x; this.pz = this.z; this.ph = this.h; }   // moved by hand, not driven
     if (this.impact > this.tune.damageMin) {
-      this.damage((this.impact - this.tune.damageMin) * this.tune.damageScale * (this.driver === 'player' ? .75 : 1));
+      this.damage((this.impact - this.tune.damageMin) * this.tune.damageScale * (this.driver === 'player' ? .75 : 1) * (this.soak ?? 1));      // soak: set for one step by a ram that is meant to hurt the other car more (missions/outlaws.js)
       this.game.onCrash(this, this.impact);
     }
+    this.soak = 1;
     this.idleTime = this.driver ? 0 : this.idleTime + dt;
   }
 

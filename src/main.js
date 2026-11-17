@@ -38,6 +38,9 @@ import { createHighwayTraffic } from './vehicles/highwayTraffic.js';
 import { createInteriors } from './world/interiors.js';
 import { createPlaces } from './world/places.js';
 import { createWhoPicker } from './ui/whoPicker.js';
+import { createOutlaws } from './missions/outlaws.js';
+import { createWallet } from './story/wallet.js';
+import { createStory } from './story/story.js';
 
 const STEP = 1 / 60;
 const $ = (id) => document.getElementById(id);
@@ -84,6 +87,7 @@ async function boot() {
   game.highway = createHighwayTraffic(game); game.traffic.init(); game.highway.init();
   game.peds.init();
   game.jobs = createJobs(game);
+  game.outlaws = createOutlaws(game);           // crooks' cars: runaways to run down, derby rivals that come after you
   game.activities = createActivities(game);     // races, stunt jumps, collectibles and the rest
   game.indoors = createInteriors(game);         // shops and lobbies you can walk into
   game.places = createPlaces(game);             // the valley: glass and fences that break, the mall roof, the base
@@ -140,7 +144,8 @@ async function boot() {
     peds.scare(ped.x, ped.z, 20);
     if (v.driver === 'player') {
       cam.shake(.18);
-      if (ped.cop) police.crime(POLICE.crime.copPedHit, 2, 'FLATTENED AN OFFICER!'); else police.crime(POLICE.crime.pedHit, 1, 'HIT AND RUN!');
+      if (ped.outlaw) { /* a gunman from a mission: fair game */ }
+      else if (ped.cop) police.crime(POLICE.crime.copPedHit, 2, 'FLATTENED AN OFFICER!'); else police.crime(POLICE.crime.pedHit, 1, 'HIT AND RUN!');
     }
   };
 
@@ -148,6 +153,7 @@ async function boot() {
     if (a?.isVehicle && b?.isVehicle) {
       const mine = a.driver === 'player' ? a : b.driver === 'player' ? b : null; if (!mine) return;
       const other = mine === a ? b : a, rel = Math.hypot(a.vx - b.vx, a.vz - b.vz);
+      if (other.outlaw) { game.outlaws.rammed(other, mine, rel); return; }      // a crook you were sent after, or a derby rival: ram away
       if (other.type === 'police' && other.driver instanceof AIDriver) { if (rel > 5) police.crime(POLICE.crime.copRam, rel > 11 ? 2 : 1, 'RAMMED A COP!'); }
       else if (other.driver instanceof AIDriver && rel > 7) { if (police.stars > 0) police.crime(4); else if (police.witnessed(mine.x, mine.z)) police.crime(8, 1, 'RECKLESS DRIVING!'); }
       return;
@@ -190,6 +196,8 @@ async function boot() {
   $('playBtn').textContent = 'Hit the streets'; $('playBtn').disabled = false;
   $('playBtn').addEventListener('click', () => { cam.yaw = -Math.PI / 2; play(); hud.toast('FIND A RIDE', 'info'); });
   $('resumeBtn').addEventListener('click', play);
+  game.wallet = createWallet(game);             // cash and guns carry over between sessions
+  game.story = createStory(game);               // story mode: adds "Story mode" beside the play button, and the jobs themselves
   // Full screen: F11 or the menu buttons. Going full screen from a menu also starts / resumes play.
   const fullscreen = () => {
     const on = !!document.fullscreenElement;

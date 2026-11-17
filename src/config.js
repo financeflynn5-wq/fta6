@@ -223,6 +223,31 @@ export const ACTIVITIES = {
   pizza: { count: 4, base: 100, tip: 160, pace: 13, slack: 14, cold: 20, perfect: 500 },   // seconds allowed = distance / pace + slack
   traps: { perKmh: 12, cooldown: 20 },                                      // speed cameras pay per km/h over their limit
   bowling: { perPin: 50, strike: 1000, settle: 4.5 },
+  // bounty hunts (outside Sunset PD): time: seconds on the clock; extra: seconds each crook adds; pay + step for every one after the first;
+  // giveUp: a crook stops when their car is down to this share of its health; speed: how fast the first one drives, and how much faster each next one is
+  bounty: { time: 110, extra: 50, pay: 400, step: 150, giveUp: .5, speed: [21, 1.5, 31], minDist: 110, maxDist: 220 },
+  // the Golden Acres derby: rivals (and one more per win, up to max), their top speed, cash per wreck and for winning, seconds allowed outside the ring
+  derby: { rivals: 4, max: 7, speed: 19, radius: 34, wreck: 300, win: 1500, out: 6 },
+  // Coral Plaza smash spree: seconds, cash per thing broken (glass pays more), how many for each medal and what a medal adds
+  spree: { time: 60, each: 20, glass: 35, medals: { gold: 60, silver: 40, bronze: 20 }, pay: { gold: 1500, silver: 800, bronze: 400 } },
+  // the hay-field shooting range: seconds, targets up at once, how long one stays up, cash per hit, hits for each medal and what a medal adds
+  range: { time: 45, up: 3, stay: 4.5, perHit: 25, medals: { gold: 22, silver: 15, bronze: 8 }, pay: { gold: 1200, silver: 600, bronze: 300 } },
+  spray: { price: 250 },                                                    // Spray 'n' Scram: fixes the car, repaints it and shakes the cops
+};
+
+// ---------- story mode (src/story/) ----------
+export const STORY = {
+  ring: 1.6,                                    // the ring you step into to start a mission (m)
+  retry: 14,                                    // seconds the "hold Y to retry" offer stays up after a mission fails
+  // the Possum Posse's gunmen (a mission can override any of these): health, damage per hit, chance to hit up close, seconds between shots,
+  // how far they shoot, how close you get before they notice, the distance they like to keep, walking speed
+  goon: { hp: 55, damage: 6, accuracy: .4, rate: 1.15, range: 36, wake: 44, hold: 11, speed: 3.4 },
+  giveUp: .45,                                  // a car you are told to run down stops when its health drops to this share
+  ram: 1.4, ramSoak: .45,                       // ramming a crook's car: extra damage to it per m/s of closing speed, and the share of the knock your own car takes
+  lost: 300,                                    // ...and gets away if it is ever this far from you (m)
+  // what each mission pays
+  pay: { rent: 600, parts: 900, repo: 1200, signal: 1500, mall: 3000, barn: 2500, army: 3500, tower: 25000 },
+  saveEvery: 3,                                 // seconds between writes of your cash and guns to the browser's storage
 };
 
 // ---------- walk-in buildings (world/interiors.js) ----------

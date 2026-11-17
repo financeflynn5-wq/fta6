@@ -77,7 +77,8 @@ export function createHits(game) {
         else ped.panic = 9;
         peds.scare(ped.x, ped.z, 25);
         if (byPlayer) {
-          if (ped.cop) report(out ? COMBAT.crime.copKo : COMBAT.crime.copAssault, out ? 'OFFICER DOWN!' : 'ASSAULTED AN OFFICER!');
+          if (ped.outlaw) { /* a gunman from a mission: nobody calls the cops for him */ }
+          else if (ped.cop) report(out ? COMBAT.crime.copKo : COMBAT.crime.copAssault, out ? 'OFFICER DOWN!' : 'ASSAULTED AN OFFICER!');
           else if (out) report(COMBAT.crime.ko, null);
           else if (police.witnessed(ped.x, ped.z)) report(COMBAT.crime.assault, 'ASSAULT!');
           game.combat?.hitMarker(out);

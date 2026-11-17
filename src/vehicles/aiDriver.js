@@ -75,7 +75,7 @@ export class AIDriver {
       this.from = B; this.to = C; this.next = pickNext(B, C); this.turning = false;
       return this.cruise(0, t);
     }
-    let want = this.scared > 0 ? 19 : TRAFFIC.cruise * (v.stats.cruise ?? 1), aimX, aimZ;
+    let want = this.scared > 0 ? (this.flee || 19) : TRAFFIC.cruise * (v.stats.cruise ?? 1), aimX, aimZ;      // flee: a crook on the run (missions/outlaws.js) sets their own pace
     const look = 5 + v.speed * .6;
     if (turn && s > SPAN - BOX - 2.5) this.turning = true;
     if (turn && this.turning) { aimX = exitX; aimZ = exitZ; want = Math.min(want, 5.2); }
@@ -121,7 +121,7 @@ export class AIDriver {
       if ((who === p || who?.driver === 'player') && (this.honk -= dt) <= 0) { this.honk = 2.2 + Math.random() * 2; g.honk(v); }
       if (this.blockedFor > 9) { this.blockedFor = 0; this.reverse = 1.2; }   // jammed: back up and try again
     } else this.blockedFor = 0;
-    this.nudge = 0;
+    this.nudge = this.flee && who && who !== p && gap < 16 && !this.turning ? -1 : 0;      // a crook on the run swings out round whatever is in the way
     return [aimX, aimZ, want];
   }
 
