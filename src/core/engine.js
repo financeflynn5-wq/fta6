@@ -22,6 +22,18 @@ export function createEngine(canvas) {
   const gtao = new GTAOPass(scene, camera, 16, 16);
   gtao.updateGtaoMaterial({ radius: 1.6, distanceExponent: 1.5, thickness: 2, scale: 1.1, samples: 16 });
   gtao.blendIntensity = .9; composer.addPass(gtao);
+  // The contact-shadow pass redraws the scene as solid shapes to learn where surfaces are. Left alone it
+  // draws every smoke puff, spark, flash and glow marker as a solid square and shades the world around
+  // it, which showed up as big black blocks in the smoke. Anything see-through that leaves no depth
+  // (sprites, depthWrite: false, or userData.noAO) sits that pass out.
+  gtao.overrideVisibility = function () {
+    const cache = this._visibilityCache;
+    this.scene.traverse((o) => {
+      cache.set(o, o.visible);
+      const m = o.material;
+      if (o.isPoints || o.isLine || o.isSprite || o.userData.noAO || (m && !Array.isArray(m) && m.depthWrite === false)) o.visible = false;
+    });
+  };
   const bloom = new UnrealBloomPass(new THREE.Vector2(16, 16), .2, .4, 1.4); composer.addPass(bloom);
   composer.addPass(new OutputPass());
 

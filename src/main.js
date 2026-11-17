@@ -59,7 +59,7 @@ async function boot() {
   for (const p of game.city.solids.posts) game.physics.addStaticPost(p.x, p.z, p.r, p.h ?? groundY(p.x, p.z) + 7);
   for (const w of game.city.solids.walls) game.physics.addWall(w.x, w.z, w.hl, w.ht, w.rot, w.kind, w.h);
   game.env = createSky(engine, game.city);
-  game.fx = createEffects(engine.scene);
+  game.fx = createEffects(engine.scene, engine.camera);
   game.world = createWorld(game);               // the land: hills, air time, water (also sets game.ride)
   game.wheels = createWheelBatch(engine.scene);
   game.traffic = createTraffic(game);
@@ -95,10 +95,11 @@ async function boot() {
   let crashSound = 0;
 
   game.addMoney = (n) => { game.money = Math.max(0, game.money + n); if (n > 0) { audio.cash(); hud.moneyPop(); } };
-  game.honk = (v) => { if (Math.hypot(v.x - player.x, v.z - player.z) < 40) audio.horn(); };
+  game.honk = (v) => audio.horn(v, v === player.vehicle);
 
   game.onCarTaken = (car, old, speed) => {
     audio.door(); cam.shake(.12);
+    if (!old) audio.ignition();                   // nobody was driving it: start it up
     if (car.type === 'police') { police.carStolen(car); police.crime(POLICE.crime.copCarTheft, 2, 'STOLE A COP CAR!'); }
     else if (old instanceof AIDriver) { police.crime(POLICE.crime.carjack, 1, 'CARJACKED!'); peds.scare(car.x, car.z, 16); }
     else if (!car.stolen) {
@@ -259,9 +260,7 @@ async function boot() {
     game.carLights.update(t);
     hud.update(dt, t); game.weaponHud.update(dt, t); game.minimap.update(t);
     const car = player.vehicle;
-    audio.engine(!!car && !car.wrecked && game.state === 'playing', car ? car.rpm : 0, car ? Math.abs(car.controls.throttle) : 0, car ? car.stats.pitch ?? 1 : 1);
-    audio.skid(car && car.sliding ? clamp(.35 + car.slip / 9, 0, 1) : 0);
-    audio.siren(game.state === 'playing' ? police.sirenLevel() : 0);
+    audio.drive(game, dt);          // engine, tyres, wind, traffic going by, sirens
     if (!game.noRender) engine.render();
 
     // drop to fast graphics by itself on machines that struggle
