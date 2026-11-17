@@ -89,6 +89,21 @@ export class AIDriver {
       const st = lightState(dx ? 'x' : 'z', t), dStop = SPAN - 9.6 - s;
       if (dStop > -.5 && dStop < 30 && st !== 'g' && !(st === 'y' && dStop < 4)) want = Math.min(want, Math.sqrt(12 * Math.max(0, dStop - .3)));
     }
+    // turning left across the oncoming lane: wait for a gap first (both directions get their green together).
+    // Only while still on our own side of the road, and never for more than a few seconds.
+    const side = (v.x - bx) * rx + (v.z - bz) * rz;
+    if (turn && d2x * rx + d2z * rz < 0 && this.scared <= 0 && s > SPAN - BOX - 14 && side > 1.2) {
+      let wait = false;
+      for (const o of g.traffic.vehicles) {
+        if (o === v || !o.driver || o.wrecked || o.driver.turning || Math.abs(o.y - v.y) > 3) continue;
+        const ox = o.x - bx, oz = o.z - bz, along = ox * dx + oz * dz;
+        if (along < -5 || along > 34 || Math.abs(ox * rx + oz * rz + LANE) > 2.4) continue;      // not in the lane coming towards us
+        const closing = -(o.vx * dx + o.vz * dz);
+        if (closing > 1.5 && along < Math.max(10, closing * 3.2)) { wait = true; break; }
+      }
+      this.yieldT = wait ? (this.yieldT || 0) + dt : 0;
+      if (wait && this.yieldT < 7) want = this.turning ? 0 : Math.min(want, Math.sqrt(12 * Math.max(0, SPAN - BOX - 2.8 - s)));
+    } else this.yieldT = 0;
     // things ahead: queue behind them
     let gap = 99, who = null;
     for (const o of g.traffic.vehicles) {
