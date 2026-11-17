@@ -34,6 +34,7 @@ import { createCopGuns } from './combat/copGuns.js';
 import { createPickups } from './combat/pickups.js';
 import { createJobs } from './missions/jobs.js';
 import { createHighwayTraffic } from './vehicles/highwayTraffic.js';
+import { createInteriors } from './world/interiors.js';
 
 const STEP = 1 / 60;
 const $ = (id) => document.getElementById(id);
@@ -50,7 +51,7 @@ async function boot() {
   game.input = createInput(canvas);
   game.audio = createAudio();
   game.city = buildCity(engine.scene);
-  for (const b of game.city.solids.boxes) game.physics.addStaticBox(b.x, b.z, b.hw, b.hd, b.low, b.h);
+  for (const b of game.city.solids.boxes) if (!b.hollow) game.physics.addStaticBox(b.x, b.z, b.hw, b.hd, b.low, b.h);       // hollow: you can walk in (its walls are in solids.walls)
   for (const p of game.city.solids.posts) game.physics.addStaticPost(p.x, p.z, p.r, p.h);
   for (const w of game.city.solids.walls) game.physics.addWall(w.x, w.z, w.hl, w.ht, w.rot, w.kind, w.h);
   game.env = createSky(engine, game.city);
@@ -80,6 +81,7 @@ async function boot() {
   game.peds.init();
   game.jobs = createJobs(game);
   game.activities = createActivities(game);     // races, stunt jumps, collectibles and the rest
+  game.indoors = createInteriors(game);         // shops and lobbies you can walk into
   game.env.touch();
   engine.resize();
 
@@ -245,7 +247,7 @@ async function boot() {
       titleYaw += dt * .05; engine.camera.position.set(Math.sin(titleYaw) * 150, 128, Math.cos(titleYaw) * 150); engine.camera.lookAt(0, 44, 0);     // clear of the towers
       cam.lookAt.set(0, 0, 0);
     } else cam.update(dt, t);
-    game.world.update(dt, t); game.activities.update(dt, t); game.highway.update(dt);
+    game.world.update(dt, t); game.activities.update(dt, t); game.highway.update(dt); game.indoors.update(dt, t);
     game.env.update(dt, engine.camera.position, cam.lookAt);
     game.carLights.update(t);
     hud.update(dt, t); game.weaponHud.update(dt, t); game.minimap.update(t);

@@ -194,3 +194,11 @@ export const ACTIVITIES = {
   traps: { perKmh: 12, cooldown: 20 },                                      // speed cameras pay per km/h over their limit
   bowling: { perPin: 50, strike: 1000, settle: 4.5 },
 };
+
+// ---------- walk-in buildings (world/interiors.js) ----------
+// prices at the counters, and what a hold-up is worth
+export const INDOORS = {
+  snack: 15, meal: 25, armor: 300, ammo: 120, play: 10, jackpot: 250, room: 40, clothes: 100, patchUp: 50,
+  bribe: 400,                                   // per wanted star, at the Sunset PD front desk
+  robTime: 2.2, robCash: [150, 450], robHeat: 60, robStars: 2, tillRefill: 300,     // seconds of aiming at the clerk; what the till holds; how long until it fills again
+};

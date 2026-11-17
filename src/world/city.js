@@ -10,6 +10,7 @@ import { CITY_EDGE, inDowntown } from './map.js';
 import { nearRibbon } from './terrain.js';
 import { planHighway, buildHighway } from './highway.js';
 import { towerAt, buildSkyline } from './skyline.js';
+import { buildInteriors } from './interiors.js';
 import { buildGround } from './ground.js';
 import { buildDistricts, shapeLand } from './districts.js';
 
@@ -31,7 +32,7 @@ export function buildCity(realScene) {
   // Everything static is built into this holding group, then welded into a few meshes at the end.
   const scene = new THREE.Group();
   const solids = { boxes: [], posts: [], walls: [] };   // boxes: buildings {x,z,hw,hd,h}; posts: thin round things {x,z,r}; walls: straight rails at any angle
-  const lampPts = [], signs = [];
+  const lampPts = [], signs = [], lots = [];        // lots: every building put up by building(), for interiors.js
   // The hills and the elevated roads are laid out first (as plain numbers), so everything built after knows where they are.
   shapeLand();
   const highway = planHighway();
@@ -96,9 +97,11 @@ export function buildCity(realScene) {
   // ---------- buildings ----------
   function building(cx, cz, w, d, h, downtown, y = .3, clutter = true) {
     const fm = pick(facade), g = new THREE.Group(); g.position.set(cx, y, cz); scene.add(g);
-    solids.boxes.push({ x: cx, z: cz, hw: w / 2, hd: d / 2, h: y + h });
+    const box = { x: cx, z: cz, hw: w / 2, hd: d / 2, h: y + h }; solids.boxes.push(box);
     const shopH = 4.6;
-    mesh(G.box, mats.trim, V(0, shopH / 2, 0), V(w, shopH, d), g);
+    // what interiors.js needs to open a building up later: its ground floor block, and each side's shop window and sign
+    const lot = { x: cx, z: cz, w, d, h, y, g, box, fronts: {}, signs: {} }; lots.push(lot);
+    lot.base = mesh(G.box, mats.trim, V(0, shopH / 2, 0), V(w, shopH, d), g);
     mesh(G.box, fm, V(0, shopH + (h - shopH) / 2, 0), V(w - .3, h - shopH, d - .3), g);
     mesh(G.box, mats.trim, V(0, shopH + .15, 0), V(w + .3, .35, d + .3), g);
     mesh(G.box, mats.trim, V(0, h + .35, 0), V(w + .5, .7, d + .5), g);
@@ -117,13 +120,13 @@ export function buildCity(realScene) {
       }
       // storefront
       const sp = V(fx * (w / 2 + .02), 2.1, fz * (d / 2 + .02));
-      mesh(G.box, mats.shop, sp, fx ? V(.12, 2.6, len * .82) : V(len * .82, 2.6, .12), g, false);
+      lot.fronts[fx + ',' + fz] = mesh(G.box, mats.shop, sp, fx ? V(.12, 2.6, len * .82) : V(len * .82, 2.6, .12), g, false);
       const aw = mesh(G.box, pick(awnings), V(fx * (w / 2 + .9), 3.95, fz * (d / 2 + .9)), fx ? V(1.9, .12, len * .86) : V(len * .86, .12, 1.9), g);
       aw.rotation.set(fx ? 0 : -fz * .32, 0, fx ? fx * .32 : 0);
       if (downtown && rand() < .55) {
         const sm = pick(signMats); const pl = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 4.4), sm);
         pl.position.set(fx * (w / 2 + .06), 5.6 + rand() * .8, fz * (d / 2 + .06) + (fx ? (rand() - .5) * len * .4 : 0)); if (fz) pl.position.x = (rand() - .5) * len * .4;
-        pl.rotation.y = ry; g.add(pl); signs.push(pl);
+        pl.rotation.y = ry; g.add(pl); signs.push(pl); lot.signs[fx + ',' + fz] = pl;
       }
     }
     // roof clutter
@@ -153,11 +156,11 @@ export function buildCity(realScene) {
   // Build something, then take it away again. The city's dice roll exactly as if it had been built, so removing
   // one building (to make room for a highway, or to put a tower in its place) leaves every other one as it was.
   function ghost(fn) {
-    const marks = [scene.children.length, solids.boxes.length, solids.posts.length, signs.length, lampPts.length], counts = {};
+    const marks = [scene.children.length, solids.boxes.length, solids.posts.length, signs.length, lampPts.length, lots.length], counts = {};
     for (const k in IB) counts[k] = IB[k].list.length;
     fn();
     scene.children.splice(marks[0]).forEach(o => { o.parent = null; });
-    solids.boxes.length = marks[1]; solids.posts.length = marks[2]; signs.length = marks[3]; lampPts.length = marks[4];
+    solids.boxes.length = marks[1]; solids.posts.length = marks[2]; signs.length = marks[3]; lampPts.length = marks[4]; lots.length = marks[5];
     for (const k in IB) IB[k].list.length = counts[k];
   }
   // Would a w x d footprint here stand under (or right beside) an elevated road?
@@ -218,7 +221,9 @@ export function buildCity(realScene) {
   }
 
   // The towers roll their own dice, so the rest of the map comes out exactly as it did before there were any.
-  const dice = randSeed(), skyline = buildSkyline(towers, { scene, solids, building }); randSeed(dice);
+  const dice = randSeed(), skyline = buildSkyline(towers, { scene, solids, building });
+  // ...and so do the shops and lobbies you can walk into, which open up buildings that are already standing
+  const interiors = buildInteriors({ scene, solids, lots, signMats, signNames, skyline }); randSeed(dice);
 
   // Everything beyond downtown: the land itself, the elevated roads, then what stands on the land.
   buildGround(realScene);
@@ -241,5 +246,5 @@ export function buildCity(realScene) {
     if (on !== glowOn) { glowOn = on; for (const s of skyline.glow) s.m.emissiveIntensity = s.k * on; }
   }
 
-  return { solids, lampPts, signMats, litWindows: IBm.lit, updateLights, districts, welded, highway, skyline };
+  return { solids, lampPts, signMats, litWindows: IBm.lit, updateLights, districts, welded, highway, skyline, interiors };
 }

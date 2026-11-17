@@ -12,7 +12,7 @@ There is no build step.
 | --- | --- |
 | W A S D / arrows | Walk, drive |
 | Mouse | Look around (click the game to capture the mouse) |
-| E | Steal a car / get out |
+| E | Steal a car / get out; buy at a counter; call the lift |
 | Space | Handbrake |
 | Shift | Sprint |
 | Left click | Punch / shoot (hold for the SMG) |
@@ -43,6 +43,9 @@ There is no build step.
 - **Chop-shop orders.** Scrap pages you with a car he wants and it shows up pink on the radar with an arrow over it. Steal it, lose any stars, and park it on the pink marker outside Scrap's Chop Shop. Less damage means more cash. Rare cars (the sports car and the limo) pay the most, and every third order is a police cruiser. Any other stolen car parked there is sold for scrap.
 - **Taxi fares.** Sit in a taxi and someone hails you (gold on the radar). Stop next to them, then stop on the gold marker at their destination. A quick, smooth ride earns a tip; fares in a row pay more. Passengers bail if you pick up stars.
 - **The map.** Downtown sits in the middle of a much bigger place: Palm Promenade, the beach and the pier to the south, the steep streets of Vista Heights to the north, Port Sunset's docks to one side and the Dustlands desert to the other. Cars follow the hills, get air over crests and ramps, and stall if you drive them into the sea. Hold Tab for the map.
+- **The Sunset Loop and Highway 6.** An elevated highway rings downtown, two lanes each way, with fast traffic on it. Ramps go up from the south and east sides of the ring road (the on-ramp is just past the middle crossing, the exit just before it), and Highway 6 runs west off the Loop and comes down onto the desert road. Streets carry on underneath. Cruisers chase you up the ramps and new ones join on the highway itself.
+- **The skyline.** Thirteen towers stand in the middle of downtown, up to the 148 m Sunset Tower. Their windows and rooftop neon come on at dusk.
+- **Walk-in buildings** (white dots on the radar). Twelve places have an open door: the 24/7 Mart by the start, four diners, Pawsum's Pawn, the arcade, the motel, the laundromat, Sunset General, Sunset PD and the Sunset Tower lobby. Press E at the counter: food heals, the pawn shop sells armor and ammo, the motel lets you sleep until dusk or dawn, the laundromat changes your look (drops your stars if no cop is watching), the police desk takes a bribe, the hospital patches you up. Hold a gun on whoever is behind a shop counter for a couple of seconds to empty the till (two stars). The lift in the Sunset Tower goes to the roof, unless you are wanted. Prices and hold-up numbers are in `INDOORS` in `src/config.js`.
 - **Races** (blue R on the radar). Stop in the blue ring, wait for GO, hit every gold gate. Six time trials, one of them on foot along the boardwalk, with gold, silver and bronze times.
 - **Stunt jumps** (orange J). Eleven ramps and crests. Leave the ground there and fly far enough to tick it off; land the pier jump on the barge for a bonus. Any long jump pays a little.
 - **Golden tins.** Forty of them hidden around the map. They show on the radar only when you are close.
@@ -65,12 +68,15 @@ src/core/                   engine (renderer + post), physics (Rapier), input, a
 src/world/                  city (the downtown scene), materials, sky (day/night), batching, landmarks (hospital, police station),
                             map (the whole coast as data: heights, land types, roads), terrain (height of the ground anywhere),
                             ground (builds the land and roads), districts + props (everything outside downtown),
-                            ride (cars on slopes, jumps, water), roads (road lookups), world (ties the land to the game)
+                            ride (cars on slopes, jumps, water), roads (road lookups), world (ties the land to the game),
+                            highway (the Sunset Loop, Highway 6 and their ramps: routes, lanes, decks, piers, signs),
+                            skyline (downtown's towers), interiors (the buildings you can walk into and what you can do there)
 src/activities/             activities (start rings, one-at-a-time), kit (markers, panel, banner, save), races, stunts, tins,
                             pizza, traps (speed cameras), bowling, bigmap (hold Tab)
 src/vehicles/               damage (dents, scuffs, cracked glass, dead lamps, torn-off bumpers: see the notes at its top),
                             vehicle (handling, rider seat), carModel (stand-in shapes + the wheel batch), vehicleModels (loads the
-                            Blender models from assets/vehicles/ and swaps them in), aiDriver (traffic + pursuit), traffic
+                            Blender models from assets/vehicles/ and swaps them in), aiDriver (traffic + pursuit), traffic,
+                            highwayTraffic (drivers and cruisers on the elevated roads)
 src/characters/             models (Critters + Tin Bots), pedestrians
 src/player/                 player (on foot, in/out of cars), camera
 src/police/                 police (stars, cruisers, officers on foot)
