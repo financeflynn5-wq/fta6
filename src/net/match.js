@@ -77,7 +77,8 @@ export function createMatch(game) {
       my.setup = true; my.solo = game.money; my.tills = [INDOORS.robCash, INDOORS.tillRefill];
       const c = game.combat; my.guns = { owned: [...c.owned], clip: { ...c.clip }, ammo: { ...c.ammo }, weapon: c.weapon };      // handed back afterwards
       INDOORS.robCash = MATCH.holdUp; INDOORS.tillRefill = MATCH.tillRefill;
-      game.activities.begin(part); game.police.clear(); hudEl.classList.add('inMatch');
+      const A = game.activities; if (A.busy && A.busy !== part) A.busy.abort?.('A MATCH IS STARTING');      // a race, a job or a story mission in progress is called off
+      A.begin(part); game.police.clear(); hudEl.classList.add('inMatch');
     }
     my.team = g.tm[net.id] ?? -1; my.role = roleOf(my.team);
     game.money = 0; my.stashT = 0; my.cuffT = 0; pings.length = 0;

@@ -22,7 +22,7 @@ export function createWallet(game) {
   return {
     get saved() { return saved; },
     update(dt) {
-      if ((wait -= dt) > 0 || game.over) return;
+      if ((wait -= dt) > 0 || game.over || game.match?.on) return;      // in a match the cash and guns are the match's, not yours to keep
       wait = STORY.saveEvery;
       const s = snap(); if (s === last) return;
       last = s; saved = true; try { localStorage.setItem(KEY, s); } catch (e) { /* private window: this session only */ }
