@@ -53,3 +53,6 @@ export function makeWeapon(id) {
 }
 export function dropWeapon(holder) { const i = holders.indexOf(holder); if (i >= 0) holders.splice(i, 1); holder.removeFromParent(); }
 export const weaponLoaded = (id) => !!real[id];
+// A separate copy of a loaded gun in the model's own axes (scaled to game size, not moved to the grip),
+// for the view down the sights. Null until the model has arrived.
+export const weaponCopy = (id) => real[id] ? real[id].scene.clone() : null;

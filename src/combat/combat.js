@@ -6,19 +6,20 @@ import { damp, angleDiff, clamp, lerp, TAU } from '../core/utils.js';
 import { makeWeapon } from './weaponModels.js';
 import { createHits } from './hits.js';
 import { createGunFx } from './gunfx.js';
+import { createSightView } from './sightView.js';
 
 export const WEAPON_ORDER = Object.keys(WEAPONS).sort((a, b) => WEAPONS[a].slot - WEAPONS[b].slot);
 const HALF_PI = Math.PI / 2;
 
 export function createCombat(game) {
-  const hits = createHits(game), gfx = createGunFx(game.scene);
+  const hits = createHits(game), gfx = createGunFx(game.scene), view = createSightView(game);     // view: the gun as seen down its sights
   const player = game.player, arms = player.model.userData.arms;
   const guns = {};                      // the gun meshes in Rocco's right hand, made on first pickup
   const muzzle = new THREE.Vector3(), d = new THREE.Vector3(), shot = new THREE.Vector3(), side = new THREE.Vector3(), up = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
   let reportT = 0;
 
   const combat = {
-    hits, gfx, guns, weapon: 'fists', owned: new Set(['fists']), clip: {}, ammo: {},
+    hits, gfx, view, guns, weapon: 'fists', owned: new Set(['fists']), clip: {}, ammo: {},
     aiming: false, aimT: 0, aimBlend: 0, aimPitch: 0, scopeStep: 0, spread: 0, onTarget: false, ready: false, cool: 0, reloading: 0, burstLeft: 0, burstT: 0,
     swingT: 0, swingSide: 0, lastShot: -9, lastSwing: -9, hitT: 0, killHit: false, bloom: 0, kick: 0,
     get def() { return WEAPONS[combat.weapon]; },
@@ -122,7 +123,9 @@ export function createCombat(game) {
 
     // face the shot and raise the gun before working out where the barrel is
     p.face = faceYaw(); pose(w, game.time, true); p.model.position.set(p.x, p.y, p.z); p.model.rotation.y = p.face; p.model.updateMatrixWorld(true);
-    const gun = guns[id]; muzzle.copy(gun.userData.muzzle); gun.localToWorld(muzzle);
+    // the barrel tip: of the gun in front of the eye when looking down the sights, otherwise of the one in Rocco's hand
+    const sighted = view.shown && view.up > .4;
+    if (sighted) view.muzzle(muzzle); else { const gun = guns[id]; muzzle.copy(gun.userData.muzzle); gun.localToWorld(muzzle); }
 
     // aim: down the crosshair when aiming, otherwise at whoever is in front (hip fire auto-aim)
     const cam = game.cam; let ox, oy, oz, tmin, assist;
@@ -152,7 +155,8 @@ export function createCombat(game) {
       gfx.tracer(muzzle.x, muzzle.y, muzzle.z, h.x, h.y, h.z, w.pellets > 1 ? .014 : .022);
       if (h.kind) hits.apply(h, w.damage, dx, dz);
     }
-    gfx.flash(muzzle.x, muzzle.y, muzzle.z, .35 + w.loud * .25);
+    gfx.flash(muzzle.x, muzzle.y, muzzle.z, (.35 + w.loud * .25) * (sighted ? .42 : 1));      // smaller when it goes off right in front of the eye
+    view.fire(w);
     audio.shot(w.loud, 1);
     game.cam.shake(w.kick * .9); if (combat.aiming) game.cam.kick(w.kick); combat.kick = w.kick * 4; combat.bloom = Math.min(AIM.bloomMax, combat.bloom + AIM.bloom);
     game.peds.scare(p.x, p.z, 40, 8);

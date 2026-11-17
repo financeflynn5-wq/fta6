@@ -16,7 +16,7 @@ There is no build step.
 | Space | Handbrake |
 | Shift | Sprint |
 | Left click | Punch / shoot (hold for the SMG) |
-| Right click (hold) | Aim over the shoulder; the sniper looks through its scope (mouse wheel: 4× / 8×) |
+| Right click (hold) | Aim down the gun's own sights; the sniper looks through its scope (mouse wheel: 4× / 8×) |
 | [ and ] | Mouse sensitivity down / up (remembered) |
 | 1 to 6 / mouse wheel | Fists, pistol, SMG, shotgun, burst rifle, sniper |
 | R | Reload |
@@ -32,7 +32,7 @@ There is no build step.
 ## How the game works
 
 - **Driving.** Steering alone never breaks the tyres loose: the car turns as tight as its grip allows at that speed and no tighter. Hold the handbrake and steer to swing the tail round; let go and the tyres bite again within half a second, keeping most of the speed.
-- **Aiming.** Hold right mouse and the camera drops over Rocco's shoulder. Shots go exactly down the crosshair, anywhere inside its four arms (they open with spread). It turns red over someone you can hit, and lands on whoever is nearly dead ahead when the gun comes up.
+- **Aiming.** Hold right mouse and you look through Rocco's eyes, down the sights of the gun in his hands: the pistol's notch and post (with night-sight dots), the SMG's red dot, the bead on the shotgun's rib and the burst rifle's optic. Shots go where the sights point, which is always the middle of the screen. The gun kicks, its slide or pump cycles, and it trails the hand a little when you turn. The aim lands on whoever is nearly dead ahead when the gun comes up, and a lit aiming mark brightens over someone you can hit. The sniper keeps its full scope.
 - **Steal a car.** Parked cars may set off an alarm. Taking one with a driver in it always gets you a star.
 - **Stars.** More trouble means more stars, and more (and angrier) cruisers. Officers jump out if you stop.
 - **Lose them.** Break line of sight until the stars stop flashing. You get paid for every chase you escape.
@@ -76,7 +76,8 @@ src/player/                 player (on foot, in/out of cars), camera
 src/police/                 police (stars, cruisers, officers on foot)
 src/missions/               jobs (chop-shop orders, taxi fares, their markers and radar blips)
 src/combat/                 combat (Rocco's weapons, aim, punch), hits (damage rules), copGuns (cops shoot back),
-                            pickups, gunfx (tracers, muzzle flash), weaponModels (loads assets/weapons/*.gltf.json)
+                            pickups, gunfx (tracers, muzzle flash), weaponModels (loads assets/weapons/*.gltf.json),
+                            sightView (the gun seen down its sights: each model's sight line, paws, recoil and sway)
 assets/weapons/             Flynn's guns as self-contained glTF (.gltf.json), converted from GrappleStrikeGuns.fbx
 assets/vehicles/            the eight vehicles built in Blender (.gltf.json) + their shared texture atlas (atlas_*.png).
                             Sources, .blend files and .glb copies: /mnt/project-files/models/vehicles/

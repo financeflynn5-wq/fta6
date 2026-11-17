@@ -131,6 +131,11 @@ export const AIM = {
   bloom: .35, bloomMax: 1.5,               // each shot opens the spread this much, up to this much; it closes again in half a second
   recoil: .28, recoilReturn: 9,            // share of a weapon's kick that lifts the view, and how fast it settles
   scopeZoom: [4, 8],                       // scope magnifications (mouse wheel while looking through it)
+  // the view down the sights (first person, with the gun's own sights on the middle of the screen)
+  eye: 1.6, eyeAhead: 0,                   // Rocco's eye: metres above his feet and ahead of his middle (ahead of 0, the view can clip into a wall he is pressed against)
+  swap: .3,                                // how far into the aim Rocco himself drops out of the picture and the gun starts to rise in front of the eye (0-1)
+  kick: 1, sway: 1, bob: 1,                // how much the gun jumps when fired, drifts and trails the hand, and bobs with his steps (0 = off)
+  nightGlow: .3,                           // the gun in your hands never gets darker than this, so the sights can be read at night
 };
 
 export const COMBAT = {

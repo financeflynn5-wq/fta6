@@ -34,14 +34,11 @@ export function createInput(canvas) {
     held.add('Mouse' + e.button); pressed.add('Mouse' + e.button);
   });
   window.addEventListener('mouseup', (e) => { drag = false; held.delete('Mouse' + e.button); });
-  // a button let go while the browser wasn't telling us (outside the window, over a menu) must not stay stuck down
-  const BUTTON_BIT = [1, 4, 2, 8, 16];
-  const dropReleased = (e) => { for (let b = 0; b < 5; b++) if (!(e.buttons & BUTTON_BIT[b])) held.delete('Mouse' + b); };
+  // letting go of the mouse capture (Esc, a menu) lets go of the buttons too, so none stays stuck down
   document.addEventListener('pointerlockchange', () => { if (!input.locked) for (let b = 0; b < 5; b++) held.delete('Mouse' + b); });
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   window.addEventListener('wheel', (e) => { if (input.enabled && input.locked) input.wheel += Math.sign(e.deltaY); }, { passive: true });
   window.addEventListener('mousemove', e => {
-    dropReleased(e);
     if (!input.enabled || !(input.locked || drag)) return;
     input.mouseDX += e.movementX; input.mouseDY += e.movementY; input.lastMouse = performance.now();
   });

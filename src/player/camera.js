@@ -1,6 +1,7 @@
 // Third-person camera. Three rigs share one heading (yaw):
 //   on foot  - orbits Rocco
-//   aiming   - over his right shoulder (or through the scope), looking exactly where the mouse points
+//   aiming   - from Rocco's own eye, down the gun's sights or through the scope (sightView.js draws the gun);
+//              over his right shoulder for a gun whose model hasn't loaded. Always looks exactly where the mouse points
 //   driving  - sits behind the car and looks a little way into the corner
 // yaw is the direction the camera looks along the ground (same angle convention as cars).
 // pitch is how far it looks down (negative = up).
@@ -100,10 +101,10 @@ export function createCamera(game) {
       // ---- the aim rig, blended in as the gun comes up
       let fov = cam.baseFov;
       if (a > 0) {
-        const scope = !!w?.scope, pa = cam.aimPitch - cam.recoil, cpa = Math.cos(pa), spa = Math.sin(pa);
-        let ax, ay, az;
-        if (scope) {          // the scope looks from Rocco's eye
-          ax = p.ix + cy * .3 - sy * .16; az = p.iz + sy * .3 + cy * .16; ay = p.y + 1.6;
+        const scope = !!w?.scope, first = scope || !!combat.view?.has(combat.weapon), pa = cam.aimPitch - cam.recoil, cpa = Math.cos(pa), spa = Math.sin(pa);
+        let ax, ay, az, move = a;
+        if (first) {          // sights and scopes look from Rocco's eye. The camera gets there early, so the gun can come up in front of it
+          ax = p.ix + cy * AIM.eyeAhead; az = p.iz + sy * AIM.eyeAhead; ay = p.y + AIM.eye; move = 1 - (1 - a) ** 3;
         } else {
           // right shoulder, pulled in when a wall is on that side or behind
           const side = clamp(game.physics.probe(p.ix, p.iz, -sy, cy, AIM.shoulder + .35) - .35, .05, AIM.shoulder);
@@ -114,11 +115,11 @@ export function createCamera(game) {
           cam.aimDist = d < cam.aimDist ? d : damp(cam.aimDist, d, 6, dt);
           ax = sx - cy * cpa * cam.aimDist; az = sz - sy * cpa * cam.aimDist; ay = sY + spa * cam.aimDist;
         }
-        x = lerp(x, ax, a); y = lerp(y, ay, a); z = lerp(z, az, a); look = lerp(look, pa, a);
+        x = lerp(x, ax, move); y = lerp(y, ay, move); z = lerp(z, az, move); look = lerp(look, pa, move);
         const zoom = scope ? AIM.scopeZoom[combat.scopeStep] ?? AIM.scopeZoom[0] : w?.zoom || AIM.zoom;
         cam.zoom = damp(cam.zoom, zoom, 14, dt);
         fov = lerp(fov, fovForZoom(cam.zoom), a);
-        p.model.visible = !(scope && a > .7);
+        p.model.visible = !(first && (a > AIM.swap || Math.hypot(x - ax, y - ay, z - az) < 1.8));       // never look at the inside of his hood
       } else {
         cam.sh = AIM.shoulder; cam.aimDist = AIM.dist; cam.zoom = w?.scope ? AIM.scopeZoom[0] : w?.zoom || AIM.zoom;
         if (!car) p.model.visible = true;
@@ -137,6 +138,7 @@ export function createCamera(game) {
       cam.lookAt.set(lx, ly, lz);                         // where the action is (the sun's shadows centre on it too)
       if (a > 0) { aimAt.set(camera.position.x + cam.dir.x, camera.position.y + cam.dir.y, camera.position.z + cam.dir.z); camera.lookAt(aimAt); }
       else camera.lookAt(cam.lookAt);
+      combat?.view?.update(dt, t, mdx * s, mdy * s);        // the gun in front of the eye, once the camera is where it will be drawn from
     },
   };
 
