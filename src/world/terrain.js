@@ -86,6 +86,61 @@ function deckY(d, x, z) {
   return d.y0 + (d.y1 - d.y0) * (u + d.hl) / (2 * d.hl);
 }
 
+// ---------- bridges: surfaces you can be on top of or underneath ----------
+// A ribbon is a strip `hw` metres either side of a line of points { x, z, y }: an elevated road, a ramp, a roof.
+// Unlike a deck it does not lift what is below it. groundY only counts a ribbon for a caller that says how
+// high it already is (`ref`) and is on the ribbon or above it; everyone else gets the ground underneath.
+const SPAN = 12, spanGrid = new Map(), ribbons = [];
+const skey = (cx, cz) => cx * 4096 + cz, scell = (v) => Math.floor((v + 600) / SPAN);
+export const CLIMB = .9;                  // a ribbon this far above you (or less) is still "what you are standing on"
+export const UPPER = 1.8;                 // on a ribbon at least this far above the ground = on the upper level (see physics.js)
+export const layer = { up: false, rib: null };   // filled in by the last groundY(x, z, ref): was the answer a ribbon?
+// info: { road: true } for something cars drive on, closed: true when the last point joins the first.
+export function addRibbon(pts, hw, info = {}) {
+  const rib = { pts, hw, ...info, segs: [], id: ribbons.length };
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1], dx = b.x - a.x, dz = b.z - a.z, len2 = dx * dx + dz * dz;
+    if (len2 < 1e-6) continue;
+    const s = { a, b, dx, dz, len2, hw, rib, first: i === 0 && !rib.closed, last: i === pts.length - 2 && !rib.closed };
+    rib.segs.push(s);
+    for (let cx = scell(Math.min(a.x, b.x) - hw); cx <= scell(Math.max(a.x, b.x) + hw); cx++) for (let cz = scell(Math.min(a.z, b.z) - hw); cz <= scell(Math.max(a.z, b.z) + hw); cz++) {
+      const k = skey(cx, cz); let l = spanGrid.get(k); if (!l) spanGrid.set(k, l = []); l.push(s);
+    }
+  }
+  ribbons.push(rib); return rib;
+}
+const NONE = -1e9;
+let capped = false;                       // was the last spanY answer from the rounded end of a stretch (the outside of a bend)?
+// Height of one stretch of ribbon at a spot (NONE when the spot is off it). `inset` shrinks the ribbon's width.
+function spanY(s, x, z, inset = 0) {
+  const t = ((x - s.a.x) * s.dx + (z - s.a.z) * s.dz) / s.len2;
+  if ((t < 0 && s.first) || (t > 1 && s.last)) return NONE;          // open ends are cut square
+  capped = t < 0 || t > 1;
+  const tc = t < 0 ? 0 : t > 1 ? 1 : t, px = s.a.x + s.dx * tc - x, pz = s.a.z + s.dz * tc - z, w = s.hw - inset;
+  if (px * px + pz * pz > w * w) return NONE;
+  return s.a.y + (s.b.y - s.a.y) * tc;
+}
+// The ribbon surface at a spot that is nearest to height y (within `tol`), or null. skip: a ribbon to leave out.
+export function ribbonAt(x, z, y, tol = .8, inset = 0, skip = null) {
+  const list = spanGrid.get(skey(scell(x), scell(z))); if (!list) return null;
+  for (const s of list) { if (s.rib === skip) continue; const sy = spanY(s, x, z, inset); if (sy !== NONE && Math.abs(sy - y) <= tol) return s.rib; }
+  return null;
+}
+// Is any road ribbon within `margin` metres of this spot (whatever its height)? Keeps trees and houses out from under highways.
+export function nearRibbon(x, z, margin = 0) {
+  for (let cx = scell(x - margin); cx <= scell(x + margin); cx++) for (let cz = scell(z - margin); cz <= scell(z + margin); cz++) {
+    const list = spanGrid.get(skey(cx, cz)); if (!list) continue;
+    for (const s of list) if (s.rib.road && spanY(s, x, z, -margin) !== NONE) return true;
+  }
+  return false;
+}
+// The underside of the lowest ribbon that hangs over a spot above height `ref`, or 1e9 (open sky).
+export function ceilingY(x, z, ref) {
+  const list = spanGrid.get(skey(scell(x), scell(z))); let low = 1e9; if (!list) return low;
+  for (const s of list) { const sy = spanY(s, x, z); if (sy !== NONE && sy > ref + CLIMB && sy - (s.rib.thick ?? 1.3) < low) low = sy - (s.rib.thick ?? 1.3); }
+  return low;
+}
+
 // Downtown's pavements sit one kerb above the street.
 function kerb(x, z) {
   const bi = Math.round((x - 27) / PITCH), bj = Math.round((z - 27) / PITCH);
@@ -93,12 +148,26 @@ function kerb(x, z) {
   return (Math.abs(x - (27 + PITCH * bi)) <= BLOCK / 2 && Math.abs(z - (27 + PITCH * bj)) <= BLOCK / 2) ? CURB : 0;
 }
 
-// The height everything stands on.
-export function groundY(x, z) {
+// The height everything stands on. Pass `ref` (how high you are now) to be able to stand on bridges and roofs:
+// the answer is then the highest surface that is not above your head. Without it you get the ground level.
+export function groundY(x, z, ref) {
   let y = landY(x, z) + kerb(x, z);
   const list = deckGrid.get(gkey(cell(x), cell(z)));
   if (list) for (const d of list) { const dy = deckY(d, x, z); if (dy > y) y = dy; }
-  return y < SEABED ? SEABED : y;
+  if (y < SEABED) y = SEABED;
+  if (ref === undefined) return y;
+  layer.up = false; layer.rib = null;
+  const spans = spanGrid.get(skey(scell(x), scell(z))); if (!spans) return y;
+  // A spot inside a stretch takes that stretch's own slope; the rounded ends only fill the wedge on the outside of a bend.
+  const top = ref + CLIMB; let on = NONE, onRib = null, end = NONE, endRib = null;
+  for (const s of spans) {
+    const sy = spanY(s, x, z); if (sy === NONE || sy > top) continue;
+    if (capped) { if (sy > end) { end = sy; endRib = s.rib; } } else if (sy > on) { on = sy; onRib = s.rib; }
+  }
+  if (on === NONE) { on = end; onRib = endRib; }
+  if (on <= y) return y;
+  layer.rib = onRib; layer.up = on - y > UPPER;
+  return on;
 }
 // How deep the water is here (0 on dry land).
 export const waterDepth = (x, z) => Math.max(0, WATER - groundY(x, z));

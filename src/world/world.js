@@ -3,7 +3,7 @@
 // hillsides, and announces the district you have just entered.
 import { RIDE } from '../config.js';
 import { damp } from '../core/utils.js';
-import { groundY, waterDepth } from './terrain.js';
+import { groundY, waterDepth, layer, ceilingY } from './terrain.js';
 import { districtAt } from './map.js';
 import * as THREE from 'three';
 import { createRide } from './ride.js';
@@ -30,17 +30,28 @@ export function createWorld(game) {
     // after the physics step: on a slope Rocco's height follows the ground exactly (only kerbs are eased)
     postStep() {
       const p = game.player;
-      if (p.mode === 'foot') { const g = groundY(p.x, p.z); if (p.y < g - .12) p.y = g - .12; else if (p.y > g + .35) p.y = g + .35; }
-      for (const o of game.police.officers) { const g = groundY(o.ped.x, o.ped.z); if (o.ped.y < g - .12) o.ped.y = g - .12; else if (o.ped.y > g + .35) o.ped.y = g + .35; }
+      // Passing your own height to groundY is what lets you stand on a bridge or a roof instead of under it.
+      if (p.mode === 'foot') {
+        const g = groundY(p.x, p.z, p.y); if (p.y < g - .12) p.y = g - .12; else if (p.y > g + .35) p.y = g + .35;
+        if (layer.up !== !!p.up) { p.up = layer.up; game.physics.setPersonUp(p.body, p.up); }
+      } else { p.y = p.vehicle.y; p.up = !!p.vehicle.up; }       // so he steps out at the car's height
+      for (const o of game.police.officers) {
+        const g = groundY(o.ped.x, o.ped.z, o.ped.y); if (o.ped.y < g - .12) o.ped.y = g - .12; else if (o.ped.y > g + .35) o.ped.y = g + .35;
+        if (layer.up !== !!o.up) { o.up = layer.up; game.physics.setPersonUp(o.body, o.up); }
+      }
+      game.physics.eyeY = p.y + 1.6;
     },
 
     // once per frame, right after the camera has moved
     update(dt, t) {
       const cam = game.camera, p = game.player;
       if (game.state !== 'title') {
-        const need = groundY(cam.position.x, cam.position.z) + .7 - cam.position.y;
+        const need = groundY(cam.position.x, cam.position.z, p.y + 1) + .7 - cam.position.y;
         lift = need > lift ? need : damp(lift, Math.max(0, need), 5, dt);
         if (lift > .01) { cam.position.y += lift; cam.lookAt(game.cam.lookAt); }
+        // under a bridge the camera stays under it too
+        const roof = ceilingY(cam.position.x, cam.position.z, p.y + 1) - .5;
+        if (cam.position.y > roof && !game.combat?.aiming) { cam.position.y = Math.max(roof, p.y + 1.2); cam.lookAt(game.cam.lookAt); }
       }
       // scenery the haze has swallowed isn't drawn: nothing shows past the far edge of the fog
       if ((hazeT -= dt) <= 0 && game.scene.fog) {

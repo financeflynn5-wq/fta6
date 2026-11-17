@@ -92,13 +92,13 @@ export class AIDriver {
     let gap = 99, who = null;
     for (const o of g.traffic.vehicles) {
       if (o === v) continue;
-      const ddx = o.x - v.x, ddz = o.z - v.z; if (Math.abs(ddx) > 26 || Math.abs(ddz) > 26) continue;
+      const ddx = o.x - v.x, ddz = o.z - v.z; if (Math.abs(ddx) > 26 || Math.abs(ddz) > 26 || Math.abs(o.y - v.y) > 3) continue;
       const lx = ddx * v.fx + ddz * v.fz, lz = ddx * v.rx + ddz * v.rz;
       const room = v.halfLen + o.halfLen + .2;
       if (lx > 0 && Math.abs(lz) < Math.max(1.9, v.halfWid + o.halfWid) && lx - room < gap) { gap = lx - room; who = o; }
     }
     const p = g.player;
-    if (p.mode === 'foot') { const [lx, lz] = v.local(p.x, p.z); if (lx > 0 && lx < 20 && Math.abs(lz) < v.halfWid + .55 && lx - v.halfLen - .7 < gap) { gap = lx - v.halfLen - .7; who = p; } }
+    if (p.mode === 'foot' && Math.abs(p.y - v.y) < 3) { const [lx, lz] = v.local(p.x, p.z); if (lx > 0 && lx < 20 && Math.abs(lz) < v.halfWid + .55 && lx - v.halfLen - .7 < gap) { gap = lx - v.halfLen - .7; who = p; } }
     if (this.scared <= 0 || who === p) want = Math.min(want, Math.sqrt(12 * Math.max(0, gap - 1.6)));
     if (gap < 3 && v.speed < .5) {
       this.blockedFor += dt;
@@ -139,9 +139,9 @@ export class AIDriver {
 
     // feel ahead along both sides of the car for walls, trees and posts, and lean away
     const reach = 7 + v.speed * .55, fx = v.fx, fz = v.fz, rx = v.rx, rz = v.rz;
-    const lf = ph.probeSolid(v.x - rx * 1.05, v.z - rz * 1.05, Math.cos(v.h - .1), Math.sin(v.h - .1), reach);
-    const rt = ph.probeSolid(v.x + rx * 1.05, v.z + rz * 1.05, Math.cos(v.h + .1), Math.sin(v.h + .1), reach);
-    const mid = ph.probeSolid(v.x, v.z, fx, fz, reach);
+    const lf = ph.probeDrive(v.x - rx * 1.05, v.z - rz * 1.05, Math.cos(v.h - .1), Math.sin(v.h - .1), reach);
+    const rt = ph.probeDrive(v.x + rx * 1.05, v.z + rz * 1.05, Math.cos(v.h + .1), Math.sin(v.h + .1), reach);
+    const mid = ph.probeDrive(v.x, v.z, fx, fz, reach);
     this.nudge = 0;
     if (lf < reach || rt < reach || mid < reach) {
       const near = Math.min(lf, rt, mid);
@@ -154,7 +154,7 @@ export class AIDriver {
     const pv = g.player.vehicle, range = 6 + v.speed * .6;
     for (const o of g.traffic.vehicles) {
       if (o === v || (o === pv && (this.ram || this.hold))) continue;
-      const ddx = o.x - v.x, ddz = o.z - v.z; if (Math.abs(ddx) > 40 || Math.abs(ddz) > 40) continue;
+      const ddx = o.x - v.x, ddz = o.z - v.z; if (Math.abs(ddx) > 40 || Math.abs(ddz) > 40 || Math.abs(o.y - v.y) > 3) continue;
       const lx = ddx * fx + ddz * fz, lz = ddx * rx + ddz * rz;
       if (lx > -1 && lx < range && Math.abs(lz) < 2.5) {
         this.nudge += (lz > 0 ? -1 : 1) * (1 - Math.max(0, lx) / range) * 1.7;

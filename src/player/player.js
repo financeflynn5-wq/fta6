@@ -50,7 +50,7 @@ export function createPlayer(game) {
 
       // which car could we take?
       let best = null, bd = PLAYER.enterRange;
-      for (const c of game.traffic.vehicles) { if (c.wrecked) continue; const d = c.distanceTo(player.x, player.z); if (d < bd) { bd = d; best = c; } }
+      for (const c of game.traffic.vehicles) { if (c.wrecked || Math.abs(c.y - player.y) > 2.5) continue; const d = c.distanceTo(player.x, player.z); if (d < bd) { bd = d; best = c; } }
       player.nearCar = best;
       if (best && input.hit('KeyE', 'KeyF')) player.enter(best);
     },
@@ -131,7 +131,7 @@ export function createPlayer(game) {
       if (player.mode !== 'foot') { player.ix = player.vehicle.ix; player.iz = player.vehicle.iz; return; }
       const k = game.alpha ?? 1;     // draw between the last two physics steps, so walking is smooth at any frame rate
       player.ix = lerp(player.px, player.x, k); player.iz = lerp(player.pz, player.z, k);
-      player.y = damp(player.y, groundY(player.ix, player.iz), 16, dt);
+      player.y = damp(player.y, groundY(player.ix, player.iz, player.y), 16, dt);
       model.position.set(player.ix, player.y, player.iz);
       if (player.tumble > 0) player.face += dt * 10;
       model.rotation.y = player.face;

@@ -2,7 +2,10 @@
 // ground plane: physics x = world x, physics y = world z.
 import RAPIER from 'rapier';
 
-export const GROUP = { BUILDING: 1, PROP: 2, CAR: 4, PED: 8, LOW: 16 };   // LOW: walls and boxes a flying car clears
+// LOW: walls and boxes a flying car clears. The UP groups are the upper level (bridges, elevated roads, roofs):
+// cars and people up there only touch each other and the rails up there, never what is on the ground below.
+export const GROUP = { BUILDING: 1, PROP: 2, CAR: 4, PED: 8, LOW: 16, UP_CAR: 32, RAIL: 64, UP_PED: 128 };
+const UP = GROUP.UP_CAR | GROUP.RAIL | GROUP.UP_PED;
 const groups = (member, filter) => ((member << 16) | filter) >>> 0;
 const ALL = 0xffff;
 
@@ -14,17 +17,34 @@ export async function createPhysics() {
   const owners = new Map();          // collider handle -> game object
   const ray = new RAPIER.Ray({ x: 0, y: 0 }, { x: 1, y: 0 });
   const buildingsOnly = groups(ALL, GROUP.BUILDING), solidStuff = groups(ALL, GROUP.BUILDING | GROUP.PROP | GROUP.LOW);
+  // How tall each static thing is, so a look-out high above the street sees (and shoots) over the roofs below.
+  const heights = new Map();
+  const taller = (c) => (heights.get(c.handle) ?? 1e9) > physics.eyeY;
 
   const physics = {
     RAPIER, world, owners,
-    // low = something short (a rail, one container): it stops cars on the ground but not ones in the air
-    addStaticBox(x, z, hw, hd, low = false) {
-      world.createCollider(RAPIER.ColliderDesc.cuboid(hw, hd).setTranslation(x, z).setCollisionGroups(groups(low ? GROUP.LOW : GROUP.BUILDING, ALL)).setFriction(.25).setRestitution(.15));
+    eyeY: 1.6,          // height the camera, shots and lines of sight are judged from (world.js keeps it at the player's eye)
+    // low = something short (a rail, one container): it stops cars on the ground but not ones in the air.
+    // h = how tall it is (leave out for "taller than anything").
+    addStaticBox(x, z, hw, hd, low = false, h = low ? 2.6 : 1e9) {
+      const c = world.createCollider(RAPIER.ColliderDesc.cuboid(hw, hd).setTranslation(x, z).setCollisionGroups(groups(low ? GROUP.LOW : GROUP.BUILDING, ALL)).setFriction(.25).setRestitution(.15));
+      heights.set(c.handle, h); return c;
     },
-    // A car high in the air only hits buildings; back on the ground it hits everything again.
-    setFlying(body, on) { body.collider(0).setCollisionGroups(groups(GROUP.CAR, on ? GROUP.BUILDING : ALL)); },
-    addStaticPost(x, z, r) {
-      world.createCollider(RAPIER.ColliderDesc.ball(r).setTranslation(x, z).setCollisionGroups(groups(GROUP.PROP, ALL)).setFriction(.2).setRestitution(.2));
+    // A straight wall at any angle: hl long, ht thick (half sizes), turned by rot.
+    // kind: 'solid' (like a building), 'low' (stops cars on the ground only) or 'rail' (the edge of a bridge or roof: upper level only).
+    addWall(x, z, hl, ht, rot, kind = 'solid', h = kind === 'solid' ? 1e9 : 1) {
+      const g = kind === 'rail' ? groups(GROUP.RAIL, GROUP.UP_CAR | GROUP.UP_PED) : groups(kind === 'low' ? GROUP.LOW : GROUP.BUILDING, ALL);
+      const c = world.createCollider(RAPIER.ColliderDesc.cuboid(hl, ht).setTranslation(x, z).setRotation(rot).setCollisionGroups(g).setFriction(.25).setRestitution(.15));
+      heights.set(c.handle, h); return c;
+    },
+    // Where a car is: 0 = on the ground (hits everything there), 1 = high in the air (only buildings), 2 = on the upper level.
+    setCarMode(body, mode) { body.collider(0).setCollisionGroups(mode === 2 ? groups(GROUP.UP_CAR, UP) : groups(GROUP.CAR, mode === 1 ? GROUP.BUILDING : ALL)); },
+    setFlying(body, on) { physics.setCarMode(body, on ? 1 : 0); },
+    // Someone on foot steps onto (or off) the upper level.
+    setPersonUp(body, up) { body.collider(0).setCollisionGroups(up ? groups(GROUP.UP_PED, UP) : groups(GROUP.PED, ALL)); },
+    addStaticPost(x, z, r, h = 7) {
+      const c = world.createCollider(RAPIER.ColliderDesc.ball(r).setTranslation(x, z).setCollisionGroups(groups(GROUP.PROP, ALL)).setFriction(.2).setRestitution(.2));
+      heights.set(c.handle, h); return c;
     },
     addCar(owner, x, z, angle, hl, hw, mass) {
       const body = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(x, z).setRotation(angle).setLinearDamping(0).setAngularDamping(0).setCcdEnabled(true));
@@ -43,21 +63,28 @@ export async function createPhysics() {
       world.removeRigidBody(body);
     },
     // Distance to the first building between two points, or -1 when the line is clear.
-    blocked(ax, az, bx, bz) {
+    // Buildings lower than the eye height don't count, unless street = true (what a car on the road can drive through).
+    blocked(ax, az, bx, bz, street = false) {
       const dx = bx - ax, dz = bz - az, len = Math.hypot(dx, dz); if (len < .01) return -1;
       ray.origin.x = ax; ray.origin.y = az; ray.dir.x = dx / len; ray.dir.y = dz / len;
-      const hit = world.castRay(ray, len, true, undefined, buildingsOnly);
+      const hit = world.castRay(ray, len, true, undefined, buildingsOnly, undefined, undefined, street ? undefined : taller);
       return hit ? hit.timeOfImpact : -1;
     },
     canSee(ax, az, bx, bz) { return physics.blocked(ax, az, bx, bz) < 0; },
     // Free distance along a direction (buildings only), capped at max.
     probe(ax, az, dx, dz, max) {
       ray.origin.x = ax; ray.origin.y = az; ray.dir.x = dx; ray.dir.y = dz;
-      const hit = world.castRay(ray, max, true, undefined, buildingsOnly);
+      const hit = world.castRay(ray, max, true, undefined, buildingsOnly, undefined, undefined, taller);
       return hit ? hit.timeOfImpact : max;
     },
     // Same, but trees, lamp posts and signal poles count too.
     probeSolid(ax, az, dx, dz, max) {
+      ray.origin.x = ax; ray.origin.y = az; ray.dir.x = dx; ray.dir.y = dz;
+      const hit = world.castRay(ray, max, true, undefined, solidStuff, undefined, undefined, taller);
+      return hit ? hit.timeOfImpact : max;
+    },
+    // What a driver on the street feels ahead: everything solid at ground level, whatever the eye height is.
+    probeDrive(ax, az, dx, dz, max) {
       ray.origin.x = ax; ray.origin.y = az; ray.dir.x = dx; ray.dir.y = dz;
       const hit = world.castRay(ray, max, true, undefined, solidStuff);
       return hit ? hit.timeOfImpact : max;
@@ -65,7 +92,7 @@ export async function createPhysics() {
     // Is there room to drive a car straight from a to b (two rays, one per side)?
     canDrive(ax, az, bx, bz) {
       const dx = bx - ax, dz = bz - az, len = Math.hypot(dx, dz) || 1, ox = -dz / len * 1.25, oz = dx / len * 1.25;
-      return physics.blocked(ax + ox, az + oz, bx + ox, bz + oz) < 0 && physics.blocked(ax - ox, az - oz, bx - ox, bz - oz) < 0;
+      return physics.blocked(ax + ox, az + oz, bx + ox, bz + oz, true) < 0 && physics.blocked(ax - ox, az - oz, bx - ox, bz - oz, true) < 0;
     },
     // Where a car is being hit right now, in the car's own frame (x forward, y to its right): the contact
     // carrying the most force. Fills `out` with one or two points (a flat face against a wall touches along
@@ -83,7 +110,7 @@ export async function createPhysics() {
           const nn = flipped ? m.localNormal2() : m.localNormal1();
           out.ax = p0.x; out.az = p0.y; out.bx = p1.x; out.bz = p1.y; out.nx = -nn.x; out.nz = -nn.y;
           out.owner = owners.get(other.handle) || null; out.round = other.shapeType() === RAPIER.ShapeType.Ball; out.r = out.round ? other.radius() : 0;
-          out.low = !out.owner && (other.collisionGroups() >>> 16) === GROUP.LOW;
+          const og = other.collisionGroups() >>> 16; out.low = !out.owner && (og === GROUP.LOW || og === GROUP.RAIL);
         });
       });
       return best < 0 ? null : out;

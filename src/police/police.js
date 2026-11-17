@@ -209,7 +209,7 @@ export function createPolice(game) {
       ped.x = pos.x; ped.z = pos.y;
       if (o.stun > 0) {          // reeling from a punch or a bullet
         o.stun -= dt; vel.x = v.x * Math.max(0, 1 - 6 * dt); vel.y = v.y * Math.max(0, 1 - 6 * dt); o.body.setLinvel(vel, true);
-        ped.y = damp(ped.y, groundY(ped.x, ped.z), 16, dt); ped.model.position.set(ped.x, ped.y, ped.z);
+        ped.y = damp(ped.y, groundY(ped.x, ped.z, ped.y), 16, dt); ped.model.position.set(ped.x, ped.y, ped.z);
         animateCharacter(ped.model, t, dt, 0, 'flail', police.stars > 0); continue;
       }
       let tx = p.x, tz = p.z, speed = POLICE.footSpeed + (police.stars >= 3 ? .5 : 0);
@@ -232,11 +232,11 @@ export function createPolice(game) {
 
       // the grab
       if (police.stars > 0 && o.state === 'chase' && !game.over) {
-        const reach = inCar ? p.vehicle.distanceTo(ped.x, ped.z) < 1.5 && p.speed < 2.2 : d < 1.35;
+        const reach = Math.abs(ped.y - p.y) < 2.5 && (inCar ? p.vehicle.distanceTo(ped.x, ped.z) < 1.5 && p.speed < 2.2 : d < 1.35);      // not through a bridge deck
         o.grab = reach ? o.grab + dt : Math.max(0, o.grab - dt * 2);
         if (o.grab > (inCar ? 1.5 : p.tumble > 0 ? .1 : .4)) { o.grab = 0; game.busted(); }
       }
-      ped.y = damp(ped.y, groundY(ped.x, ped.z), 16, dt);
+      ped.y = damp(ped.y, groundY(ped.x, ped.z, ped.y), 16, dt);
       ped.model.visible = true; ped.model.position.set(ped.x, ped.y, ped.z); ped.model.rotation.y = ped.face;
       animateCharacter(ped.model, t, dt, moving, moving > .4 ? 'move' : 'stand', police.stars > 0);
     }

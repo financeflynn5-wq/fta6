@@ -7,6 +7,8 @@ import { WORLD } from '../config.js';
 import { mats, std, facade, awnings, G, mesh, rbox, ctex } from './materials.js';
 import { bakeStatic } from './batching.js';
 import { CITY_EDGE, inDowntown } from './map.js';
+import { nearRibbon } from './terrain.js';
+import { planHighway, buildHighway } from './highway.js';
 import { buildGround } from './ground.js';
 import { buildDistricts, shapeLand } from './districts.js';
 
@@ -27,8 +29,11 @@ export function lightState(axis, t) {
 export function buildCity(realScene) {
   // Everything static is built into this holding group, then welded into a few meshes at the end.
   const scene = new THREE.Group();
-  const solids = { boxes: [], posts: [] };   // boxes: buildings {x,z,hw,hd}; posts: thin round things {x,z,r}
+  const solids = { boxes: [], posts: [], walls: [] };   // boxes: buildings {x,z,hw,hd,h}; posts: thin round things {x,z,r}; walls: straight rails at any angle
   const lampPts = [], signs = [];
+  // The hills and the elevated roads are laid out first (as plain numbers), so everything built after knows where they are.
+  shapeLand();
+  const highway = planHighway();
 
   // downtown's flat street level; the land around it is drawn by ground.js
   const size = CITY_EDGE * 2, ground = mesh(new THREE.PlaneGeometry(size, size), mats.asphalt, null, null, realScene, false);
@@ -90,7 +95,7 @@ export function buildCity(realScene) {
   // ---------- buildings ----------
   function building(cx, cz, w, d, h, downtown, y = .3, clutter = true) {
     const fm = pick(facade), g = new THREE.Group(); g.position.set(cx, y, cz); scene.add(g);
-    solids.boxes.push({ x: cx, z: cz, hw: w / 2, hd: d / 2 });
+    solids.boxes.push({ x: cx, z: cz, hw: w / 2, hd: d / 2, h: y + h });
     const shopH = 4.6;
     mesh(G.box, mats.trim, V(0, shopH / 2, 0), V(w, shopH, d), g);
     mesh(G.box, fm, V(0, shopH + (h - shopH) / 2, 0), V(w - .3, h - shopH, d - .3), g);
@@ -144,15 +149,34 @@ export function buildCity(realScene) {
     mesh(G.sph, mats.trunk, V(lean, 8.5, 0), V(.45, .45, .45), g);
   }
 
+  // Build something, then take it away again. The city's dice roll exactly as if it had been built, so removing
+  // one building (to make room for a highway, or to put a tower in its place) leaves every other one as it was.
+  function ghost(fn) {
+    const marks = [scene.children.length, solids.boxes.length, solids.posts.length, signs.length, lampPts.length], counts = {};
+    for (const k in IB) counts[k] = IB[k].list.length;
+    fn();
+    scene.children.splice(marks[0]).forEach(o => { o.parent = null; });
+    solids.boxes.length = marks[1]; solids.posts.length = marks[2]; signs.length = marks[3]; lampPts.length = marks[4];
+    for (const k in IB) IB[k].list.length = counts[k];
+  }
+  // Would a w x d footprint here stand under (or right beside) an elevated road?
+  const underHighway = (x, z, w, d) => [[0, 0], [-1, -1], [1, -1], [-1, 1], [1, 1], [0, -1], [0, 1], [-1, 0], [1, 0]].some(([a, b]) => nearRibbon(x + a * w / 2, z + b * d / 2, 2.5));
+
   // blocks
   for (const bi of blocksIdx) for (const bj of blocksIdx) {
     const cx = 27 + PITCH * bi, cz = 27 + PITCH * bj; const near = Math.abs(cx) < 60 && Math.abs(cz) < 60;
     mesh(G.box, mats.walk, V(cx, .15, cz), V(BLOCK, .3, BLOCK), scene, false);
     for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-      if (rand() < .12 && !near) { mesh(G.box, mats.grass, V(cx + sx * 9, .32, cz + sz * 9), V(15, .05, 15), scene, false); palm(cx + sx * 9, cz + sz * 9, 1.1); continue; }
+      if (rand() < .12 && !near) {
+        mesh(G.box, mats.grass, V(cx + sx * 9, .32, cz + sz * 9), V(15, .05, 15), scene, false);
+        const plant = () => palm(cx + sx * 9, cz + sz * 9, 1.1);
+        if (underHighway(cx + sx * 9, cz + sz * 9, 4, 4)) ghost(plant); else plant();
+        continue;
+      }
       const w = 12 + rand() * 3.5, d = 12 + rand() * 3.5, dist = Math.hypot(cx, cz);
       const h = (near ? 12 : 9) + rand() * (dist < 90 ? 18 : 11) + (dist < 45 ? 5 : 0);
-      building(cx + sx * (16 - w / 2), cz + sz * (16 - d / 2), w, d, h, near || rand() < .3);
+      const bx = cx + sx * (16 - w / 2), bz = cz + sz * (16 - d / 2), signed = near || rand() < .3, make = () => building(bx, bz, w, d, h, signed);
+      if (underHighway(bx, bz, w + 2, d + 2)) ghost(make); else make();
     }
     for (const [fx, fz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) for (const u of [-12, 0, 12]) {
       const px = cx + fx * 18.6 + (fz ? u : 0), pz = cz + fz * 18.6 + (fx ? u : 0);
@@ -185,13 +209,15 @@ export function buildCity(realScene) {
     [['r', .45], ['y', 0], ['g', -.45]].forEach(([k, y]) => mesh(G.sph, set[k], face.clone().add(V(0, y, 0)), V(.15, .15, .15), hb, false));
   }
 
-  // Everything beyond downtown: the land itself, then what stands on it.
-  shapeLand(); buildGround(realScene);
+  // Everything beyond downtown: the land itself, the elevated roads, then what stands on the land.
+  buildGround(realScene);
+  buildHighway(highway, { scene, realScene, solids, lampPts, signMats, IB, mat4 });
   const districts = buildDistricts({ scene, realScene, solids, lampPts, signMats, building, palm, IB, mat4 });
 
   // downtown welds in 108 m squares (2 x 2 blocks); the districts around it are sparser, so they weld in 162 m squares.
   // Bigger squares = fewer draws for the same picture, which pays for the larger map.
   const welded = bakeStatic(scene, realScene, (x, z) => inDowntown(x, z) ? Math.floor((x + 162) / 108) + ',' + Math.floor((z + 162) / 108) : 'o' + Math.floor((x + 405) / 162) + ',' + Math.floor((z + 405) / 162));
+  welded.push(...highway.meshes);
 
   const IBm = {}; for (const k in IB) IBm[k] = IB[k].build();
   IBm.mark.material = std({ color: 0xffffff, roughness: .6 });
@@ -200,5 +226,5 @@ export function buildCity(realScene) {
     for (const [k, ax] of [['ew', 'x'], ['ns', 'z']]) { const st = lightState(ax, t); for (const c of ['r', 'y', 'g']) sig[k][c].emissiveIntensity = st === c ? 3.2 : .04; }
   }
 
-  return { solids, lampPts, signMats, litWindows: IBm.lit, updateLights, districts, welded };
+  return { solids, lampPts, signMats, litWindows: IBm.lit, updateLights, districts, welded, highway };
 }

@@ -4,7 +4,7 @@
 // vehicle.js calls preStep() once per physics step and place() once per drawn frame.
 import { CAR, RIDE } from '../config.js';
 import { clamp, damp } from '../core/utils.js';
-import { groundY, surfaceAt } from './terrain.js';
+import { groundY, surfaceAt, layer } from './terrain.js';
 import { WATER } from './map.js';
 
 const AXLE = 1.4, TRACK = .86, DUSTY = { dirt: 1, scrub: 1, sand: 1 };
@@ -14,8 +14,12 @@ export function createRide(game) {
   const listeners = { takeoff: [], land: [], splash: [] };
   const emit = (name, v, info) => { for (const fn of listeners[name]) fn(v, info); };
 
+  // Which things a car can hit: the street's, only buildings (flying), or the upper level's (a bridge, an elevated road).
+  const setMode = (v) => game.physics.setCarMode(v.body, v.flying ? 1 : v.up ? 2 : 0);
   function init(v) {
-    v.gf = groundY(v.x + v.fx * AXLE, v.z + v.fz * AXLE); v.gr = groundY(v.x - v.fx * AXLE, v.z - v.fz * AXLE);
+    const ref = v.y ?? 0;         // a car put down on a bridge starts on the bridge
+    v.gf = groundY(v.x + v.fx * AXLE, v.z + v.fz * AXLE, ref); v.gr = groundY(v.x - v.fx * AXLE, v.z - v.fz * AXLE, ref);
+    if (layer.up !== !!v.up) { v.up = layer.up; setMode(v); }
     v.y = (v.gf + v.gr) / 2; v.vy = 0; v.air = 0; v.sus = 0; v.slope = 0; v.tiltP = 0; v.tiltR = 0; v.qx = v.x; v.qz = v.z; v.wet = false;
     v.mesh.rotation.order = 'YZX'; v.rideReady = true;
   }
@@ -39,8 +43,8 @@ export function createRide(game) {
     // Returns true while the car is in the air (vehicle.js then skips its tyre maths).
     preStep(v, dt) {
       if (!v.rideReady) init(v);
-      const b = v.body, fx = v.fx, fz = v.fz, x = v.x, z = v.z;
-      const gf = groundY(x + fx * AXLE, z + fz * AXLE), gr = groundY(x - fx * AXLE, z - fz * AXLE), g = (gf + gr) / 2;
+      const b = v.body, fx = v.fx, fz = v.fz, x = v.x, z = v.z, ref = v.air > 0 ? v.y : Math.max(v.y, (v.gf + v.gr) / 2);
+      const gf = groundY(x + fx * AXLE, z + fz * AXLE, ref), gr = groundY(x - fx * AXLE, z - fz * AXLE, ref), g = (gf + gr) / 2, up = layer.up;
       const gPrev = (v.gf + v.gr) / 2, groundVy = clamp((g - gPrev) / dt, -40, 40);
 
       if (v.air > 0) {                      // flying: gravity only, the tyres can't do anything
@@ -50,14 +54,14 @@ export function createRide(game) {
         const lv = b.linvel(); vel.x = lv.x; vel.y = lv.y; b.setLinvel(vel, true); b.setAngvel(b.angvel() * (1 - .8 * dt), true);
         v._set.x = vel.x; v._set.y = vel.y;                       // nothing unexpected happened, so no crash is counted
         v.vf = vel.x * fx + vel.y * fz; v.vl = vel.x * v.rx + vel.y * v.rz; v.sliding = false; v.braking = false; v.slip = 0;
-        if (v.air > .12 && !v.flying && v.y - g > 1.3) { v.flying = true; game.physics.setFlying(b, true); }   // clear of low walls, boxes and other cars
+        if (v.air > .12 && !v.flying && v.y - g > 1.3) { v.flying = true; setMode(v); }   // clear of low walls, boxes and other cars
         if (v.y <= g) {
           if (g - v.y > 1 && (gf - pf > RIDE.ledge || gr - pr > RIDE.ledge)) {     // flew into the side of something tall: bounce off and keep falling
             pos.x = v.qx; pos.y = v.qz; b.setTranslation(pos, true); vel.x *= -.25; vel.y *= -.25; b.setLinvel(vel, true); v._set.x = vel.x; v._set.y = vel.y;
             v.gf = pf; v.gr = pr; v.x = v.qx; v.z = v.qz; v.damage(Math.hypot(vel.x, vel.y) * 6); game.onCrash(v, Math.hypot(vel.x, vel.y) * 4);
             return true;
           }
-          if (v.flying) { v.flying = false; game.physics.setFlying(b, false); }
+          if (v.flying || up !== !!v.up) { v.flying = false; v.up = up; setMode(v); }
           land(v, g, Math.abs(g - gPrev) > .3 ? 0 : groundVy);     // touching down across a step (a deck's edge): that jump in height isn't speed
         }
         v.qx = x; v.qz = z;
@@ -86,6 +90,7 @@ export function createRide(game) {
       }
       if (Math.abs(d) > .05) v.sus -= d;                          // hide the jolt, let it settle in place()
       v.y = g; v.vy = groundVy; v.gf = gf; v.gr = gr; v.qx = x; v.qz = z;
+      if (up !== !!v.up) { v.up = up; setMode(v); }               // drove up onto a bridge, or back down off one
       v.slope = (gf - gr) / (2 * AXLE);
 
       // gravity along the slope (parked cars stay put)
@@ -109,6 +114,9 @@ export function createRide(game) {
       return false;
     },
 
+    // Put a car down at a height (on a bridge, say) instead of on the ground under it.
+    setHeight(v, y) { v.y = y; v.rideReady = false; init(v); },
+
     // Put the car's model on the ground (or in the air) for this frame. Returns extra kerb pitch for the body (none).
     place(v, dt) {
       if (!v.rideReady) init(v);
@@ -116,10 +124,10 @@ export function createRide(game) {
       let y, pitch, roll = 0;
       if (v.air > 0) { y = v.y; pitch = clamp(Math.atan2(v.vy, Math.max(10, v.speed)) * .75, -.55, .55); }
       else {
-        const yf = groundY(x + fx * AXLE, z + fz * AXLE), yr = groundY(x - fx * AXLE, z - fz * AXLE);
+        const ref = v.y + .3, yf = groundY(x + fx * AXLE, z + fz * AXLE, ref), yr = groundY(x - fx * AXLE, z - fz * AXLE, ref);
         v.sus = dt ? damp(v.sus, 0, 18, dt) : 0;
         y = (yf + yr) / 2 + v.sus; pitch = Math.atan2(yf - yr, 2 * AXLE);
-        if (Math.abs(yf - yr) > .01 || v.tiltR) roll = Math.atan2(groundY(x + fz * TRACK, z - fx * TRACK) - groundY(x - fz * TRACK, z + fx * TRACK), 2 * TRACK);
+        if (Math.abs(yf - yr) > .01 || v.tiltR) roll = Math.atan2(groundY(x + fz * TRACK, z - fx * TRACK, ref) - groundY(x - fz * TRACK, z + fx * TRACK, ref), 2 * TRACK);
       }
       const rate = v.air > 0 ? 3.5 : 16;
       v.tiltP = dt ? damp(v.tiltP, pitch, rate, dt) : pitch; v.tiltR = dt ? damp(v.tiltR, roll, rate, dt) : roll;
@@ -129,7 +137,7 @@ export function createRide(game) {
       // dust on loose ground, spray in the shallows
       if (dt && v.air === 0 && v.speed > 7 && Math.abs(x - game.player.x) < 70 && Math.abs(z - game.player.z) < 70 && Math.random() < dt * (4 + v.speed * .25)) {
         if (v.wet) game.fx.smoke(x - fx * 1.5, y + .3, z - fz * 1.5, 1, 1.1, .5, v.vx * .3, v.vz * .3);
-        else if (DUSTY[surfaceAt(x, z)]) game.fx.smoke(x - fx * 1.8, y + .25, z - fz * 1.8, .86, 1.2, .8, v.vx * .25, v.vz * .25);
+        else if (!v.up && DUSTY[surfaceAt(x, z)]) game.fx.smoke(x - fx * 1.8, y + .25, z - fz * 1.8, .86, 1.2, .8, v.vx * .25, v.vz * .25);
       }
       return 0;
     },

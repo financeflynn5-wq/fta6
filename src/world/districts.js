@@ -7,7 +7,7 @@ import { WORLD } from '../config.js';
 import { V, seeded, randSeed } from '../core/utils.js';
 import { mats, G, mesh, rbox, facade } from './materials.js';
 import { plainGeometry } from './batching.js';
-import { groundY, landY, addFeature, addDeck, surfaceAt } from './terrain.js';
+import { groundY, landY, addFeature, addDeck, surfaceAt, nearRibbon } from './terrain.js';
 import { STEP, N, WATER, CITY, hasRoad, nodeX, cellType } from './map.js';
 import { makeProps, roofGeo } from './props.js';
 
@@ -24,7 +24,7 @@ export function shapeLand() {
   // Dustlands north: the canyon, Rocco's Rock, dunes
   F({ x1: -305, z1: 70, x2: -185, z2: 150, r: 12, h: -6, flat: .5 });
   F({ x: -285, z: 175, r: 40, h: 10, flat: .6 });
-  F({ x: -215, z: 55, r: 18, h: 2.5 }); F({ x: -265, z: 32, r: 15, h: 2 });
+  F({ x: -215, z: 96, r: 18, h: 2.5 }); F({ x: -265, z: 26, r: 13, h: 2 });           // (kept clear of Highway 6, which runs along z = 54)
   // High Meadows and the East Bluffs
   F({ x: -300, z: 296, r: 28, h: 6 }); F({ x: 232, z: 296, r: 26, h: 5 });
   // dunes behind the beach
@@ -47,7 +47,7 @@ export function buildDistricts(api) {
   // ---------- scatter helpers ----------
   const taken = [], keepOut = (x, z, r) => taken.push([x, z, r]);
   const clear = (x, z, m = 2.5) => landY(x, z) > WATER + .3 && surfaceAt(x - m, z) !== 'road' && surfaceAt(x + m, z) !== 'road' && surfaceAt(x, z - m) !== 'road' && surfaceAt(x, z + m) !== 'road'
-    && !taken.some(([tx, tz, r]) => Math.abs(x - tx) < r && Math.abs(z - tz) < r);
+    && !taken.some(([tx, tz, r]) => Math.abs(x - tx) < r && Math.abs(z - tz) < r) && !nearRibbon(x, z, m + 1.5);      // nothing grows under a highway
   function scatter(n, x0, z0, x1, z1, fn, ok = null) {
     for (let i = 0, tries = 0; i < n && tries < n * 14; tries++) { const x = rr(x0, x1), z = rr(z0, z1); if (!clear(x, z) || (ok && !ok(x, z))) continue; fn(x, z); i++; }
   }
@@ -55,6 +55,7 @@ export function buildDistricts(api) {
   function house(cx, cz, w, d, h, signs = false) {
     const ys = [groundY(cx - w / 2, cz - d / 2), groundY(cx + w / 2, cz - d / 2), groundY(cx - w / 2, cz + d / 2), groundY(cx + w / 2, cz + d / 2)];
     const y = Math.max(...ys), lo = Math.min(...ys);
+    if ([[0, 0], [-1, -1], [1, -1], [-1, 1], [1, 1]].some(([a, b]) => nearRibbon(cx + a * w / 2, cz + b * d / 2, 2.5))) return;     // a highway runs here
     api.building(cx, cz, w, d, h, signs, y, signs);      // houses get one roof unit, not a downtown roof's worth
     if (y - lo > .05) box(mats.trim, cx, (y + lo) / 2 - .5, cz, w + .2, y - lo + 1, d + .2);
     keepOut(cx, cz, Math.max(w, d) / 2 + 2.5);
@@ -68,7 +69,7 @@ export function buildDistricts(api) {
   out.spots.pizza = { x: -27, z: -201 };
   house(-135, -187, 12, 11, 7.6, true); house(70, -186, 11, 11, 8.6, true); house(93, -186, 11, 11, 7.6, true);
   for (const [cx, n] of [[-81, 5], [135, 3]]) {                                     // car parks
-    box(mats.concrete, cx, .03, -189, 34, .06, 30, false); keepOut(cx, -189, 19);
+    box(mats.concrete, cx, .03, -191, 34, .06, 26, false); keepOut(cx, -189, 19);
     for (let i = 0; i < n; i++) out.parked.push([R() < .2 ? 'taxi' : 'car', cx - (n - 1) * 3 + i * 6, -189, PI / 2]);
   }
   out.ramps.beach = P.ramp(27, -200, -PI / 2, 10, 6, 2.4); keepOut(27, -200, 9);
@@ -222,8 +223,8 @@ export function buildDistricts(api) {
   box(M.hull, 364, .5, 40, 13, 7, 78); box(mats.darkMetal, 364, -2.2, 40, 13.1, 1.6, 78.1, false); box(M.white, 364, 9, 73, 11, 10, 9);
   mesh(G2.cyl8, M.red, V(364, 16, 75), V(1.4, 5, 1.4), scene); solid(364, 40, 6.5, 39);
   for (let z = 6; z <= 62; z += 6.4) for (const sx of [-3, 0, 3]) for (let l = 0; l < 1 + Math.floor(R() * 2.5); l++) mesh(G.box, one(M.box), V(364 + sx, 5.3 + l * 2.6, z), V(2.5, 2.6, 6), scene);
-  out.parked.push(['car', 174, -60, PI / 2], ['car', 174, -70, PI / 2], ['taxi', 262, 30, -PI / 2], ['car', 262, 140, -PI / 2], ['car', 311, -30, PI / 2]);
-  out.walkers.push({ cx: 216, cz: -81, hx: 44, hz: 71, n: 4, kinds: ['scrap'] });
+  out.parked.push(['car', 181, -63, PI / 2], ['car', 181, -72, PI / 2], ['taxi', 262, 30, -PI / 2], ['car', 262, 140, -PI / 2], ['car', 311, -30, PI / 2]);
+  out.walkers.push({ cx: 220, cz: -81, hx: 40, hz: 71, n: 4, kinds: ['scrap'] });
   // lighthouse up the coast
   {
     const lx = 346, lz = 292, y = groundY(lx, lz) - .3;
@@ -281,7 +282,7 @@ export function buildDistricts(api) {
     const far = cellType(Math.min(i, N - 2), Math.min(j, N - 2)) !== 'hill' && (i + j) % 2;       // country roads get half as many
     for (const [s, side] of far ? [[27, 1]] : [[15, 1], [39, -1]]) {
       const x = nodeX(i) + di * s - dj * 8.4 * side, z = nodeX(j) + dj * s + di * 8.4 * side;
-      P.lamp(x, z, dj * side, -di * side);
+      if (!nearRibbon(x, z, 1.5)) P.lamp(x, z, dj * side, -di * side);
     }
   }
 

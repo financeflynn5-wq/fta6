@@ -7,6 +7,7 @@ import { createPhysics } from './core/physics.js';
 import { createInput } from './core/input.js';
 import { createAudio } from './core/audio.js';
 import { buildCity } from './world/city.js';
+import { paintHighway } from './world/highway.js';
 import { createSky } from './world/sky.js';
 import { createEffects } from './fx/effects.js';
 import { createCarLights } from './fx/carLights.js';
@@ -48,8 +49,9 @@ async function boot() {
   game.input = createInput(canvas);
   game.audio = createAudio();
   game.city = buildCity(engine.scene);
-  for (const b of game.city.solids.boxes) game.physics.addStaticBox(b.x, b.z, b.hw, b.hd, b.low);
-  for (const p of game.city.solids.posts) game.physics.addStaticPost(p.x, p.z, p.r);
+  for (const b of game.city.solids.boxes) game.physics.addStaticBox(b.x, b.z, b.hw, b.hd, b.low, b.h);
+  for (const p of game.city.solids.posts) game.physics.addStaticPost(p.x, p.z, p.r, p.h);
+  for (const w of game.city.solids.walls) game.physics.addWall(w.x, w.z, w.hl, w.ht, w.rot, w.kind, w.h);
   game.env = createSky(engine, game.city);
   game.fx = createEffects(engine.scene);
   game.world = createWorld(game);               // the land: hills, air time, water (also sets game.ride)
@@ -62,6 +64,7 @@ async function boot() {
   game.hud = createHud(game);
   game.minimap = createMinimap(game);
   game.minimap.setBuildings(game.city.solids.boxes);
+  paintHighway(game.minimap.plan.getContext('2d'), game.minimap.half, game.city.highway);
   game.carLights = createCarLights(game);
   game.landmarks = createLandmarks(game);
   game.combat = createCombat(game);

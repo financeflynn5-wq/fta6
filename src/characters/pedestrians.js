@@ -128,7 +128,7 @@ export function createPedestrians(game) {
 
         if (visible && p.state !== 'air' && p.state !== 'down' && p.state !== 'ko') {
           for (const v of vehicles) {
-            if (v.speed < 2.4) continue;
+            if (v.speed < 2.4 || v.y - p.y > 3) continue;                 // cars on a bridge overhead can't hit anyone down here
             const ddx = p.x - v.x, ddz = p.z - v.z; if (Math.abs(ddx) > 16 || Math.abs(ddz) > 16) continue;
             const lx = ddx * v.fx + ddz * v.fz, lz = ddx * v.rx + ddz * v.rz;
             if (Math.abs(lx) < v.halfLen + .25 && Math.abs(lz) < v.halfWid + .3) {            // bonk
