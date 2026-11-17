@@ -13,6 +13,7 @@ import { AIDriver } from './aiDriver.js';
 import { makeCharacter, CIVILIANS } from '../characters/models.js';
 
 const H = TRAFFIC.highway;
+const EXIT_PLAN = 90, EXIT_BRAKE = 4;       // metres before an exit a driver decides to take it, and how gently they slow for it (m/s^2)
 
 export function createHighwayTraffic(game) {
   const hw = game.city.highway, here = {}, tgt = {}, spot = {};
@@ -119,13 +120,21 @@ export function createHighwayTraffic(game) {
         leave(d); return d.cruise(dt, t);
       }
       let L = d.lane;
-      // an exit coming up: some take it
-      const ex = exitHere(d);
-      if (ex && d.lastExit !== ex) { d.lastExit = ex; if (Math.random() < ex.p) { L = d.lane = ex.to; d.s = 0; } } else if (!ex) d.lastExit = null;
+      // an exit coming up: some take it. They make up their minds well before it, so there is room to slow down for a tight one
+      let slow = 1e9, near = false;
+      for (const ex of L.exits) {
+        const gap = fwdGap(L, d.s, ex.s); if (gap < 0 || gap > EXIT_PLAN) continue;
+        near = true;
+        if (d.lastExit !== ex) { d.lastExit = ex; d.takeExit = Math.random() < ex.p ? ex : null; }
+        if (d.takeExit !== ex) continue;
+        if (gap < 4) { L = d.lane = ex.to; d.s = 0; d.takeExit = null; }
+        else { lanePoint(ex.to, 8, tgt); slow = Math.sqrt(tgt.v * tgt.v + 2 * EXIT_BRAKE * gap); }
+      }
+      if (!near) d.lastExit = d.takeExit = null;
 
       const cruise = Math.min(L.speed * d.pace * (v.stats.cruise ?? 1), v.stats.maxSpeed * .9);
       lanePoint(L, d.s + 5 + v.speed * .55, tgt); const aimX = tgt.x, aimZ = tgt.z;
-      let want = Math.min(cruise, tgt.v);
+      let want = Math.min(cruise, tgt.v, slow);
       lanePoint(L, d.s + 10 + v.speed * 1.3, tgt); want = Math.min(want, tgt.v + 3);          // ease off before a bend
       const [gap, lead, who] = ahead(v, 70);
       const follow = lead + clamp((gap - 5 - v.speed * .25) * .8, -8, 30);

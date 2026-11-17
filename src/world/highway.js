@@ -137,9 +137,16 @@ export function planHighway() {
   // onto the Loop: ordinary traffic passing the foot of a ramp may take it
   const sIn = lane('south entrance', [...onGround([[-9, -164.6, 9], [-14, -165.6, 9], [-20, -170, 9]]), ...centre(sOn)], 16, { entry: { x: -9, z: -164.6, h: PI } }); join(sIn);
   const eIn = lane('east entrance', [...onGround([[164.6, -9, 9], [165.6, -14, 9], [170, -20, 9]]), ...centre(eOn)], 16, { entry: { x: 164.6, z: -9, h: -PI / 2 } }); join(eIn);
+  // Drivers aim a few car lengths ahead, so on a tight bend they run a good metre inside the line they are given
+  // and would scrape the rail on the inside of these two corners. The line is drawn that much wider (away from
+  // the corner's centre cx, cz, most in the middle of the bend) so the cars end up where the lane is painted.
+  const wide = (pts, cx, cz, push = 1.4) => pts.map((p, i) => {
+    const k = push * Math.sin(Math.PI * i / (pts.length - 1)) ** .6, r = Math.hypot(p.x - cx, p.z - cz) || 1;
+    return { ...p, x: p.x + (p.x - cx) / r * k, z: p.z + (p.z - cz) / r * k };
+  });
   // Highway 6 westbound: off the Loop round the corner, along the south side, right onto the desert road
   const hOut = lane('highway 6 west', [
-    ...trace(-167.3, 30.7, PI / 2).arc(18, PI / 2).pts.map(p => ({ x: p.x, z: p.z, y: D, v: 9.5 })),
+    ...wide(trace(-167.3, 30.7, PI / 2).arc(18, PI / 2).pts, -185.3, 30.7).map(p => ({ x: p.x, z: p.z, y: D, v: 9.5 })),
     ...laneOf(h6, b, 1, 28),
     ...onGround([[-308, 48.7, 10], [-315.4, 48.7, 7], [-319.6, 46.9, 6], [-321.4, 42.7, 6], [-321.4, 34, 8]]),
   ], 22, { grid: true });
@@ -148,7 +155,7 @@ export function planHighway() {
   const hIn = lane('highway 6 east', [
     ...onGround([[-321.4, 74, 7], [-321.4, 66, 6], [-319.6, 61.1, 6], [-315.4, 59.3, 7], [-308, 59.3, 10]]),
     ...laneOf(h6, -b, -1, 28),
-    ...trace(-185.3, 59.3, 0).arc(18, PI / 2).pts.map(p => ({ x: p.x, z: p.z, y: D, v: 9.5 })),
+    ...wide(trace(-185.3, 59.3, 0).arc(18, PI / 2).pts, -185.3, 77.3).map(p => ({ x: p.x, z: p.z, y: D, v: 9.5 })),
   ], 22, { entry: { x: -321.4, z: 74, h: -PI / 2 } });
   join(hIn);
 
