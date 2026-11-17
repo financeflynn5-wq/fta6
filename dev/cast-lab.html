@@ -1,0 +1,53 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>FTA 6 cast lab</title>
+<!-- A bench for the characters: a line-up on a plain floor, lit like the game's afternoon.
+     Not part of the game. Open dev/cast-lab.html?kinds=sal,dale,tiff,bighead*9 from a static server.
+     ?cols=6 sets the row length, ?pose=walk|flail|down|stand, ?seed=3 repeats the same random citizens,
+     lab.view(x, y, z, tx, ty, tz) moves the camera, lab.step(seconds) runs the animation on. -->
+<style>html, body { margin: 0; background: #9aa; overflow: hidden } canvas { display: block }</style>
+<script type="importmap">{"imports":{"three":"../vendor/three/build/three.module.js","three/addons/":"../vendor/three/addons/","rapier":"../vendor/rapier/rapier.mjs"}}</script>
+<canvas id="cv"></canvas>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { makeCharacter, animateCharacter } from '../src/characters/models.js';
+import { litMaterials, std } from '../src/world/materials.js';
+
+const q = new URLSearchParams(location.search);
+const W = +(q.get('w') || 1280), H = +(q.get('h') || 720), cols = +(q.get('cols') || 6), pose = q.get('pose') || 'stand';
+if (q.has('seed')) { let s = +q.get('seed') * 7919 + 17; Math.random = () => ((s = (s * 16807) % 2147483647) / 2147483647); }
+// ?looks=hair:afro,hat:cap|hair:bun  forces parts on otherwise random citizens (one citizen per | entry)
+const kinds = q.has('looks') ? q.get('looks').split('|').map(e => ['bighead', { look: Object.fromEntries(e.split(',').map(kv => { const [k, v] = kv.split(':'); return [k, v === 'true' ? true : isNaN(+v) ? v : +v]; })) }])
+  : (q.get('kinds') || 'sal,dale,tiff,bighead*9').split(',').flatMap(k => { const [n, c] = k.split('*'); return Array(+(c || 1)).fill([n]); });
+
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('cv'), antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H, false); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = .85;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xf3d9c0);
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(renderer), .04).texture;
+const camera = new THREE.PerspectiveCamera(32, W / H, .1, 300);
+scene.add(new THREE.HemisphereLight(0xcfe6ff, 0x8a7a66, .75));
+const sun = new THREE.DirectionalLight(0xffe2b8, 2.6); sun.position.set(-9, 16, 12); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -14, right: 14, top: 14, bottom: -14, near: 1, far: 60 }); sun.shadow.bias = -.0004; sun.shadow.normalBias = .03; scene.add(sun);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), std({ color: 0xd6cfc4, roughness: .9 })); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+for (const m of litMaterials) m.envMapIntensity = .7;
+
+const cast = [], rows = Math.ceil(kinds.length / cols), turn = +(q.get('turn') || 0);
+kinds.forEach(([k, opt], i) => {
+  const c = makeCharacter(k, opt), col = i % cols, row = Math.floor(i / cols);
+  c.position.set((col - (Math.min(cols, kinds.length) - 1) / 2) * 1.75, 0, -row * 2.6); c.rotation.y = turn; scene.add(c); cast.push(c);
+});
+let t = 0;
+const speed = pose === 'walk' ? 2 : pose === 'run' ? 7 : pose === 'flail' ? 5 : 0, mode = pose === 'walk' || pose === 'run' ? 'move' : pose;
+const lab = window.lab = {
+  cast, scene, camera, renderer,
+  view(x, y, z, tx = 0, ty = 1.3, tz = 0) { camera.position.set(x, y, z); camera.lookAt(tx, ty, tz); lab.draw(); },
+  step(sec) { for (let s = 0; s < sec; s += 1 / 60) { t += 1 / 60; for (const c of cast) animateCharacter(c, t, 1 / 60, speed, mode); } lab.draw(); },
+  draw() { renderer.render(scene, camera); },
+  info() { let calls = 0, tris = 0; scene.traverse(o => { if (o.isMesh && o !== floor) { calls++; tris += o.geometry.attributes.position.count / 3; } }); return { calls, tris, perChar: Math.round(calls / cast.length), trisPerChar: Math.round(tris / cast.length) }; },
+};
+lab.step(+(q.get('t') || .5));
+lab.view(0, 2.2 + rows * .5, 9 + cols * .9 + rows, 0, 1.25, -(rows - 1) * 1.3);
+window.labReady = true;
+</script>

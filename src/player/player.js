@@ -1,19 +1,22 @@
-// Rocco: walking, sprinting, getting in and out of cars, and getting knocked about.
+// You (Rocco, unless another character is picked on the menu): walking, sprinting, getting in and out of cars, and getting knocked about.
 import { PLAYER } from '../config.js';
 import { clamp, damp, lerp, angleDiff } from '../core/utils.js';
 import { groundY } from '../world/city.js';
-import { makeCharacter, animateCharacter, CIVILIANS } from '../characters/models.js';
+import { makeCharacter, animateCharacter, CIVILIANS, PLAYABLE } from '../characters/models.js';
 import { AIDriver } from '../vehicles/aiDriver.js';
 
 const pickCivilian = () => CIVILIANS[Math.floor(Math.random() * CIVILIANS.length)];
 
 export function createPlayer(game) {
-  const model = makeCharacter('rocco'); game.scene.add(model);
+  let who = 'rocco';
+  try { const s = localStorage.getItem('fta6.who'); if (PLAYABLE.some(([id]) => id === s)) who = s; } catch { /* storage blocked: Rocco it is */ }
+  let look; try { if (who === 'bighead') look = JSON.parse(localStorage.getItem('fta6.look') || 'null') || undefined; } catch { /* a fresh face, then */ }
+  let model = makeCharacter(who, { props: false, look }); game.scene.add(model);
   const body = game.physics.addPerson(null, PLAYER.spawn.x, PLAYER.spawn.z, PLAYER.radius);
   const vel = { x: 0, y: 0 };
 
   const player = {
-    isPlayer: true, model, body, mode: 'foot', vehicle: null, nearCar: null,
+    isPlayer: true, model, who, body, mode: 'foot', vehicle: null, nearCar: null,
     x: PLAYER.spawn.x, z: PLAYER.spawn.z, y: .3, vx: 0, vz: 0, speed: 0, face: Math.PI,
     px: PLAYER.spawn.x, pz: PLAYER.spawn.z, ix: PLAYER.spawn.x, iz: PLAYER.spawn.z,   // last step's position, and where Rocco is drawn this frame
     health: PLAYER.health, armor: 0, aiming: false, stamina: PLAYER.stamina, tumble: 0, winded: false, stepT: 0, frozen: false,
@@ -96,6 +99,19 @@ export function createPlayer(game) {
         body.setLinvel({ x: car.vx * .7, y: car.vz * .7 }, true); player.tumble = 1.3; player.hurt(4 + (car.speed - PLAYER.bailSpeed) * 1.3);
       } else body.setLinvel({ x: 0, y: 0 }, true);
       game.audio.door(); game.onCarLeft(car);
+    },
+
+    // Become someone else (the menus): a new body in the same spot, holding the same guns.
+    setCharacter(kind, made) {
+      const old = model, riding = player.vehicle?.rider === old;
+      if (riding) player.vehicle.unseat();
+      model = player.model = made || makeCharacter(kind, { props: false }); player.who = kind;
+      model.position.copy(old.position); model.rotation.y = player.face; model.visible = old.visible;
+      game.combat?.rehand(old);                              // the guns change hands before the old body goes
+      old.removeFromParent(); old.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+      if (!riding || !player.vehicle.seat(model)) game.scene.add(model);
+      try { localStorage.setItem('fta6.who', kind); } catch { /* fine */ }
+      game.env?.touch();
     },
 
     // Hit by a moving car while on foot.

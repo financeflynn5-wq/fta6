@@ -21,14 +21,14 @@ const SHOPS = [
   { id: 'tower', name: 'SUNSET TOWER', kind: 'lobby', block: [0, 0], corner: [-1, -1], face: [0, -1], who: 'tess' },
   { id: 'noodle', name: 'NOODLE HUT', kind: 'diner', block: [0, -1], corner: [-1, 1], face: [0, 1], who: 'raccoon', tint: 0xd9412f },
   { id: 'pawn', name: "PAWSUM'S PAWN", kind: 'pawn', block: [-1, 0], corner: [1, -1], face: [0, -1], who: 'possum' },
-  { id: 'arcade', name: 'ARCADE', kind: 'arcade', block: [-1, 0], corner: [-1, -1], face: [-1, 0], who: 'scrap' },
-  { id: 'motel', name: 'MOTEL', kind: 'motel', block: [0, -1], corner: [1, -1], face: [1, 0], who: 'raccoon' },
+  { id: 'arcade', name: 'ARCADE', kind: 'arcade', block: [-1, 0], corner: [-1, -1], face: [-1, 0], who: 'tiff' },
+  { id: 'motel', name: 'MOTEL', kind: 'motel', block: [0, -1], corner: [1, -1], face: [1, 0], who: 'sal' },
   { id: 'laundry', name: 'LAUNDRO-MAT', kind: 'laundry', block: [-1, -1], corner: [1, 1], face: [1, 0], who: 'scrap' },
   { id: 'donut', name: 'DONUT HOLE', kind: 'diner', block: [-2, -1], corner: [1, 1], face: [1, 0], who: 'possum', tint: 0xff7fae },
-  { id: 'taco', name: 'TACO CRAB', kind: 'diner', block: [1, 0], corner: [-1, -1], face: [-1, 0], who: 'raccoon', tint: 0x2fa89a },
+  { id: 'taco', name: 'TACO CRAB', kind: 'diner', block: [1, 0], corner: [-1, -1], face: [-1, 0], who: 'bighead', tint: 0x2fa89a },
   { id: 'crab', name: 'CRAB SHACK', kind: 'diner', block: [0, 1], corner: [-1, -1], face: [0, -1], who: 'scrap', tint: 0x3e6fd6 },
   { id: 'hospital', name: 'SUNSET GENERAL', kind: 'clinic', landmark: 'hospital', who: 'tess' },
-  { id: 'station', name: 'SUNSET PD', kind: 'police', landmark: 'station', who: 'pigeon' },
+  { id: 'station', name: 'SUNSET PD', kind: 'police', landmark: 'station', who: 'dale' },
 ];
 const T = .3, H = 4.6, DOOR = 2.6, CEIL = 4.0;      // wall thickness, ground-floor height, doorway width, ceiling height
 

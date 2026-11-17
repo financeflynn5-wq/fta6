@@ -13,7 +13,7 @@ const HALF_PI = Math.PI / 2;
 
 export function createCombat(game) {
   const hits = createHits(game), gfx = createGunFx(game.scene), view = createSightView(game);     // view: the gun as seen down its sights
-  const player = game.player, arms = player.model.userData.arms;
+  const player = game.player; let arms = player.model.userData.arms;
   const guns = {};                      // the gun meshes in Rocco's right hand, made on first pickup
   const muzzle = new THREE.Vector3(), d = new THREE.Vector3(), shot = new THREE.Vector3(), side = new THREE.Vector3(), up = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
   let reportT = 0;
@@ -43,6 +43,11 @@ export function createCombat(game) {
     reset(confiscate) {
       combat.aiming = false; combat.reloading = 0; combat.burstLeft = 0; combat.lastShot = -9;
       if (confiscate) { combat.owned = new Set(['fists']); combat.clip = {}; combat.ammo = {}; combat.weapon = 'fists'; }
+    },
+    // The player turned into someone else: move the guns to the new right hand, and repaint the hands in the sight view.
+    rehand() {
+      arms = player.model.userData.arms; for (const g of Object.values(guns)) arms[0].add(g);
+      const u = player.model.userData; view.setHands(u.skinC ?? 0x8b8d94, u.sleeveC ?? 0xe8455b);
     },
     totalAmmo(id = combat.weapon) { return (combat.clip[id] || 0) + (combat.ammo[id] || 0); },
     hitMarker(kill) { combat.hitT = .28; combat.killHit = kill; game.audio.hitmark(); },
@@ -238,5 +243,6 @@ export function createCombat(game) {
     }
   }
 
+  combat.rehand();
   return combat;
 }

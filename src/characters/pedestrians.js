@@ -60,7 +60,7 @@ export function createPedestrians(game) {
       // beat cops on foot
       for (let i = 0; i < 7; i++) {
         const cx = 27 + PITCH * choose([-2, -1, 0, 1]), cz = 27 + PITCH * choose([-2, -1, 0, 1]);
-        const p = add(COPS[i % 2], cx, cz, true); p.s = Math.random() * 150;
+        const p = add(COPS[i % COPS.length], cx, cz, true); p.s = Math.random() * 150;
       }
     },
     // A driver thrown out of their car, or anyone else who needs to rejoin the sidewalk.
