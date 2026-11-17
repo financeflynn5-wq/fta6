@@ -214,9 +214,11 @@ function dress(r, L, sk, shirt) {
   if (L.prop === 'bag') { M(rbox(.3, .32, .13, .03), mat(L.shoes ?? 0xe8455b, .8), V(0, -.78, 0), null, hand); M(torus(.07, .012, Math.PI), dark, V(0, -.62, 0), V(1, 1.4, 1), hand); }
 }
 
-// kind: 'bighead' (a fresh citizen), 'bigcop', or one of the named three. opt.props: false leaves the hands empty (the player).
+// kind: 'bighead' (a fresh citizen), 'bigcop', or one of the named three. opt.look: parts to force, or a whole saved look.
+// opt.props: false leaves the hands empty (the player).
 export function bigHead(kind = 'bighead', opt = {}) {
-  const L = { ...(LOOKS[kind] || randomLook(kind === 'bigcop')), ...opt.look };
+  const whole = opt.look?.shape && opt.look.skin !== undefined;        // a complete look (a remembered one) is used as is; a partial one overrides a fresh roll
+  const L = { ...(whole ? null : LOOKS[kind] || randomLook(kind === 'bigcop')), ...opt.look };
   if (opt.props === false) L.prop = null;
   const sk = mat(L.skin, .6), top = L.top || 'tee';
   const topC = top === 'uniform' ? 0x2a3f7a : L.topC ?? 0xe8455b;
