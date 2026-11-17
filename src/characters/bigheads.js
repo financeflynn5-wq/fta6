@@ -6,6 +6,7 @@ import { V, seeded } from '../core/utils.js';
 import { std, G, rbox, cap, ctex } from '../world/materials.js';
 import { rig, googlyEyes, mat, eyeW, eyeB, gold, cone, M, cache } from './rig.js';
 import { LOOKS, randomLook } from './bigheadLooks.js';
+import { CAST } from '../config.js';
 
 const UP = new THREE.Vector3(0, 1, 0), HALF = Math.PI / 2;
 const keep = (k, make) => cache[k] || (cache[k] = make());
@@ -220,17 +221,20 @@ export function bigHead(kind = 'bighead', opt = {}) {
   const whole = opt.look?.shape && opt.look.skin !== undefined;        // a complete look (a remembered one) is used as is; a partial one overrides a fresh roll
   const L = { ...(whole ? null : LOOKS[kind] || randomLook(kind === 'bigcop')), ...opt.look };
   if (opt.props === false) L.prop = null;
-  const sk = mat(L.skin, .6), top = L.top || 'tee';
+  const sk = mat(L.skin, .6), top = L.top || 'tee', S = CAST.bigHead, NECK = 1.34;      // the head is built full size, then shrunk to S and sat back down on the shoulders
   const topC = top === 'uniform' ? 0x2a3f7a : L.topC ?? 0xe8455b;
   const shirt = top === 'hawaii' || top === 'stripes' || top === 'leopard' ? printed(top, L.print || 0) : mat(topC, .88);
   const bare = top === 'tee' || top === 'hawaii' || top === 'leopard' || top === 'tank';
-  const r = rig({ shirt, pants: mat(L.legC ?? 0x2b3443, .9), shoes: mat(L.shoes ?? 0xf4f4f4, .7), skin: sk, headY: 1.86, armMat: bare ? sk : null, legMat: L.legs === 'shorts' || L.legs === 'skirt' ? sk : null });
+  const r = rig({ shirt, pants: mat(L.legC ?? 0x2b3443, .9), shoes: mat(L.shoes ?? 0xf4f4f4, .7), skin: sk, headY: NECK + L.shape[1] * S, armMat: bare ? sk : null, legMat: L.legs === 'shorts' || L.legs === 'skirt' ? sk : null });
   const u = r.userData;
   if (shirt.map) { const torso = u.body.children.find(o => o.isMesh); torso.geometry = printCap(.3, .34); for (const a of u.arms) if (!bare) a.children[0].geometry = printCap(.085, .36); }
   u.pupils = buildHead(u.head, L, u.body);
   dress(r, L, sk, shirt);
-  // bobble: the head rides on a soft spring. headR/headY: the (much bigger) target a bullet can hit.
-  u.big = { rx: 0, rz: 0, vx: 0, vz: 0, pose: '', headR: L.shape[0] + .03, headY: 1.86 - L.shape[1], top: 1.86 + L.shape[1] + .05 };
+  u.head.scale.setScalar(S);
+  // bobble: the head rides on a soft spring. headR/headY/top: the (bigger) target a bullet can hit. eye: how high they see from.
+  // rest: how far the head lifts when they lie on their back, so it rests on the ground and not in it.
+  const hh = L.shape[1] * S;
+  u.big = { rx: 0, rz: 0, vx: 0, vz: 0, pose: '', size: S, headR: (L.shape[0] + .03) * S, headY: NECK, top: NECK + hh * 2 + .05, eye: NECK + hh + .05 * S, rest: Math.max(0, hh - .25) };
   u.look = L; u.skinC = L.skin; u.sleeveC = bare ? L.skin : topC;
   return r;
 }

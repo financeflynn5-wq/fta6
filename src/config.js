@@ -160,16 +160,19 @@ export const AIM = {
   recoil: .28, recoilReturn: 9,            // share of a weapon's kick that lifts the view, and how fast it settles
   scopeZoom: [4, 8],                       // scope magnifications (mouse wheel while looking through it)
   // the view down the sights (first person, with the gun's own sights on the middle of the screen)
-  bigEye: .28,                             // a Big Head's eyes sit this much higher
   eye: 1.6, eyeAhead: 0,                   // Rocco's eye: metres above his feet and ahead of his middle (ahead of 0, the view can clip into a wall he is pressed against)
   swap: .3,                                // how far into the aim Rocco himself drops out of the picture and the gun starts to rise in front of the eye (0-1)
   kick: 1, sway: 1, bob: 1,                // how much the gun jumps when fired, drifts and trails the hand, and bobs with his steps (0 = off)
   nightGlow: .3,                           // the gun in your hands never gets darker than this, so the sights can be read at night
 };
 
+export const CAST = {
+  bigHead: .8,                                  // how big a Big Head's head is: 1 is the original giant (over a metre across), .67 is no bigger than a critter's
+};
+
 export const COMBAT = {
   armor: 100,                                   // max armor; armor soaks damage before health does
-  hp: { critter: 45, bighead: 55, bot: 70, officer: 80 },   // Big Heads have a huge target on their shoulders, and a thick skull to match
+  hp: { critter: 45, bighead: 50, bot: 70, officer: 80 },   // a Big Head's head is a wider target than most, so they get a slightly thicker skull
   headshot: 2.2,                                // damage multiplier above the shoulders
   aimAssist: .045,                              // radians: a near miss on a body still counts as a hit
   // heat added, and the stars it forces

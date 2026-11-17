@@ -4,7 +4,7 @@
 <!-- A bench for the characters: a line-up on a plain floor, lit like the game's afternoon.
      Not part of the game. Open dev/cast-lab.html?kinds=sal,dale,tiff,bighead*9 from a static server.
      ?cols=6 sets the row length, ?pose=walk|flail|down|stand, ?seed=3 repeats the same random citizens,
-     lab.view(x, y, z, tx, ty, tz) moves the camera, lab.step(seconds) runs the animation on. -->
+     lab.view(x, y, z, tx, ty, tz) moves the camera, lab.step(seconds) runs the animation on. ?head=.8 tries another Big Head size. -->
 <style>html, body { margin: 0; background: #9aa; overflow: hidden } canvas { display: block }</style>
 <script type="importmap">{"imports":{"three":"../vendor/three/build/three.module.js","three/addons/":"../vendor/three/addons/","rapier":"../vendor/rapier/rapier.mjs"}}</script>
 <canvas id="cv"></canvas>
@@ -13,11 +13,13 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { makeCharacter, animateCharacter } from '../src/characters/models.js';
 import { litMaterials, std } from '../src/world/materials.js';
+import { CAST } from '../src/config.js';
 
 const q = new URLSearchParams(location.search);
 const W = +(q.get('w') || 1280), H = +(q.get('h') || 720), cols = +(q.get('cols') || 6), pose = q.get('pose') || 'stand';
 if (q.has('seed')) { let s = +q.get('seed') * 7919 + 17; Math.random = () => ((s = (s * 16807) % 2147483647) / 2147483647); }
 // ?looks=hair:afro,hat:cap|hair:bun  forces parts on otherwise random citizens (one citizen per | entry)
+if (q.has('head')) CAST.bigHead = +q.get('head');        // ?head=.8 tries another head size
 const kinds = q.has('looks') ? q.get('looks').split('|').map(e => ['bighead', { look: Object.fromEntries(e.split(',').map(kv => { const [k, v] = kv.split(':'); return [k, v === 'true' ? true : isNaN(+v) ? v : +v]; })) }])
   : (q.get('kinds') || 'sal,dale,tiff,bighead*9').split(',').flatMap(k => { const [n, c] = k.split('*'); return Array(+(c || 1)).fill([n]); });
 

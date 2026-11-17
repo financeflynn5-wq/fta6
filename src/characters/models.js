@@ -172,7 +172,7 @@ function bobble(u, dt, pose, moving, rate, ph, amp) {
   const k = Math.max(0, 1 - BOB.damp * h); b.vx *= k; b.vz *= k;
   b.rx = Math.max(-BOB.max, Math.min(BOB.max, b.rx + b.vx * h)); b.rz = Math.max(-BOB.max, Math.min(BOB.max, b.rz + b.vz * h));
   u.head.rotation.x = b.rx; u.head.rotation.z = b.rz;
-  u.head.position.z = u.lie * .27;                 // lying on their back: the big head rests on the ground, not in it
+  u.head.position.z = u.lie * b.rest;              // lying on their back: the big head rests on the ground, not in it
 }
 // Give a Big Head's head a shove from outside (a punch, a bullet, a car): dx, dz in the character's own frame are not needed, any direction reads fine.
 export function bonkHead(c, power = 1) { const b = c.userData.big; if (b) { b.vx += (Math.random() - .5) * 9 * power; b.vz += (Math.random() < .5 ? -1 : 1) * 6 * power; } }

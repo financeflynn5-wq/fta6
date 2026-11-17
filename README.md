@@ -34,7 +34,8 @@ There is no build step.
 - **The cast.** Three families share the streets: Critters (raccoons, possums, pigeon cops), Tin Bots, and Big Heads, goofy humans
   with giant heads and loud outfits. Every Big Head is rolled from skin tones, head shapes, hair, hats, eyewear, mustaches and
   clothes, so no two match. Big Sal runs the motel, Tiff minds the arcade and Officer Dale sits at the police desk. Their heads
-  bobble when they run and snap back when they are hit, and that head is a much bigger target for a headshot (they are a little tougher to make up for it).
+  bobble when they run and snap back when they are hit, and that head is a bigger target for a headshot (they are a little tougher to make up for it).
+  How big the heads are is one number, `CAST.bigHead` in `src/config.js`.
 - **Play as.** The title and pause menus let you be Rocco, Big Sal, Tiff or a freshly rolled Big Head (click Random again for another).
   The swap happens on the spot and keeps your guns and cash; the choice is remembered.
 - **Driving.** Steering alone never breaks the tyres loose: the car turns as tight as its grip allows at that speed and no tighter. Hold the handbrake and steer to swing the tail round; let go and the tyres bite again within half a second, keeping most of the speed.

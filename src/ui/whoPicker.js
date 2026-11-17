@@ -17,9 +17,9 @@ export function createWhoPicker(game) {
 
   // Head and shoulders of a (freshly made, standing) character, drawn into a 2D canvas.
   function portrait(model, canvas) {
-    const hy = model.userData.head.position.y, big = !!model.userData.big;
+    const hy = model.userData.head.position.y, big = model.userData.big?.size;
     stage.add(model); model.rotation.y = .38; model.updateMatrixWorld(true);
-    camera.position.set(.2, hy + .2, big ? 5.4 : 4.2); camera.lookAt(0, hy - (big ? .1 : .14), 0);
+    camera.position.set(.2, hy + .2, big ? 3.4 + big * 2 : 4.2); camera.lookAt(0, hy - (big ? .1 : .14), 0);
     const target = renderer.getRenderTarget(), alpha = renderer.getClearAlpha(); renderer.getClearColor(keep);
     renderer.setRenderTarget(rt); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(stage, camera);
     renderer.readRenderTargetPixels(rt, 0, 0, SIZE, SIZE, px);
