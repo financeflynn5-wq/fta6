@@ -4,9 +4,12 @@ export const WORLD = {
   BLOCK: 40, PITCH: 54, ROAD: 14,
   blocksIdx: [-3, -2, -1, 0, 1, 2],
   roadsAt: [-108, -54, 0, 54, 108],
-  // every corner of the map grid, 54 m apart; downtown is the middle seven (-162..162). Roads: world/map.js
-  nodes: [-378, -324, -270, -216, -162, -108, -54, 0, 54, 108, 162, 216, 270, 324, 378],
-  LIMIT: 372,                                   // edge of the world
+  // every grid line of the map, 54 m apart; downtown is -162..162. West to east the map uses the first 15 (-378..378);
+  // south to north it uses them all (-378..972: the valley beyond the hills). Roads: world/map.js
+  nodes: [-378, -324, -270, -216, -162, -108, -54, 0, 54, 108, 162, 216, 270, 324, 378, 432, 486, 540, 594, 648, 702, 756, 810, 864, 918, 972],
+  COLS: 15,                                     // grid lines west to east
+  LIMIT: 372,                                   // edge of the world: west, east and south
+  LIMIT_N: 966,                                 // ...and north
   CURB: 0.3,
   LANE: 2.6,
 };
@@ -202,4 +205,23 @@ export const INDOORS = {
   bribe: 400,                                   // per wanted star, at the Sunset PD front desk
   drawDist: 95,                                 // a room's furniture is only drawn within this many metres
   robTime: 2.2, robCash: [150, 450], robHeat: 60, robStars: 2, tillRefill: 300,     // seconds of aiming at the clerk; what the till holds; how long until it fills again
+  // Bullseye Guns: what each gun costs (a gun you already own is refilled for its ammo price instead)
+  guns: { pistol: 350, smg: 900, shotgun: 1200, burst: 2200, sniper: 4000 },
+  gunAmmo: { pistol: 60, smg: 120, shotgun: 140, burst: 200, sniper: 300 },
+};
+
+// ---------- the valley in the north (world/north.js and friends, world/places.js) ----------
+// Things a car can smash. Mall glass you can drive through is a wall until it is hit hard enough.
+export const SMASH = {
+  through: 3.5,                                 // m/s straight at a sheet of mall glass to burst through it
+  touch: 2.5,                                   // m/s to knock down a fence panel or shatter a shop window
+  keep: .9,                                     // share of your speed you keep after bursting through glass
+  damage: 1.5,                                  // what it costs the car
+  mend: 170,                                    // everything is put back once you are this far away (m)
+};
+// Fort Pelican is a restricted area.
+export const BASE = {
+  stars: 3,                                     // wanted level for trespassing (0 = the army doesn't mind)
+  grace: 4,                                     // seconds inside the fence before the alarm goes
+  heat: 70,                                     // heat added when it does
 };

@@ -96,6 +96,7 @@ export function createHits(game) {
         }
         return false;
       }
+      if (h.kind === 'wall') game.places?.shot(h.x, h.y, h.z, dx, dz);      // mall and shop glass breaks
       if (near && (h.kind === 'wall' || h.kind === 'ground')) { fx.spark(h.x, h.y, h.z, 3, .4); fx.smoke(h.x, h.y, h.z, .55, .25, .4); }
       return false;
     },

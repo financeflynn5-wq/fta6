@@ -124,7 +124,7 @@ export function createPedestrians(game) {
           else { p.x += dx / d * p.speed * dt; p.z += dz / d * p.speed * dt; p.face = Math.atan2(dx, dz); }
           if (p.panic > 0) pose = 'flail';
         }
-        const L = WORLD.LIMIT - 1; p.x = clamp(p.x, -L, L); p.z = clamp(p.z, -L, L);
+        const L = WORLD.LIMIT - 1; p.x = clamp(p.x, -L, L); p.z = clamp(p.z, -L, WORLD.LIMIT_N - 1);
 
         if (visible && p.state !== 'air' && p.state !== 'down' && p.state !== 'ko') {
           for (const v of vehicles) {

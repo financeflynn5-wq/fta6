@@ -3,7 +3,7 @@
 // 14 m corner squares, 14 x 40 m edge strips (a road, or just land) and 40 x 40 m blocks.
 import * as THREE from 'three';
 import { noise2 } from '../core/utils.js';
-import { STEP, N, X0, ROAD_HALF, WATER, CITY, CITY_EDGE, cellType, hasRoad, nodeHasRoad, nodeX } from './map.js';
+import { STEP, NX, NZ, X0, ROAD_HALF, WATER, CITY, CITY_EDGE, cellType, hasRoad, nodeHasRoad, nodeX } from './map.js';
 import { landY } from './terrain.js';
 import { mats, std, ctex } from './materials.js';
 
@@ -15,9 +15,10 @@ const C = (h) => new THREE.Color(h);
 const TINT = {
   grass: C(0x7fb85f), park: C(0x78bd62), hill: C(0x86b861), scrub: C(0xb9b26d), dirt: C(0xcda274), sand: C(0xf3dfb2),
   rock: C(0xb09a86), sea: C(0xd9c79c), port: C(0xb9b3a8), quay: C(0xb9b3a8), city: C(0xb9b3a8),
+  lawn: C(0x74ba5c), farm: C(0x93b85a), base: C(0xa9ac74),
 };
 const ROCK = C(0xa8917e), WET = C(0xc6ad82), DRY = C(0xd9c27c);
-const typeAt = (x, z) => cellType(Math.max(0, Math.min(N - 2, Math.floor((x - X0) / STEP))), Math.max(0, Math.min(N - 2, Math.floor((z - X0) / STEP))));
+const typeAt = (x, z) => cellType(Math.max(0, Math.min(NX - 2, Math.floor((x - X0) / STEP))), Math.max(0, Math.min(NZ - 2, Math.floor((z - X0) / STEP))));
 const _c = new THREE.Color(), _t = new THREE.Color();
 // Colour of open land at a spot: neighbouring kinds of land melt into each other over ~10 m.
 export function landColor(x, z, y, slope, out = _c) {
@@ -69,20 +70,20 @@ export function buildGround(scene) {
       const p = base + b * (nx + 1) + a; t.idx.push(p, p + nx + 1, p + 1, p + 1, p + nx + 1, p + nx + 2);
     }
   }
-  const allPort = (list) => list.every(([ci, cj]) => ci >= 0 && cj >= 0 && ci < N - 1 && cj < N - 1 && cellType(ci, cj) === 'port');
+  const allPort = (list) => list.every(([ci, cj]) => ci >= 0 && cj >= 0 && ci < NX - 1 && cj < NZ - 1 && cellType(ci, cj) === 'port');
 
-  for (let ci = 0; ci < N - 1; ci++) for (let cj = 0; cj < N - 1; cj++) {
+  for (let ci = 0; ci < NX - 1; ci++) for (let cj = 0; cj < NZ - 1; cj++) {
     const type = cellType(ci, cj); if (type === 'city') continue;
-    const flat = type === 'sea' && cj <= 0;
+    const flat = type === 'sea' && (cj <= 0 || (ci === 13 && cj >= 16 && cj <= 18));
     patch(type === 'port' ? 'concrete' : 'land', nodeX(ci) + R, nodeX(cj) + R, IN, IN, flat ? 1 : 16, flat ? 1 : 16);
   }
-  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+  for (let i = 0; i < NX; i++) for (let j = 0; j < NZ; j++) {
     const x = nodeX(i), z = nodeX(j);
     if (!(inCity(i) && inCity(j)))        // corner square
       patch(nodeHasRoad(i, j) ? 'asphalt' : allPort([[i - 1, j - 1], [i, j - 1], [i - 1, j], [i, j]]) ? 'concrete' : 'land', x - R, z - R, 2 * R, 2 * R, 4, 4);
-    if (i < N - 1 && !(inCity(i) && inCity(i + 1) && inCity(j)))   // strip running east from this corner
+    if (i < NX - 1 && !(inCity(i) && inCity(i + 1) && inCity(j)))   // strip running east from this corner
       patch(hasRoad(i, j, i + 1, j) ? 'asphalt' : allPort([[i, j - 1], [i, j]]) ? 'concrete' : 'land', x + R, z - R, IN, 2 * R, 16, 4);
-    if (j < N - 1 && !(inCity(j) && inCity(j + 1) && inCity(i)))   // strip running north
+    if (j < NZ - 1 && !(inCity(j) && inCity(j + 1) && inCity(i)))   // strip running north
       patch(hasRoad(i, j, i, j + 1) ? 'asphalt' : allPort([[i - 1, j], [i, j]]) ? 'concrete' : 'land', x - R, z + R, 2 * R, IN, 4, 16);
   }
   const matOf = { land: mats.land, asphalt: mats.asphalt, concrete: mats.concrete };
@@ -108,8 +109,8 @@ export function buildGround(scene) {
     }
     for (let k = 0; k < segs; k++) { const p = base + k * 2; P.idx.push(p, p + 1, p + 2, p + 2, p + 1, p + 3); }
   }
-  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) for (const [di, dj] of [[1, 0], [0, 1]]) {
-    if (i + di >= N || j + dj >= N || !hasRoad(i, j, i + di, j + dj)) continue;
+  for (let i = 0; i < NX; i++) for (let j = 0; j < NZ; j++) for (const [di, dj] of [[1, 0], [0, 1]]) {
+    if (i + di >= NX || j + dj >= NZ || !hasRoad(i, j, i + di, j + dj)) continue;
     if (inCity(i) && inCity(j) && inCity(i + di) && inCity(j + dj)) continue;
     const ax = nodeX(i), az = nodeX(j);
     for (const o of [-.18, .18]) line(ax, az, di, dj, 9.5, STEP - 9.5, o, .14, yellow);
@@ -124,10 +125,10 @@ export function buildGround(scene) {
   sea.rotation.x = -Math.PI / 2; sea.position.y = WATER; sea.receiveShadow = true; scene.add(sea);
 }
 
-// The radar's street plan, one pixel per metre. (px, pz) = (x + half, z + half).
-export function paintPlan(g, half, decks = []) {
+// The radar's street plan, one pixel per metre. (px, pz) = (x + half, z + half); the plan runs on north to z = top.
+export function paintPlan(g, half, decks = [], top = half) {
   const col = new THREE.Color(), step = 3;
-  for (let x = -half; x < half; x += step) for (let z = -half; z < half; z += step) {
+  for (let x = -half; x < half; x += step) for (let z = -half; z < top; z += step) {
     const cx = x + step / 2, cz = z + step / 2, y = landY(cx, cz);
     if (y < WATER) g.fillStyle = y < WATER - 1 ? '#2b8fa8' : '#49a9bd';
     else { const t = typeAt(cx, cz); if (t === 'port' || t === 'quay') col.set(0x9d988f); else landColor(cx, cz, y, 0, col).multiplyScalar(.82); g.fillStyle = '#' + col.getHexString(); }
@@ -135,10 +136,10 @@ export function paintPlan(g, half, decks = []) {
   }
   g.fillStyle = '#4a4e57';
   g.fillRect(half - CITY_EDGE, half - CITY_EDGE, CITY_EDGE * 2, CITY_EDGE * 2);
-  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+  for (let i = 0; i < NX; i++) for (let j = 0; j < NZ; j++) {
     const x = nodeX(i) + half, z = nodeX(j) + half;
-    if (i < N - 1 && hasRoad(i, j, i + 1, j)) g.fillRect(x - R, z - R, STEP + 2 * R, 2 * R);
-    if (j < N - 1 && hasRoad(i, j, i, j + 1)) g.fillRect(x - R, z - R, 2 * R, STEP + 2 * R);
+    if (i < NX - 1 && hasRoad(i, j, i + 1, j)) g.fillRect(x - R, z - R, STEP + 2 * R, 2 * R);
+    if (j < NZ - 1 && hasRoad(i, j, i, j + 1)) g.fillRect(x - R, z - R, 2 * R, STEP + 2 * R);
   }
   for (const d of decks) {
     if (!d.plan) continue;

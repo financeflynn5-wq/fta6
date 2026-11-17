@@ -228,7 +228,7 @@ export function buildCity(realScene) {
   // Everything beyond downtown: the land itself, the elevated roads, then what stands on the land.
   buildGround(realScene);
   buildHighway(highway, { scene, realScene, solids, lampPts, signMats, IB, mat4 });
-  const districts = buildDistricts({ scene, realScene, solids, lampPts, signMats, building, palm, IB, mat4 });
+  const districts = buildDistricts({ scene, realScene, solids, lampPts, signMats, building, palm, IB, mat4, shopSpots: interiors.spots });
 
   // downtown welds in 108 m squares (2 x 2 blocks); the districts around it are sparser, so they weld in 162 m squares.
   // Bigger squares = fewer draws for the same picture, which pays for the larger map.

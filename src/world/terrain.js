@@ -4,15 +4,17 @@
 //   decks     built things you can stand or drive on: the pier, ramps, the barge, container tops
 //   groundY   all of the above plus downtown's kerbs; this is what everything else asks
 import { WORLD } from '../config.js';
-import { STEP, N, X0, FLAT, ROAD_HALF, WATER, SEABED, HEIGHT, cellType, hasRoad, nodeHasRoad } from './map.js';
+import { STEP, NX, NZ, X0, FLAT, ROAD_HALF, WATER, SEABED, HEIGHT, cellType, hasRoad, nodeHasRoad } from './map.js';
 
 const { BLOCK, PITCH, CURB } = WORLD;
 const smooth = (t) => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
 const RAMP = STEP - 2 * FLAT;
-const cell = (v) => { const c = Math.floor((v - X0) / STEP); return c < 0 ? 0 : c > N - 2 ? N - 2 : c; };
+// which square of the grid a spot is in: across (x) and up (z). The map is taller than it is wide.
+const cell = (v) => { const c = Math.floor((v - X0) / STEP); return c < 0 ? 0 : c > NX - 2 ? NX - 2 : c; };
+const cellZ = (v) => { const c = Math.floor((v - X0) / STEP); return c < 0 ? 0 : c > NZ - 2 ? NZ - 2 : c; };
 
 export function baseY(x, z) {
-  const ci = cell(x), cj = cell(z);
+  const ci = cell(x), cj = cellZ(z);
   const wx = smooth((x - X0 - ci * STEP - FLAT) / RAMP), wz = smooth((z - X0 - cj * STEP - FLAT) / RAMP);
   const r0 = HEIGHT[cj], r1 = HEIGHT[cj + 1];
   const a = r0[ci] + (r0[ci + 1] - r0[ci]) * wx, b = r1[ci] + (r1[ci + 1] - r1[ci]) * wx;
@@ -24,7 +26,7 @@ export function baseY(x, z) {
 const features = [], featGrid = new Map();
 const gkey = (ci, cj) => ci * 32 + cj;
 function bucket(grid, item, x, z, r) {
-  for (let ci = cell(x - r); ci <= cell(x + r); ci++) for (let cj = cell(z - r); cj <= cell(z + r); cj++) {
+  for (let ci = cell(x - r); ci <= cell(x + r); ci++) for (let cj = cellZ(z - r); cj <= cellZ(z + r); cj++) {
     const k = gkey(ci, cj); let l = grid.get(k); if (!l) grid.set(k, l = []); l.push(item);
   }
 }
@@ -63,7 +65,7 @@ function roadFade(x, z, ci, cj) {
 }
 export function landY(x, z) {
   let y = baseY(x, z);
-  const ci = cell(x), cj = cell(z), list = featGrid.get(gkey(ci, cj));
+  const ci = cell(x), cj = cellZ(z), list = featGrid.get(gkey(ci, cj));
   if (list) {
     let add = 0;
     for (const f of list) if (Math.abs(x - f.x) < f.reach && Math.abs(z - f.z) < f.reach) add += featureY(f, x, z);
@@ -152,7 +154,7 @@ function kerb(x, z) {
 // the answer is then the highest surface that is not above your head. Without it you get the ground level.
 export function groundY(x, z, ref) {
   let y = landY(x, z) + kerb(x, z);
-  const list = deckGrid.get(gkey(cell(x), cell(z)));
+  const list = deckGrid.get(gkey(cell(x), cellZ(z)));
   if (list) for (const d of list) { const dy = deckY(d, x, z); if (dy > y) y = dy; }
   if (y < SEABED) y = SEABED;
   if (ref === undefined) return y;
@@ -174,7 +176,7 @@ export const waterDepth = (x, z) => Math.max(0, WATER - groundY(x, z));
 
 // What the ground is made of: 'road', 'city', 'sand', 'dirt', 'scrub', 'grass', 'park', 'hill', 'port', 'quay', 'rock', 'sea'.
 export function surfaceAt(x, z) {
-  const ci = cell(x), cj = cell(z), fx = x - X0 - ci * STEP, fz = z - X0 - cj * STEP;
+  const ci = cell(x), cj = cellZ(z), fx = x - X0 - ci * STEP, fz = z - X0 - cj * STEP;
   const R = ROAD_HALF;
   if ((fz < R && hasRoad(ci, cj, ci + 1, cj)) || (fz > STEP - R && hasRoad(ci, cj + 1, ci + 1, cj + 1)) ||
     (fx < R && hasRoad(ci, cj, ci, cj + 1)) || (fx > STEP - R && hasRoad(ci + 1, cj, ci + 1, cj + 1))) return 'road';

@@ -8,8 +8,9 @@ import { V, seeded, randSeed } from '../core/utils.js';
 import { mats, G, mesh, rbox, facade } from './materials.js';
 import { plainGeometry } from './batching.js';
 import { groundY, landY, addFeature, addDeck, surfaceAt, nearRibbon } from './terrain.js';
-import { STEP, N, WATER, CITY, hasRoad, nodeX, cellType } from './map.js';
+import { STEP, NX, NZ, WATER, CITY, hasRoad, nodeX, cellType } from './map.js';
 import { makeProps, roofGeo } from './props.js';
+import { buildNorth, shapeNorth } from './north.js';
 
 const PI = Math.PI;
 export const RACEWAY = { x: -243, z: -108, rx: 55, rz: 80 };      // the dirt oval in the Dustlands
@@ -29,20 +30,22 @@ export function shapeLand() {
   F({ x: -300, z: 296, r: 28, h: 6 }); F({ x: 232, z: 296, r: 26, h: 5 });
   // dunes behind the beach
   for (const [x, z, r, h] of [[-200, -246, 14, 1.3], [-120, -244, 12, 1], [95, -247, 13, 1.1], [152, -241, 10, .8]]) F({ x, z, r, h });
+  shapeNorth(F);          // the valley beyond the ridge (north.js)
 }
 
 export function buildDistricts(api) {
   const keep = randSeed();                       // downtown's dice: put back at the end
   const R = seeded(424242), P = makeProps(api, R), { M, G2, rr, one, top } = P;
   const { scene, realScene, solids } = api, L = WORLD.LIMIT;
-  const out = { decks: [], ramps: {}, parked: [], walkers: [], animated: [], spots: {} };
+  const out = { decks: [], ramps: {}, parked: [], walkers: [], animated: [], spots: {}, breakables: [], zones: {} };
   const deck = (d) => { out.decks.push(addDeck(d)); return d; };
   const box = (mat, x, y, z, sx, sy, sz, cast = true) => mesh(G.box, mat, V(x, y, z), V(sx, sy, sz), scene, cast);
   const solid = (x, z, hw, hd, low = false) => solids.boxes.push({ x, z, hw, hd, low });
   const post = (x, z, r) => solids.posts.push({ x, z, r });
 
   // the edge of the world: invisible walls out at sea and up in the mountains
-  for (const [x, z, hw, hd] of [[0, -L - 2, L + 4, 2], [0, L + 2, L + 4, 2], [-L - 2, 0, 2, L + 4], [L + 2, 0, 2, L + 4]]) solids.boxes.push({ x, z, hw, hd, wall: true });
+  const LN = WORLD.LIMIT_N, mid = (LN - L) / 2, tall = (LN + L) / 2 + 4;
+  for (const [x, z, hw, hd] of [[0, -L - 2, L + 4, 2], [0, LN + 2, L + 4, 2], [-L - 2, mid, 2, tall], [L + 2, mid, 2, tall]]) solids.boxes.push({ x, z, hw, hd, wall: true });
 
   // ---------- scatter helpers ----------
   const taken = [], keepOut = (x, z, r) => taken.push([x, z, r]);
@@ -274,12 +277,18 @@ export function buildDistricts(api) {
   scatter(20, -317, 223, -169, 330, (x, z) => P.bush(x, z, rr(.8, 1.5)));
   scatter(14, -317, -205, -169, -172, (x, z) => P.palm(x, z, rr(.9, 1.15)));
 
+  // =====================================================================================
+  // THE VALLEY beyond the ridge: Palmview, Flamingo Park, Coral Plaza, Marlin Bay, Golden Acres, Fort Pelican
+  // =====================================================================================
+  buildNorth({ api, scene, realScene, solids, out, P, M, G2, R, rr, one, box, solid, post, deck, house, scatter, clear, keepOut });
+
   // ---------- street lamps along every road outside downtown ----------
   const inCity = (i) => i >= CITY.i0 && i <= CITY.i1;
-  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) for (const [di, dj] of [[1, 0], [0, 1]]) {
-    if (i + di >= N || j + dj >= N || !hasRoad(i, j, i + di, j + dj)) continue;
+  for (let i = 0; i < NX; i++) for (let j = 0; j < NZ; j++) for (const [di, dj] of [[1, 0], [0, 1]]) {
+    if (i + di >= NX || j + dj >= NZ || !hasRoad(i, j, i + di, j + dj)) continue;
     if (inCity(i) && inCity(j) && inCity(i + di) && inCity(j + dj)) continue;
-    const far = cellType(Math.min(i, N - 2), Math.min(j, N - 2)) !== 'hill' && (i + j) % 2;       // country roads get half as many
+    const kind = cellType(Math.min(i, NX - 2), Math.min(j, NZ - 2));
+    const far = kind !== 'hill' && kind !== 'lawn' && kind !== 'park' && (i + j) % 2;       // country roads get half as many
     for (const [s, side] of far ? [[27, 1]] : [[15, 1], [39, -1]]) {
       const x = nodeX(i) + di * s - dj * 8.4 * side, z = nodeX(j) + dj * s + di * 8.4 * side;
       if (!nearRibbon(x, z, 1.5)) P.lamp(x, z, dj * side, -di * side);

@@ -63,7 +63,7 @@ export function createSky(engine, city) {
       env.clock += c < d ? d - c : c < d + dusk + nt ? d + dusk + nt - c : total - c;
     },
     update(dt, camPos, lookAt) {
-      env.clock += dt;
+      env.clock += dt; sky.position.set(camPos.x, 0, camPos.z);          // the sky dome travels with you (the map is bigger than it is)
       const { day: d, dusk, night: nt, dawn } = TIME, c = env.clock % (d + dusk + nt + dawn);
       env.apply(c < d ? 0 : c < d + dusk ? (c - d) / dusk : c < d + dusk + nt ? 1 : 1 - (c - d - dusk - nt) / dawn);
       // shadow box follows the action
