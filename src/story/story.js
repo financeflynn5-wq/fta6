@@ -34,7 +34,7 @@ export function createStory(game) {
   let run = null;            // the mission in progress
   let retry = null;          // { m, t }: the mission that just failed, offered again for a little while
   let page = 0;              // seconds until the pager says who has the next job (0 = nothing to say)
-  let hintHtml = '', held = 0, shownFor = null, ending = 0;
+  let hintHtml = '', held = 0, shownFor = null, ending = 0, stepOut = false;
 
   // ---------- things in the world ----------
   // rings are never thrown away: a finished step hands them back for the next one
@@ -214,7 +214,7 @@ export function createStory(game) {
     talk.stop(); endStep();
     gunmen.clear(run.goons); for (const r of run.runaways) outlaws.release(r);
     for (const k in run.cars) run.cars[k].temp = true;
-    arrow.visible = false; arrowOn = null; run = null; shownFor = undefined; A.end();
+    arrow.visible = false; arrowOn = null; run = null; shownFor = undefined; stepOut = true; A.end();      // standing in a start ring? step out of it first
   }
   function fail(reason, offer = true) {
     if (!run) return;
@@ -330,9 +330,11 @@ export function createStory(game) {
     if (m) {
       const g = spots[m.giver], d = Math.hypot(p.x - g.x, p.z - g.z);
       startRing.tick(t, p);
+      if (d >= 14) stepOut = false;
       if (d < 14 && Math.abs(p.y - groundY(g.x, g.z)) < 3) {
         if (p.mode !== 'foot') h = `<b>${m.title}</b>Step into the green ring on foot<em>${CAST[m.giver].name}: ${m.brief}</em>`;
-        else if (d >= STORY.ring) h = `<b>${m.title}</b>Step into the green ring<em>${CAST[m.giver].name}: ${m.brief}</em>`;
+        else if (d >= STORY.ring) { stepOut = false; h = `<b>${m.title}</b>Step into the green ring<em>${CAST[m.giver].name}: ${m.brief}</em>`; }
+        else if (stepOut) h = '';
         else if (police.stars > 0) h = `<b>${m.title}</b>Lose the cops first`;
         else { begin(m); return; }
       }

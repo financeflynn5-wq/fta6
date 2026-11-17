@@ -32,7 +32,11 @@ export function createActivities(game) {
     },
     // begin / end an activity: only one runs at a time, and its start rings hide while it does
     begin(part) { A.busy = part; for (const s of starters) s.mark.hide(); kit.ui.hint(''); },
-    end() { A.busy = null; kit.ui.panel(''); for (const s of starters) if (!s.hidden) s.mark.place(s.x, s.z); },
+    end() {
+      A.busy = null; kit.ui.panel('');
+      // a ring you are standing in when something ends stays quiet until you have left it
+      for (const s of starters) { if (!s.hidden) s.mark.place(s.x, s.z); s.used = Math.hypot(p.x - s.x, p.z - s.z) < s.r + 1; }
+    },
     // hold X to walk away from whatever you're doing
     quitHeld(dt) { A.quitT = game.input.down('KeyX') ? (A.quitT || 0) + dt : 0; return A.quitT > .8; },
     progress() { return Object.values(A.parts).map(part => part.progress?.()).filter(Boolean); },
@@ -57,7 +61,8 @@ export function createActivities(game) {
       for (const s of starters) {
         if (s.hidden) continue;
         s.mark.tick(t, p);
-        if (Math.abs(s.x - p.x) > s.r + 2 || !s.mark.inside(p)) { s.dwell = 0; continue; }
+        if (Math.abs(s.x - p.x) > s.r + 2 || !s.mark.inside(p)) { s.dwell = 0; if (!s.mark.inside(p, 1)) s.used = false; continue; }
+        if (s.used) continue;
         const ok = s.mode === 'any' || s.mode === p.mode, slow = p.speed < 2.5;
         hint = `<b>${s.name}</b>${!ok ? (s.mode === 'car' ? 'Bring a car' : 'On foot only') : slow ? 'Starting…' : 'Stop here to start'}<em>${s.info()}</em>`;
         s.dwell = ok && slow && !game.over ? s.dwell + dt : 0;
