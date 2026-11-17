@@ -68,6 +68,26 @@ There is no build step.
 - **Pizza run** (orange P, outside Pizza Pier). Four deliveries against the clock; faster drops tip better and four hot pies pay a bonus.
 - **Speed cameras** (white S). Pass one above its limit and it pays for every km/h over.
 - **Car bowling** (red B, in the port). One run-up at ten giant pins.
+- **Bounty hunts** (blue W, in the kerb lane outside Sunset PD). Stop a car in the ring and Officer Dale radios in a wanted driver,
+  marked with an arrow. Ram the car (or shoot it) until the driver gives up; each catch pays more than the last and puts 50 seconds
+  back on the clock. The shift ends when the clock runs out or one gets away. Ramming a wanted car is never a crime.
+- **Demolition derby** (purple D, the west paddock at Golden Acres). Three rivals come at you inside the ring; wreck them all
+  before they wreck you. Each win adds a rival next time, up to six. More than six seconds outside the ring or out of your car and you are out.
+- **Smash spree** (green M, Coral Plaza car park). The mall is put back together, then you have a minute to break as much of it
+  as you can; glass pays best, and the alarm goes off after a dozen. Medals at 15, 30 and 45.
+- **Gun range** (yellow T, the field east of the old barn at Golden Acres). On foot: 45 seconds of pop-up targets at 15, 25 and
+  38 m. The range lends you a pistol if you have no gun, and nobody reports shots while the clock runs. Medals at 8, 15 and 22 hits.
+- **Spray 'n' Scram** (mint C, two blocks south-west of the start). Stop a car in the ring: for $250 it is repaired and repainted,
+  and if no cop can see you go in, your stars are gone.
+- **Story mode.** The title screen offers **Story mode** beside **Free roam** (and the pause menu can switch it on or off). Eight
+  jobs for Big Sal, Scrap, Tiff and Officer Dale, each started by stepping into the green ring beside whoever has work (green pin
+  on the radar): fetch Sal's limo, a timed parts run round the port, run a van off the road, a checkpoint dash up to the lookout
+  and the valley, a smash-and-grab at Coral Plaza, a shoot-out with the Possum Posse at the old barn, an army truck out of Fort
+  Pelican, and the Sunset Tower job. People talk in a box at the bottom of the screen (E for the next line, Enter to skip the lot).
+  Fail and you can hold Y to try again from the start of the job; hold X to give one up. Free roam's activities stay open between jobs.
+  In story mode you are always Rocco.
+- **Your cash and guns are saved** in the browser between sessions, in both modes, along with story progress. "Start over" on
+  the title screen wipes them.
 - **Wasted** (out of health) bills you and wakes you outside Sunset General (red cross on the radar). You keep your guns.
 - **Nabbed** fines you and lets you out of Sunset PD (blue badge). The cops keep your guns.
 
@@ -76,10 +96,11 @@ There is no build step.
 Each system lives in its own small file, so a change usually touches one place.
 
 ```
-index.html, css/style.css   page, HUD markup and styling (css/activities.css: activity panel, banner, big map)
+index.html, css/style.css   page, HUD markup and styling (css/activities.css: activity panel, banner, big map; css/story.css:
+                            the story buttons and the talking box)
 src/main.js                 boot, game loop, and the rules that connect systems (what is a crime, crashes)
 src/config.js               every tunable number: car handling (CAR), aiming (AIM), weapons, police, traffic, day length,
-                            hills and jumps (RIDE), activity pay and medal rules (ACTIVITIES), what it takes to break things
+                            hills and jumps (RIDE), activity pay and medal rules (ACTIVITIES), story pay and gunmen (STORY), what it takes to break things
                             (SMASH), the base's alarm (BASE), gun shop prices (INDOORS.guns)
 src/core/                   engine (renderer + post), physics (Rapier), input, audio (synthesised), utils
 src/world/                  city (the downtown scene), materials, sky (day/night), batching, landmarks (hospital, police station),
@@ -92,7 +113,10 @@ src/world/                  city (the downtown scene), materials, sky (day/night
                             park, mall, marina, farm, base (one file per valley district; Palmview is in north),
                             places (things that break: glass, fences, props, gate booms; the base's alarm; roofs the camera stays under)
 src/activities/             activities (start rings, one-at-a-time), kit (markers, panel, banner, save), races, stunts, tins,
-                            pizza, traps (speed cameras), bowling, bigmap (hold Tab)
+                            pizza, traps (speed cameras), bowling, bounty, derby, spree (the mall), range, spray, bigmap (hold Tab)
+src/story/                  story (the mission runner: start rings, the people who give jobs, steps, pass/fail/retry, the menu
+                            buttons), missions (the eight jobs as data: read its header for the step vocabulary), dialogue (the
+                            talking box and who can speak), gunmen (armed goons), wallet (cash and guns saved between sessions)
 src/vehicles/               damage (dents, scuffs, cracked glass, dead lamps, torn-off bumpers: see the notes at its top),
                             vehicle (handling, rider seat), carModel (stand-in shapes + the wheel batch), vehicleModels (loads the
                             Blender models from assets/vehicles/ and swaps them in), aiDriver (traffic + pursuit), traffic,
@@ -102,7 +126,8 @@ src/characters/             rig (the body everyone shares), models (Critters + T
                             look like: the named three and the dice for everyone else), pedestrians
 src/player/                 player (on foot, in/out of cars), camera
 src/police/                 police (stars, cruisers, officers on foot)
-src/missions/               jobs (chop-shop orders, taxi fares, their markers and radar blips)
+src/missions/               jobs (chop-shop orders, taxi fares, their markers and radar blips), outlaws (crooks' cars: runaways
+                            you run down, rivals that come after you; used by the story, the bounty hunts and the derby)
 src/combat/                 combat (Rocco's weapons, aim, punch), hits (damage rules), copGuns (cops shoot back),
                             pickups, gunfx (tracers, muzzle flash), weaponModels (loads assets/weapons/*.gltf.json),
                             sightView (the gun seen down its sights: each model's sight line, paws, recoil and sway)
