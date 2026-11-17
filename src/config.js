@@ -65,6 +65,29 @@ export const DAMAGE = {
   parts: 6, partLife: 45,              // torn-off bumpers lying around at once, and how long they stay
 };
 
+// ---------- smoke, fire and sparks (fx/effects.js) ----------
+export const FX = {
+  particles: 900,                      // puffs, flames and sparks alive at once
+  near: 90, far: 190,                  // effects are drawn in full this close to the camera (m), and not at all past this
+  wind: [.8, .35],                     // the sea breeze that smoke leans with (m/s east, m/s south)
+  nightGlow: .03,                      // light the city itself throws on smoke after dark
+  // smoke from a damaged engine (vehicles/vehicle.js). It starts when health drops under smokeAt of full.
+  smokeAt: .45,
+  wreckLife: 4.2, wreckSize: 1.25,     // the black column over a wreck: seconds each puff lasts, and its starting size (m)
+  flames: true,                        // wrecks burn at the bonnet
+};
+
+// ---------- vehicle sound (core/audio.js, audio/carSounds.js, audio/engineLoops.js) ----------
+export const SOUND = {
+  master: .5,
+  // which engine each vehicle has, and how high it is pitched. Anything not listed sounds like the sedan.
+  engine: { car: ['i4', 1], taxi: ['i4', .95], police: ['v8', 1.04], sport: ['v8', 1.2], van: ['diesel', 1.12], truck: ['diesel', .84], limo: ['v8', .88], bike: ['bike', 1] },
+  engineVol: 1, trafficVol: 1, tyreVol: 1, windVol: 1, sirenVol: 1,      // turn any layer up or down (1 = as mixed)
+  traffic: 5,                          // how many other cars you can hear at once
+  hearing: 60,                         // and from how far (m)
+  reverb: .2,                          // how much street echo crashes, horns, sirens and traffic get
+};
+
 export const PLAYER = {
   radius: 0.36, walk: 4.3, sprint: 7.8, accel: 14,
   health: 100, regen: 3, stamina: 6, staminaRegen: 0.6,

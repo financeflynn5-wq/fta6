@@ -1,6 +1,6 @@
 // One drivable car: arcade handling on top of a Rapier body.
 // Anyone can drive it by writing to `controls` (the player, traffic AI or a cop).
-import { CAR } from '../config.js';
+import { CAR, FX } from '../config.js';
 import { clamp, lerp, damp, angleDiff } from '../core/utils.js';
 import { groundY } from '../world/city.js';
 import { makeCarModel } from './carModel.js';
@@ -161,16 +161,28 @@ export class Vehicle {
         if (Math.random() < dt * 14) fxs.smoke(wx, this.y + .2, wz, .7, .85, .5);
       }
     } else this.skidPrev[0] = this.skidPrev[1] = null;
-    // damage smoke from the hood
-    if (this.health < this.stats.health * .45 && (this.smokeT -= dt) <= 0) {
-      const bad = 1 - this.health / (this.stats.health * .45);
-      this.smokeT = lerp(.16, .04, bad);
-      const nose = this.halfLen * .74;
-      fxs.smoke(this.x + this.fx * nose, this.y + 1.05, this.z + this.fz * nose, lerp(.6, .12, bad), .9 + bad, 1.1 + bad * .8, this.vx * .5, this.vz * .5);
-      if (this.wrecked && Math.random() < .5) fxs.spark(this.x + this.fx * nose, this.y + 1.1, this.z + this.fz * nose, 1);
+    // damage smoke from the bonnet: thin grey wisps at first, thicker and blacker as the engine dies.
+    // A wreck burns for a while under a tall black column, then just smoulders.
+    if (this.health < this.stats.health * FX.smokeAt && (this.smokeT -= dt) <= 0) {
+      const bad = clamp(1 - this.health / (this.stats.health * FX.smokeAt), 0, 1), nose = this.halfLen * .74;
+      const hx = this.ix + Math.cos(this.ih) * nose, hz = this.iz + Math.sin(this.ih) * nose, hy = this.y + 1;
+      if (this.wrecked) {
+        this.burn ??= 18 + Math.random() * 14; this.burn -= .085; this.smokeT = .085;
+        const lit = this.burn > 0;
+        fxs.smoke(hx, hy + .2, hz, lit ? .04 : .2, FX.wreckSize * (lit ? 1 : .7), FX.wreckLife * (lit ? 1 : .7), this.vx * .5, this.vz * .5, { rise: lit ? 2.4 : 1.5, grow: 1.5, floor: hy - .25, alpha: lit ? .9 : .6 });
+        if (lit && FX.flames) {
+          const w = this.halfWid * .7;
+          for (let i = 0; i < 2; i++) { const o = (Math.random() - .5) * 2 * w; fxs.fire(hx - Math.sin(this.ih) * o, hy - .05, hz + Math.cos(this.ih) * o, .75, this.vx * .5, this.vz * .5); }
+          if (Math.random() < .25) fxs.spark(hx, hy + .15, hz, 1, .5);
+        }
+      } else {
+        this.smokeT = lerp(.15, .06, bad);
+        const thin = 1 - .45 * Math.min(1, this.speed / 30);      // at speed it streams out behind and thins
+        fxs.smoke(hx, hy, hz, lerp(.92, .13, Math.pow(bad, 1.4)), .5 + bad * .6, 1.2 + bad * 1.3, this.vx * .5, this.vz * .5, { alpha: (.38 + bad * .36) * thin, floor: hy - .25 });
+      }
     }
     // fake gearbox for the engine note
-    const s = Math.abs(this.vf); let gi = 1; while (gi < 5 && s > GEARS[gi]) gi++;
+    const s = Math.abs(this.vf); let gi = 1; while (gi < 5 && s > GEARS[gi]) gi++; this.gear = gi;
     this.rpm = damp(this.rpm, clamp(.22 + .78 * (s - GEARS[gi - 1]) / (GEARS[gi] - GEARS[gi - 1]), 0, 1) * (burn ? 1.3 : 1), 12, dt);
   }
 
