@@ -89,6 +89,8 @@ export const TRAFFIC = {
   near: 260,                 // traffic lives within this distance of you
   // how often each vehicle turns up: [driving around, parked]
   mix: { car: [48, 54], taxi: [14, 8], van: [12, 12], bike: [10, 9], truck: [6, 4], sport: [6, 8], limo: [4, 5] },
+  // the Sunset Loop and Highway 6: how many cars keep to the highway, how often street traffic takes a ramp up, and what drives there
+  highway: { count: 12, rampChance: .3, mix: { car: 44, sport: 14, taxi: 10, van: 10, truck: 10, limo: 6, bike: 6 } },
 };
 
 // How cars meet the land (world/ride.js). Flat downtown is unaffected.

@@ -122,6 +122,7 @@ export function createPolice(game) {
         spawnTimer = 2.6;
         // a patrol car that's already nearby answers first
         let car = game.traffic.vehicles.find(v => v.type === 'police' && v.driver instanceof AIDriver && !v.wrecked && !police.owns(v) && Math.hypot(v.x - p.x, v.z - p.z) < 150);
+        if (!car) car = game.highway?.spawnCop();          // on the highway with you, when that is where you are
         if (!car) {
           let spot = null;
           // best of a few tries: out of sight, facing the player, and ideally where they're headed
@@ -183,7 +184,11 @@ export function createPolice(game) {
     },
   };
 
-  function footOfficer(kind, x, z, unit) { return makeOfficer(game.peds.release(game.peds.spawn(kind, x, z, 0, 0, true)), unit); }
+  function footOfficer(kind, x, z, unit) {
+    const ped = game.peds.release(game.peds.spawn(kind, x, z, 0, 0, true));
+    if (unit?.car.up) ped.y = unit.car.y;        // stepping out onto the bridge, not the street under it
+    return makeOfficer(ped, unit);
+  }
   function makeOfficer(ped, unit) {
     const o = { isOfficer: true, ped, unit, state: 'chase', grab: 0, stuck: 0, side: 0, sideT: 0, body: null };
     o.body = game.physics.addPerson(o, ped.x, ped.z, .36, 85); ped.state = 'officer'; ped.air = 0;

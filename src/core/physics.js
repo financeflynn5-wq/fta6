@@ -16,7 +16,7 @@ export async function createPhysics() {
   const queue = new RAPIER.EventQueue(true);
   const owners = new Map();          // collider handle -> game object
   const ray = new RAPIER.Ray({ x: 0, y: 0 }, { x: 1, y: 0 });
-  const buildingsOnly = groups(ALL, GROUP.BUILDING), solidStuff = groups(ALL, GROUP.BUILDING | GROUP.PROP | GROUP.LOW);
+  const buildingsOnly = groups(ALL, GROUP.BUILDING), solidStuff = groups(ALL, GROUP.BUILDING | GROUP.PROP | GROUP.LOW), railsOnly = groups(ALL, GROUP.RAIL);
   // How tall each static thing is, so a look-out high above the street sees (and shoots) over the roofs below.
   const heights = new Map();
   const taller = (c) => (heights.get(c.handle) ?? 1e9) > physics.eyeY;
@@ -84,9 +84,10 @@ export async function createPhysics() {
       return hit ? hit.timeOfImpact : max;
     },
     // What a driver on the street feels ahead: everything solid at ground level, whatever the eye height is.
-    probeDrive(ax, az, dx, dz, max) {
+    // up = true: what a driver on the upper level feels instead (the rails).
+    probeDrive(ax, az, dx, dz, max, up = false) {
       ray.origin.x = ax; ray.origin.y = az; ray.dir.x = dx; ray.dir.y = dz;
-      const hit = world.castRay(ray, max, true, undefined, solidStuff);
+      const hit = world.castRay(ray, max, true, undefined, up ? railsOnly : solidStuff);
       return hit ? hit.timeOfImpact : max;
     },
     // Is there room to drive a car straight from a to b (two rays, one per side)?

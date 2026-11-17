@@ -90,15 +90,17 @@ export function createTraffic(game) {
       const p = game.player; let cruising = 0;
       for (const v of vehicles.slice()) {
         const far = Math.hypot(v.x - p.x, v.z - p.z);
-        if (v.driver instanceof AIDriver && v.type !== 'police' && !v.wrecked) cruising++;
+        const street = v.driver instanceof AIDriver && v.driver.mode !== 'lane';        // highway traffic is counted by highwayTraffic.js
+        if (street && v.type !== 'police' && !v.wrecked) cruising++;
         if (v.driver === 'player' || game.police.owns(v)) continue;
         // the map is big: ordinary traffic that has drifted far from you is recycled closer
-        if (v.driver instanceof AIDriver && v.type !== 'police' && far > TRAFFIC.near + 70) { if (!v.wrecked) cruising--; traffic.remove(v); continue; }
+        if (v.driver instanceof AIDriver && v.type !== 'police' && far > TRAFFIC.near + 70) { if (!v.wrecked && street) cruising--; traffic.remove(v); continue; }
         const abandoned = !v.driver && (v.temp || v.wrecked) && v.idleTime > 12;
         if (abandoned && far > 115 && !game.physics.canSee(v.x, v.z, p.x, p.z)) traffic.remove(v);
         else if (v.wrecked && v.idleTime > 90 && far > 60) traffic.remove(v);
       }
       for (let k = 0; k < 2 && cruising + k < TRAFFIC.count; k++) traffic.spawnCruiser(pickType(0, Math.random()), 95, TRAFFIC.near);
+      game.highway?.maintain();
     },
   };
   return traffic;

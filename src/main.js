@@ -33,6 +33,7 @@ import { createCombat } from './combat/combat.js';
 import { createCopGuns } from './combat/copGuns.js';
 import { createPickups } from './combat/pickups.js';
 import { createJobs } from './missions/jobs.js';
+import { createHighwayTraffic } from './vehicles/highwayTraffic.js';
 
 const STEP = 1 / 60;
 const $ = (id) => document.getElementById(id);
@@ -75,7 +76,7 @@ async function boot() {
   game.vehiclesReady = loadVehicleModels();     // the Blender vehicles too
   game.debris = createDebris(engine.scene);     // shards and torn-off parts
   game.damage = createDamage(game);             // dents, scuffs, broken glass and lamps
-  game.traffic.init();
+  game.highway = createHighwayTraffic(game); game.traffic.init(); game.highway.init();
   game.peds.init();
   game.jobs = createJobs(game);
   game.activities = createActivities(game);     // races, stunt jumps, collectibles and the rest
@@ -244,7 +245,7 @@ async function boot() {
       titleYaw += dt * .05; engine.camera.position.set(Math.sin(titleYaw) * 92, 58, Math.cos(titleYaw) * 92); engine.camera.lookAt(0, 2, 0);
       cam.lookAt.set(0, 0, 0);
     } else cam.update(dt, t);
-    game.world.update(dt, t); game.activities.update(dt, t);
+    game.world.update(dt, t); game.activities.update(dt, t); game.highway.update(dt);
     game.env.update(dt, engine.camera.position, cam.lookAt);
     game.carLights.update(t);
     hud.update(dt, t); game.weaponHud.update(dt, t); game.minimap.update(t);

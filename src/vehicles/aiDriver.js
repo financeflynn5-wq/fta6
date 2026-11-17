@@ -40,6 +40,7 @@ export class AIDriver {
     this.scared -= dt;
     let aimX, aimZ, want;
     if (this.mode === 'cruise') [aimX, aimZ, want] = this.cruise(dt, t);
+    else if (this.mode === 'lane') [aimX, aimZ, want] = this.game.highway.follow(this, dt, t);     // on the highway (highwayTraffic.js)
     else[aimX, aimZ, want] = this.pursue(dt);
 
     // reversing out when stuck against something
@@ -111,7 +112,10 @@ export class AIDriver {
 
   // ---------- pursuing ----------
   pursue(dt) {
-    const v = this.v, g = this.game, ph = g.physics, T = this.target;
+    const v = this.v, g = this.game, ph = g.physics;
+    // the highway: drive its lanes while up there, or head for a ramp when the target is up there and we aren't
+    const hw = g.highway?.pursue(this, dt); if (Array.isArray(hw)) return hw;
+    const T = hw || this.target;
     const dist = Math.hypot(T.x - v.x, T.z - v.z);
     if ((this.replan -= dt) <= 0) {
       this.replan = .25;
@@ -134,14 +138,15 @@ export class AIDriver {
     const err = Math.abs(angleDiff(Math.atan2(this.aim.z - v.z, this.aim.x - v.x), v.h));
     if (!this.direct) want = Math.min(want, 8.5 + aimDist * .5);           // slow into corners
     want = Math.min(want, 7 + this.maxSpeed * Math.pow(Math.max(0, 1 - err / .9), 1.5));
-    if (this.hold) want = dist < 7 ? 0 : Math.min(want, 4 + (dist - 7) * 1.1);   // pull up next to the target
-    else if (!this.ram && this.direct) want = Math.min(want, g.player.speed + 3 + Math.max(0, dist - 9) * 1.4);
+    if (hw) want = Math.min(want, 12 + dist * .6);
+    else if (this.hold) want = dist < 7 ? 0 : Math.min(want, 4 + (dist - 7) * 1.1);   // pull up next to the target
+    else if (!this.ram && this.direct && !hw) want = Math.min(want, g.player.speed + 3 + Math.max(0, dist - 9) * 1.4);
 
     // feel ahead along both sides of the car for walls, trees and posts, and lean away
-    const reach = 7 + v.speed * .55, fx = v.fx, fz = v.fz, rx = v.rx, rz = v.rz;
-    const lf = ph.probeDrive(v.x - rx * 1.05, v.z - rz * 1.05, Math.cos(v.h - .1), Math.sin(v.h - .1), reach);
-    const rt = ph.probeDrive(v.x + rx * 1.05, v.z + rz * 1.05, Math.cos(v.h + .1), Math.sin(v.h + .1), reach);
-    const mid = ph.probeDrive(v.x, v.z, fx, fz, reach);
+    const reach = 7 + v.speed * .55, fx = v.fx, fz = v.fz, rx = v.rx, rz = v.rz, up = !!v.up;      // up on a bridge it is the rails that matter
+    const lf = ph.probeDrive(v.x - rx * 1.05, v.z - rz * 1.05, Math.cos(v.h - .1), Math.sin(v.h - .1), reach, up);
+    const rt = ph.probeDrive(v.x + rx * 1.05, v.z + rz * 1.05, Math.cos(v.h + .1), Math.sin(v.h + .1), reach, up);
+    const mid = ph.probeDrive(v.x, v.z, fx, fz, reach, up);
     this.nudge = 0;
     if (lf < reach || rt < reach || mid < reach) {
       const near = Math.min(lf, rt, mid);
@@ -168,6 +173,7 @@ export class AIDriver {
 
   // Put the car back into normal traffic from wherever it is.
   resumeCruise() {
+    if (this.game.highway?.resume(this)) return;       // up on the highway: carry on along its lanes
     // join the nearest stretch of road that heads roughly the way we're facing
     const v = this.v, { from, to } = nearestRoadLeg(v.x, v.z, v.fx, v.fz);
     this.from = from; this.to = to; this.next = pickNext(from, to); this.turning = false; this.mode = 'cruise';
