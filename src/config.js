@@ -226,7 +226,7 @@ export const ACTIVITIES = {
   // bounty hunts (the ring outside Sunset PD): time: seconds on the clock; extra: seconds each catch adds; pay, and step more for every one after the first;
   // giveUp: a crook stops when their car is down to this share of its health; speed: how fast the first one drives, how much faster each next one is, and the most;
   // they turn up between minDist and maxDist metres away and have got away once they are lost metres off
-  bounty: { time: 110, extra: 50, pay: 400, step: 150, giveUp: .5, speed: [21, 1.5, 31], minDist: 80, maxDist: 150, lost: 380 },
+  bounty: { time: 110, extra: 50, pay: 400, step: 150, giveUp: .5, speed: [21, 1.5, 31], minDist: 80, maxDist: 150, lost: 420 },
   // the Golden Acres derby (the west paddock): where the ring is and how wide; rivals (one more per win, up to max), their top speed,
   // cash per wreck and for winning, seconds allowed outside the ring or out of your car
   derby: { x: -214, z: 858, radius: 34, rivals: 3, max: 6, speed: 19, wreck: 300, win: 1500, out: 6 },
@@ -249,7 +249,8 @@ export const STORY = {
   goon: { hp: 55, damage: 6, accuracy: .4, rate: 1.15, range: 36, wake: 44, hold: 11, speed: 3.4 },
   giveUp: .45,                                  // a car you are told to run down stops when its health drops to this share
   ram: 1.4, ramSoak: .45,                       // ramming a crook's car: extra damage to it per m/s of closing speed, and the share of the knock your own car takes
-  lost: 300,                                    // ...and gets away if it is ever this far from you (m)
+  lost: 420,                                    // a runaway this far from you (m) for three seconds has got away
+  ease: 150,                                    // further off than this (m) a runaway slows to two thirds speed, so you can catch up
   // what each mission pays
   pay: { rent: 600, parts: 900, repo: 1200, signal: 1500, mall: 3000, barn: 2500, army: 3500, tower: 25000 },
   saveEvery: 3,                                 // seconds between writes of your cash and guns to the browser's storage

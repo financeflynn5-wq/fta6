@@ -27,7 +27,7 @@ export function createOutlaws(game) {
     runaway(type, minDist, maxDist, o = {}) {
       const v = traffic.spawnCruiser(type, minDist, maxDist); if (!v) return null;
       const d = v.driver; v.outlaw = true; v.temp = false; d.flee = o.speed ?? 24; d.scared = 9;
-      return { car: v, driver: d, state: 'run', lostT: 0, hp: v.health, giveUp: o.giveUp ?? .45, lost: o.lost ?? 300, crook: o.crook };
+      return { car: v, driver: d, state: 'run', lostT: 0, hp: v.health, speed: d.flee, giveUp: o.giveUp ?? .45, lost: o.lost ?? STORY.lost, crook: o.crook };
     },
     // Call every frame. r.state: 'run', 'stopped' (you got them: the car is theirs no more) or 'gone' (they got away).
     update(r, dt) {
@@ -44,6 +44,7 @@ export function createOutlaws(game) {
       r.hp = v.health;
       if (v.wrecked || v.health <= r.giveUp * v.stats.health) { bail(r); return r.state = 'stopped'; }
       const far = Math.hypot(v.x - p.x, v.z - p.z);
+      d.flee = far > STORY.ease ? r.speed * .65 : r.speed;       // with nobody on their tail they ease off, so a slow start is not a lost chase
       r.lostT = far > r.lost ? r.lostT + dt : 0;
       if (r.lostT > 3) { v.temp = true; v.outlaw = false; d.flee = 0; d.scared = 0; return r.state = 'gone'; }
       return 'run';
