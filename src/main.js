@@ -242,7 +242,7 @@ async function boot() {
     game.city.updateLights(t);
     if ((maintainT -= dt) <= 0) { maintainT = 2; game.traffic.maintain(); }
     if (game.state === 'title') {          // slow fly-around behind the menu
-      titleYaw += dt * .05; engine.camera.position.set(Math.sin(titleYaw) * 92, 58, Math.cos(titleYaw) * 92); engine.camera.lookAt(0, 2, 0);
+      titleYaw += dt * .05; engine.camera.position.set(Math.sin(titleYaw) * 150, 128, Math.cos(titleYaw) * 150); engine.camera.lookAt(0, 44, 0);     // clear of the towers
       cam.lookAt.set(0, 0, 0);
     } else cam.update(dt, t);
     game.world.update(dt, t); game.activities.update(dt, t); game.highway.update(dt);

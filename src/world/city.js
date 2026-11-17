@@ -2,13 +2,14 @@
 // Visuals are ported unchanged from the approved concept. On top of the meshes this
 // file reports what is solid (for physics) and answers "how high is the ground here".
 import * as THREE from 'three';
-import { rand, pick, V } from '../core/utils.js';
+import { rand, pick, V, randSeed } from '../core/utils.js';
 import { WORLD } from '../config.js';
 import { mats, std, facade, awnings, G, mesh, rbox, ctex } from './materials.js';
 import { bakeStatic } from './batching.js';
 import { CITY_EDGE, inDowntown } from './map.js';
 import { nearRibbon } from './terrain.js';
 import { planHighway, buildHighway } from './highway.js';
+import { towerAt, buildSkyline } from './skyline.js';
 import { buildGround } from './ground.js';
 import { buildDistricts, shapeLand } from './districts.js';
 
@@ -163,6 +164,7 @@ export function buildCity(realScene) {
   const underHighway = (x, z, w, d) => [[0, 0], [-1, -1], [1, -1], [-1, 1], [1, 1], [0, -1], [0, 1], [-1, 0], [1, 0]].some(([a, b]) => nearRibbon(x + a * w / 2, z + b * d / 2, 2.5));
 
   // blocks
+  const towers = [];
   for (const bi of blocksIdx) for (const bj of blocksIdx) {
     const cx = 27 + PITCH * bi, cz = 27 + PITCH * bj; const near = Math.abs(cx) < 60 && Math.abs(cz) < 60;
     mesh(G.box, mats.walk, V(cx, .15, cz), V(BLOCK, .3, BLOCK), scene, false);
@@ -176,7 +178,13 @@ export function buildCity(realScene) {
       const w = 12 + rand() * 3.5, d = 12 + rand() * 3.5, dist = Math.hypot(cx, cz);
       const h = (near ? 12 : 9) + rand() * (dist < 90 ? 18 : 11) + (dist < 45 ? 5 : 0);
       const bx = cx + sx * (16 - w / 2), bz = cz + sz * (16 - d / 2), signed = near || rand() < .3, make = () => building(bx, bz, w, d, h, signed);
-      if (underHighway(bx, bz, w + 2, d + 2)) ghost(make); else make();
+      const tower = towerAt(bi, bj, sx, sz);
+      if (underHighway(bx, bz, w + 2, d + 2)) ghost(make);
+      else if (tower) {             // a high-rise takes this lot (skyline.js): same corner of the block, a little broader
+        ghost(make);
+        const tw = tower.style === 'sunset' ? 16 : Math.max(w, 13.5), td = tower.style === 'sunset' ? 16 : Math.max(d, 13.5);
+        towers.push({ x: cx + sx * (16 - tw / 2), z: cz + sz * (16 - td / 2), w: tw, d: td, ...tower });
+      } else make();
     }
     for (const [fx, fz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) for (const u of [-12, 0, 12]) {
       const px = cx + fx * 18.6 + (fz ? u : 0), pz = cz + fz * 18.6 + (fx ? u : 0);
@@ -209,6 +217,9 @@ export function buildCity(realScene) {
     [['r', .45], ['y', 0], ['g', -.45]].forEach(([k, y]) => mesh(G.sph, set[k], face.clone().add(V(0, y, 0)), V(.15, .15, .15), hb, false));
   }
 
+  // The towers roll their own dice, so the rest of the map comes out exactly as it did before there were any.
+  const dice = randSeed(), skyline = buildSkyline(towers, { scene, solids, building }); randSeed(dice);
+
   // Everything beyond downtown: the land itself, the elevated roads, then what stands on the land.
   buildGround(realScene);
   buildHighway(highway, { scene, realScene, solids, lampPts, signMats, IB, mat4 });
@@ -222,9 +233,13 @@ export function buildCity(realScene) {
   const IBm = {}; for (const k in IB) IBm[k] = IB[k].build();
   IBm.mark.material = std({ color: 0xffffff, roughness: .6 });
 
+  let glowOn = -1;
   function updateLights(t) {
     for (const [k, ax] of [['ew', 'x'], ['ns', 'z']]) { const st = lightState(ax, t); for (const c of ['r', 'y', 'g']) sig[k][c].emissiveIntensity = st === c ? 3.2 : .04; }
+    // tower windows and rooftop neon come on with the street lamps
+    const on = mats.lampHead.emissiveIntensity / 5;
+    if (on !== glowOn) { glowOn = on; for (const s of skyline.glow) s.m.emissiveIntensity = s.k * on; }
   }
 
-  return { solids, lampPts, signMats, litWindows: IBm.lit, updateLights, districts, welded, highway };
+  return { solids, lampPts, signMats, litWindows: IBm.lit, updateLights, districts, welded, highway, skyline };
 }
