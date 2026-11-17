@@ -12,6 +12,7 @@ const ringTex = tex(256, 256, (x) => {
 const glow = (color, map, opacity) => new THREE.MeshBasicMaterial({ map, color: new THREE.Color(color).multiplyScalar(1.5), opacity, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
 const wallGeo = new THREE.CylinderGeometry(1, 1, 1, 36, 1, true), beamGeo = new THREE.CylinderGeometry(.4, .4, 70, 8, 1, true);
 const flatGeo = new THREE.PlaneGeometry(2.5, 2.5); flatGeo.rotateX(-Math.PI / 2);
+const arrowGeo = new THREE.ConeGeometry(.6, 1.2, 4); arrowGeo.rotateX(Math.PI);
 
 export const fmtTime = (s) => { const m = Math.floor(s / 60), r = s - m * 60; return `${m}:${r < 10 ? '0' : ''}${r.toFixed(1)}`; };
 export const cash = (n) => '$' + Math.round(n).toLocaleString('en-US');
@@ -37,6 +38,14 @@ export function createKit(game) {
     };
     return m;
   }
+
+  // An arrow that bobs over a car you are after. over(null) puts it away.
+  function arrow(color) {
+    const m = new THREE.Mesh(arrowGeo, new THREE.MeshBasicMaterial({ color, toneMapped: false })); m.visible = false; game.scene.add(m);
+    return { over(v, t = 0) { m.visible = !!v; if (v) { m.position.set(v.ix, v.y + 3.6 + Math.sin(t * 4) * .25, v.iz); m.rotation.y = t * 2.5; } } };
+  }
+  // gold, silver, bronze or nothing for a score
+  const medal = (n, M) => n >= M.gold ? 'gold' : n >= M.silver ? 'silver' : n >= M.bronze ? 'bronze' : '';
 
   // ---------- HUD: activity panel and hint (top centre, stacked), banner (middle) ----------
   const hud = document.getElementById('hud');
@@ -67,5 +76,5 @@ export function createKit(game) {
   const blip = (o) => { game.markers.push(o); return o; };
   const unblip = (o) => { const i = game.markers.indexOf(o); if (i >= 0) game.markers.splice(i, 1); };
 
-  return { marker, ui, save, blip, unblip };
+  return { marker, arrow, medal, ui, save, blip, unblip };
 }

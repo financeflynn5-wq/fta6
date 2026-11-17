@@ -1,6 +1,7 @@
-// Things to do around the map: races, stunt jumps, golden tins, pizza runs, speed cameras and
-// car bowling. This file owns what they share (start rings, "one thing at a time", the radar
-// blips) and populates the new districts with parked cars and people.
+// Things to do around the map: races, stunt jumps, golden tins, pizza runs, speed cameras, car
+// bowling, bounty hunts, the derby, the mall smash spree, the gun range and the spray shop. This
+// file owns what they share (start rings, "one thing at a time", the radar blips) and populates
+// the new districts with parked cars and people.
 import { ACTIVITIES } from '../config.js';
 import { choose } from '../core/utils.js';
 import { CIVILIANS } from '../characters/models.js';
@@ -11,6 +12,11 @@ import { createTins } from './tins.js';
 import { createPizza } from './pizza.js';
 import { createTraps } from './traps.js';
 import { createBowling } from './bowling.js';
+import { createBounty } from './bounty.js';
+import { createDerby } from './derby.js';
+import { createSpree } from './spree.js';
+import { createRange } from './range.js';
+import { createSpray } from './spray.js';
 import { createBigMap } from './bigmap.js';
 
 export function createActivities(game) {
@@ -38,6 +44,7 @@ export function createActivities(game) {
 
   A.parts.races = createRaces(A); A.parts.stunts = createStunts(A); A.parts.tins = createTins(A);
   A.parts.pizza = createPizza(A); A.parts.traps = createTraps(A); A.parts.bowling = createBowling(A);
+  A.parts.bounty = createBounty(A); A.parts.derby = createDerby(A); A.parts.spree = createSpree(A); A.parts.range = createRange(A); A.parts.spray = createSpray(A);
   const bigMap = createBigMap(A);
 
   A.update = (dt, t) => {

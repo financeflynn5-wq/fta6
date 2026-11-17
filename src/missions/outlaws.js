@@ -51,11 +51,13 @@ export function createOutlaws(game) {
     // Let a runaway go (the mission ended some other way): it becomes ordinary traffic.
     release(r) { if (r.state !== 'run') return; const v = r.car; r.state = 'gone'; v.temp = true; v.outlaw = false; r.driver.flee = 0; r.driver.scared = 0; },
 
-    // You drove into one of them (main.js, on contact). Their car takes extra for it, on top of the ordinary crash damage,
-    // and yours shrugs off part of the knock, so running someone off the road does not wreck you first.
+    // You and one of them touched (main.js, on contact). If you drove into them their car takes extra, on top of the ordinary
+    // crash damage, and either way yours shrugs off part of the knock, so running someone off the road does not wreck you first.
     rammed(v, mine, rel) {
       mine.soak = STORY.ramSoak;
-      if (rel < 4 || game.time - (v.ramT ?? -9) < .5 || v.wrecked) return;
+      // the extra is for driving into them, not for being driven into
+      const dx = v.x - mine.x, dz = v.z - mine.z, at = (mine.vx * dx + mine.vz * dz) / (Math.hypot(dx, dz) || 1);
+      if (rel < 4 || at < 3 || game.time - (v.ramT ?? -9) < .5 || v.wrecked) return;
       v.ramT = game.time; v.damage(rel * STORY.ram); game.audio.crash(.5); game.cam.shake(.25);
     },
 

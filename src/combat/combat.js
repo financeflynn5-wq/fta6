@@ -165,7 +165,7 @@ export function createCombat(game) {
     audio.shot(w.loud, 1);
     game.cam.shake(w.kick * .9); if (combat.aiming) game.cam.kick(w.kick); combat.kick = w.kick * 4; combat.bloom = Math.min(AIM.bloomMax, combat.bloom + AIM.bloom);
     game.peds.scare(p.x, p.z, 40, 8);
-    if (reportT <= 0 && game.police.witnessed(p.x, p.z, COMBAT.witnessRange)) { reportT = 1.5; game.police.crime(...COMBAT.crime.shotsFired, 'SHOTS FIRED!'); }
+    if (!combat.quiet && reportT <= 0 && game.police.witnessed(p.x, p.z, COMBAT.witnessRange)) { reportT = 1.5; game.police.crime(...COMBAT.crime.shotsFired, 'SHOTS FIRED!'); }
     if (combat.clip[id] === 0 && combat.ammo[id] > 0 && !combat.burstLeft) setTimeout(() => { if (combat.weapon === id) reload(); }, 180);
   }
 

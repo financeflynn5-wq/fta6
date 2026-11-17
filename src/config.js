@@ -223,16 +223,21 @@ export const ACTIVITIES = {
   pizza: { count: 4, base: 100, tip: 160, pace: 13, slack: 14, cold: 20, perfect: 500 },   // seconds allowed = distance / pace + slack
   traps: { perKmh: 12, cooldown: 20 },                                      // speed cameras pay per km/h over their limit
   bowling: { perPin: 50, strike: 1000, settle: 4.5 },
-  // bounty hunts (outside Sunset PD): time: seconds on the clock; extra: seconds each crook adds; pay + step for every one after the first;
-  // giveUp: a crook stops when their car is down to this share of its health; speed: how fast the first one drives, and how much faster each next one is
-  bounty: { time: 110, extra: 50, pay: 400, step: 150, giveUp: .5, speed: [21, 1.5, 31], minDist: 110, maxDist: 220 },
-  // the Golden Acres derby: rivals (and one more per win, up to max), their top speed, cash per wreck and for winning, seconds allowed outside the ring
-  derby: { rivals: 4, max: 7, speed: 19, radius: 34, wreck: 300, win: 1500, out: 6 },
-  // Coral Plaza smash spree: seconds, cash per thing broken (glass pays more), how many for each medal and what a medal adds
-  spree: { time: 60, each: 20, glass: 35, medals: { gold: 60, silver: 40, bronze: 20 }, pay: { gold: 1500, silver: 800, bronze: 400 } },
-  // the hay-field shooting range: seconds, targets up at once, how long one stays up, cash per hit, hits for each medal and what a medal adds
-  range: { time: 45, up: 3, stay: 4.5, perHit: 25, medals: { gold: 22, silver: 15, bronze: 8 }, pay: { gold: 1200, silver: 600, bronze: 300 } },
-  spray: { price: 250 },                                                    // Spray 'n' Scram: fixes the car, repaints it and shakes the cops
+  // bounty hunts (the ring outside Sunset PD): time: seconds on the clock; extra: seconds each catch adds; pay, and step more for every one after the first;
+  // giveUp: a crook stops when their car is down to this share of its health; speed: how fast the first one drives, how much faster each next one is, and the most;
+  // they turn up between minDist and maxDist metres away and have got away once they are lost metres off
+  bounty: { time: 110, extra: 50, pay: 400, step: 150, giveUp: .5, speed: [21, 1.5, 31], minDist: 80, maxDist: 150, lost: 380 },
+  // the Golden Acres derby (the west paddock): where the ring is and how wide; rivals (one more per win, up to max), their top speed,
+  // cash per wreck and for winning, seconds allowed outside the ring or out of your car
+  derby: { x: -214, z: 858, radius: 34, rivals: 3, max: 6, speed: 19, wreck: 300, win: 1500, out: 6 },
+  // Coral Plaza smash spree: where the start ring is, the box that counts (x0, x1, z0, z1), seconds, cash per thing broken (glass pays more),
+  // how many broken things set the alarm off, how many for each medal and what a medal adds
+  spree: { x: 96, z: 521, box: [30, 132, 533, 646], time: 60, each: 20, glass: 35, alarm: 12, medals: { gold: 45, silver: 30, bronze: 15 }, pay: { gold: 1500, silver: 800, bronze: 400 } },
+  // the Golden Acres gun range (the east field): where you stand, seconds, targets up at once, how long one stays up, cash per hit,
+  // hits for each medal and what a medal adds, rounds in the pistol the range lends you if you turn up empty-handed
+  range: { x: -60, z: 829, time: 45, up: 3, stay: 4.5, perHit: 25, medals: { gold: 22, silver: 15, bronze: 8 }, pay: { gold: 1200, silver: 600, bronze: 300 }, lend: 60 },
+  // Spray 'n' Scram (block / side work like RESPAWN): stop in the ring in a car to have it fixed, repainted and forgotten by the cops (if none can see you)
+  spray: { block: [-2, -2], side: [1, 0], name: "SPRAY 'N' SCRAM", radius: 4.5, price: 250, colors: [0xff2d55, 0xffd60a, 0x34e06b, 0x00c2ff, 0xff7a00, 0xb980ff, 0xf4f1ea, 0x15171c, 0xff7aa2, 0x2bb3c0] },
 };
 
 // ---------- story mode (src/story/) ----------

@@ -92,7 +92,7 @@ export function createTraffic(game) {
         const far = Math.hypot(v.x - p.x, v.z - p.z);
         const street = v.driver instanceof AIDriver && v.driver.mode !== 'lane';        // highway traffic is counted by highwayTraffic.js
         if (street && v.type !== 'police' && !v.wrecked) cruising++;
-        if (v.driver === 'player' || game.police.owns(v)) continue;
+        if (v.driver === 'player' || game.police.owns(v) || v.outlaw) continue;      // a crook on the run is the mission's business (outlaws.js)
         // the map is big: ordinary traffic that has drifted far from you is recycled closer
         if (v.driver instanceof AIDriver && v.type !== 'police' && far > TRAFFIC.near + 70) { if (!v.wrecked && street) cruising--; traffic.remove(v); continue; }
         const abandoned = !v.driver && (v.temp || v.wrecked) && v.idleTime > 12;
