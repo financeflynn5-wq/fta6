@@ -42,18 +42,27 @@ There is no build step.
 - **Steal a car.** Parked cars may set off an alarm. Taking one with a driver in it always gets you a star.
 - **Stars.** More trouble means more stars, and more (and angrier) cruisers. Officers jump out if you stop.
 - **Lose them.** Break line of sight until the stars stop flashing. You get paid for every chase you escape.
-- **Weapons.** Guns lie on the sidewalks (yellow dots on the radar), with body armor (blue) and first-aid kits (green). They come back a minute after you take them. Knocked-out cops drop ammo.
+- **Weapons.** Guns lie on the sidewalks, and in a few places in the valley, (yellow dots on the radar), with body armor (blue) and first-aid kits (green). They come back a minute after you take them. Knocked-out cops drop ammo.
 - **Fighting.** Hitting or shooting people raises your stars if a cop sees it; hurting a cop always does. From two stars, officers on foot draw pistols and shoot back. Armor soaks damage before health.
 - **Vehicles.** Sedans, taxis, vans, box trucks, stretch limos, the Flamingo GT sports car and motorbikes all drive differently: trucks are slow and heavy and shove traffic aside, the sports car and the bike are quick, and a hard crash throws you off the bike. A bike and a sports car are parked next to where you start.
 - **Crash damage.** Every knock leaves its mark where it landed, on your car and on whatever you hit: the body is pressed in (deeper and wider the harder the hit), paint is scraped dull and then down to bare metal, glass cracks and then falls out, lamps go dark (smashed headlights light the road less), a battered nose loses its bumper and the radiator starts to steam. Traffic, parked cars and cruisers dent the same way. Tune it in `DAMAGE` in `src/config.js`.
 - **Chop-shop orders.** Scrap pages you with a car he wants and it shows up pink on the radar with an arrow over it. Steal it, lose any stars, and park it on the pink marker outside Scrap's Chop Shop. Less damage means more cash. Rare cars (the sports car and the limo) pay the most, and every third order is a police cruiser. Any other stolen car parked there is sold for scrap.
 - **Taxi fares.** Sit in a taxi and someone hails you (gold on the radar). Stop next to them, then stop on the gold marker at their destination. A quick, smooth ride earns a tip; fares in a row pay more. Passengers bail if you pick up stars.
 - **The map.** Downtown sits in the middle of a much bigger place: Palm Promenade, the beach and the pier to the south, the steep streets of Vista Heights to the north, Port Sunset's docks to one side and the Dustlands desert to the other. Cars follow the hills, get air over crests and ramps, and stall if you drive them into the sea. Hold Tab for the map.
+- **The valley.** Four roads climb north through the hills behind Vista Heights and drop into a second town, about as big as everything south of it:
+  - **Palmview**: a neighborhood of houses with driveways, picket fences, pools and parked cars.
+  - **Flamingo Park**: a big city park with a promenade, a pond with flamingos and a dock, a bandstand, a fountain plaza and lawns. All of it is open ground, so you can drive anywhere in it.
+  - **Coral Plaza**: a mall with a car park, open-air shops round a plaza, and an indoor hall with a glass roof, a department store and a food court. Walk in through the doorways, or drive through the glass and down the concourse.
+  - **Marlin Bay**: a marina with four piers of moored boats, a fuel dock, a seaplane dock, a slipway, a yacht club and a helipad on the bluff. The boats are scenery for now; the berths, slipway and pads are listed for when boats and aircraft arrive.
+  - **Golden Acres**: farmland. A drive-through barn, silos, a wind pump, a greenhouse, cows in a paddock, corn, wheat, an orchard, a pumpkin patch, a hay field, an old barn and a dirt airstrip with a hangar.
+  - **Fort Pelican**: a fenced military base with a guarded gate, barracks, headquarters, a motor pool (the trucks can be taken), a firing range, a runway, three open hangars, a control tower and two helipads. Being inside earns three stars after a few seconds.
+- **Things that break.** In the valley, shop windows shatter when shot, punched or driven into. The tall glass of the mall's entrances, the department store and the food court gives way to a car at speed, and so do the base's gate booms. Picket and rail fences, cafe tables, kiosks, clothes racks, planters, hay bales, crates and cones all break under a car. Everything is put back once you are far away.
+- **Gun shops** (orange G on the radar). Bullseye Guns is across the street from where you start, and there is a second one on the strip behind Coral Plaza. Walk up to a gun on the counter and press E to buy it, or buy ammo if you already own it. They sell body armor too.
 - **The Sunset Loop and Highway 6.** An elevated highway rings downtown, two lanes each way, with fast traffic on it. Ramps go up from the south and east sides of the ring road (the on-ramp is just past the middle crossing, the exit just before it), and Highway 6 runs west off the Loop and comes down onto the desert road. Streets carry on underneath. Cruisers chase you up the ramps and new ones join on the highway itself.
 - **The skyline.** Thirteen towers stand in the middle of downtown, up to the 148 m Sunset Tower. Their windows and rooftop neon come on at dusk.
 - **Walk-in buildings** (white dots on the radar). Twelve places have an open door: the 24/7 Mart by the start, four diners, Pawsum's Pawn, the arcade, the motel, the laundromat, Sunset General, Sunset PD and the Sunset Tower lobby. Press E at the counter: food heals, the pawn shop sells armor and ammo, the motel lets you sleep until dusk or dawn, the laundromat changes your look (drops your stars if no cop is watching), the police desk takes a bribe, the hospital patches you up. Hold a gun on whoever is behind a shop counter for a couple of seconds to empty the till (two stars). The lift in the Sunset Tower goes to the roof, unless you are wanted. Prices and hold-up numbers are in `INDOORS` in `src/config.js`.
 - **Races** (blue R on the radar). Stop in the blue ring, wait for GO, hit every gold gate. Six time trials, one of them on foot along the boardwalk, with gold, silver and bronze times.
-- **Stunt jumps** (orange J). Eleven ramps and crests. Leave the ground there and fly far enough to tick it off; land the pier jump on the barge for a bonus. Any long jump pays a little.
+- **Stunt jumps** (orange J). Fourteen ramps and crests, three of them in the valley (over the park promenade into the pond, off the hay ramp at the farm, and over the fence into Fort Pelican). Leave the ground there and fly far enough to tick it off; land the pier jump on the barge for a bonus. Any long jump pays a little.
 - **Golden tins.** Forty of them hidden around the map. They show on the radar only when you are close.
 - **Pizza run** (orange P, outside Pizza Pier). Four deliveries against the clock; faster drops tip better and four hot pies pay a bonus.
 - **Speed cameras** (white S). Pass one above its limit and it pays for every km/h over.
@@ -69,14 +78,18 @@ Each system lives in its own small file, so a change usually touches one place.
 index.html, css/style.css   page, HUD markup and styling (css/activities.css: activity panel, banner, big map)
 src/main.js                 boot, game loop, and the rules that connect systems (what is a crime, crashes)
 src/config.js               every tunable number: car handling (CAR), aiming (AIM), weapons, police, traffic, day length,
-                            hills and jumps (RIDE), activity pay and medal rules (ACTIVITIES)
+                            hills and jumps (RIDE), activity pay and medal rules (ACTIVITIES), what it takes to break things
+                            (SMASH), the base's alarm (BASE), gun shop prices (INDOORS.guns)
 src/core/                   engine (renderer + post), physics (Rapier), input, audio (synthesised), utils
 src/world/                  city (the downtown scene), materials, sky (day/night), batching, landmarks (hospital, police station),
                             map (the whole coast as data: heights, land types, roads), terrain (height of the ground anywhere),
                             ground (builds the land and roads), districts + props (everything outside downtown),
                             ride (cars on slopes, jumps, water), roads (road lookups), world (ties the land to the game),
                             highway (the Sunset Loop, Highway 6 and their ramps: routes, lanes, decks, piers, signs),
-                            skyline (downtown's towers), interiors (the buildings you can walk into and what you can do there)
+                            skyline (downtown's towers), interiors (the buildings you can walk into and what you can do there),
+                            north (the valley: its land, the shared building kit, and the order its districts are built in),
+                            park, mall, marina, farm, base (one file per valley district; Palmview is in north),
+                            places (things that break: glass, fences, props, gate booms; the base's alarm; roofs the camera stays under)
 src/activities/             activities (start rings, one-at-a-time), kit (markers, panel, banner, save), races, stunts, tins,
                             pizza, traps (speed cameras), bowling, bigmap (hold Tab)
 src/vehicles/               damage (dents, scuffs, cracked glass, dead lamps, torn-off bumpers: see the notes at its top),

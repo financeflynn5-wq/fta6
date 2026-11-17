@@ -11,6 +11,8 @@ const SPOTS = [
   ['pistol', -45.4, -31], ['smg', -8.6, 27], ['shotgun', 27, -8.6], ['burst', 81, 62.6], ['sniper', -81, -99.4],
   ['armor', 8.6, 31], ['armor', -99.4, 76], ['armor', 62.6, -81],
   ['health', -27, -8.6], ['health', 31, 45.4], ['health', -62.6, 85],
+  // the valley: the base's firing range and hangars, the park bandstand, the marina quay, the farm's hay barn
+  ['burst', 90, 809], ['sniper', 245, 812], ['armor', 285, 816], ['health', -108, 594], ['armor', 292, 652], ['shotgun', -268, 750], ['health', 88, 606],
 ];
 const COLORS = { weapon: 0xffc94d, armor: 0x4da6ff, health: 0x5dff8a, ammo: 0xffc94d };
 

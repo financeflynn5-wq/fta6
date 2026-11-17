@@ -25,7 +25,7 @@ export function shapeNorth(F) {
   F({ x: -54, z: 594, r: 36, h: -1.4, flat: .6 });
   F({ x: -126, z: 655, r: 20, h: 2.4 }); F({ x: -30, z: 527, r: 15, h: 1.5 }); F({ x: -128, z: 530, r: 16, h: 1.8 });
   // Golden Acres: rolling fields
-  F({ x: -243, z: 868, r: 44, h: 3.5 }); F({ x: -90, z: 884, r: 30, h: 2.6 }); F({ x: 27, z: 850, r: 16, h: 1.6 });
+  F({ x: -243, z: 862, r: 34, h: 4 }); F({ x: -110, z: 846, r: 28, h: 3 }); F({ x: 27, z: 850, r: 16, h: 1.6 });
 }
 
 // ---------- tools shared by the northern districts ----------
@@ -286,5 +286,6 @@ export function buildNorth(K) {
   }
 
   // the bigger places
+  K.home = home;
   buildPark(K); buildMall(K); buildMarina(K); buildFarm(K); buildBase(K);
 }

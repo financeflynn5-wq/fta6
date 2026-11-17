@@ -73,8 +73,9 @@ export function buildPark(K) {
   mesh(G2.blob, N.spray, V(POND.x, POND.y + 2.6, POND.z), V(.35, 2.8, .35), scene, false);
   for (let i = 0; i < 7; i++) { const a = i / 7 * PI * 2; const jet = mesh(G2.blob, N.spray, V(POND.x + Math.cos(a) * 1.1, POND.y + 1.1, POND.z + Math.sin(a) * 1.1), V(.14, 1.3, .14), scene, false); jet.rotation.set(Math.sin(a) * .5, 0, -Math.cos(a) * .5); }
 
-  // the Flamingo Fling: a ramp on the west bank that throws you out over the water
-  { const rx = shore - 7, rz = CZ + 13; out.ramps.pond = P.ramp(rx, rz, 0, 10, 6, 2.5); keepOut(rx, rz, 8); K.keepLine([[-136, rz], [rx, rz]], 4); }
+  // the Flamingo Fling: a ramp west of the promenade that throws you over it and out into the water
+  const FLING = CZ + 13;
+  { const rx = CX - 11.5; out.ramps.pond = P.ramp(rx, FLING, 0, 10, 6, 2.5); keepOut(rx, FLING, 8); K.keepLine([[-150, FLING], [shore + 4, FLING]], 4.5); }
 
   // ---------- the bandstand on the hill ----------
   {
@@ -117,11 +118,12 @@ export function buildPark(K) {
     const c = one(N.flowers); for (let i = 0; i < 7; i++) { const a = i / 7 * PI * 2, d = i ? r * .58 : 0; mesh(G2.blob, i % 3 === 2 ? M.canopy[0] : c, V(x + Math.cos(a) * d, y + .34, z + Math.sin(a) * d), V(r * .36, .26, r * .36), scene, false); }
   };
   for (let z = 540, k = 0; z <= 676; z += 17, k++) {
-    if (Math.abs(z - CZ) < 8) continue;
+    if (Math.abs(z - CZ) < 8 || Math.abs(z - FLING) < 8) continue;
     const s = k % 2 ? 1 : -1;
     K.bench(CX + s * 3.6, z, s > 0 ? -PI / 2 : PI / 2); bed(CX - s * 4.3, z + 4); P.lamp(CX - s * 3.5, z - 4.5, s, 0);
   }
-  for (let i = 0; i < 16; i += 2) { const a = (i + .5) / 16 * PI * 2; if (Math.abs(Math.sin(a)) < .3 && Math.cos(a) < 0) continue; K.bench(POND.x + Math.cos(a) * 31.2, POND.z + Math.sin(a) * 31.2, Math.atan2(-Math.cos(a), -Math.sin(a))); }
+  for (let i = 0; i < 16; i += 2) { const a = (i + .5) / 16 * PI * 2; if (Math.abs(Math.sin(a)) < .3 && Math.cos(a) < 0) continue; if (Math.cos(a) < 0 && Math.abs(POND.z + Math.sin(a) * 31.2 - FLING) < 7) continue;      // not across the Flamingo Fling
+    K.bench(POND.x + Math.cos(a) * 31.2, POND.z + Math.sin(a) * 31.2, Math.atan2(-Math.cos(a), -Math.sin(a))); }
   for (const [x, z] of [[-140, 508], [-22, 508], [-22, 680], [-140, 680], [-22, 560], [-22, 630], [-140, 560], [-140, 640], [-52, 508], [-110, 508], [-52, 680], [-110, 680]]) P.lamp(x + (x < CX ? -2.6 : 2.6), z + (z < CZ ? -2.6 : 2.6), x < CX ? 1 : -1, 0);
   for (const [x, z] of [[-96, 508], [-66, 508], [-22, 540], [-22, 648], [-96, 680], [-66, 680], [-140, 540], [-140, 620]]) bed(x + (Math.abs(x - CX) > 50 ? (x < CX ? 3.6 : -3.6) : 0), z + (Math.abs(x - CX) > 50 ? 0 : (z < CZ ? 3.6 : -3.6)), 1.7);
 

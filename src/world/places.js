@@ -110,20 +110,21 @@ export function createPlaces(game) {
 
   // A moving car against everything breakable near it.
   function carCheck(v) {
-    const cx = Math.floor(v.x / CELL), cz = Math.floor(v.z / CELL), fwd = v.vf >= 0 ? 1 : -1, look = clamp(Math.abs(v.vf) * .1, 0, 4);
+    const thr = v.driver ? v.controls.throttle : 0, shove = Math.abs(thr) > .5 && v.speed < SMASH.touch;      // leaning on something from a standstill
+    const cx = Math.floor(v.x / CELL), cz = Math.floor(v.z / CELL), fwd = (shove ? thr : v.vf) >= 0 ? 1 : -1, look = clamp(Math.abs(v.vf) * .1, 0, 4);
     for (let a = cx - 1; a <= cx + 1; a++) for (let c = cz - 1; c <= cz + 1; c++) {
       const l = grid.get(a * 4096 + c); if (!l) continue;
       for (const b of l) {
         if (!b.alive || Math.abs(b.y - v.y) > 3) continue;
         const reach = b.solid ? look : .25, pad = b.deep;
-        let hit = false;
+        let hit = false, nose = false;
         for (const t of [-.5, 0, .5]) {
           const [lx, lz] = v.local(b.x + b.cos * b.w * t, b.z + b.sin * b.w * t), ahead = lx * fwd;
-          if (Math.abs(lz) < v.halfWid + .3 + pad && ahead > -v.halfLen - .3 - pad && ahead < v.halfLen + .35 + reach + pad) { hit = true; break; }
+          if (Math.abs(lz) < v.halfWid + .3 + pad && ahead > -v.halfLen - .3 - pad && ahead < v.halfLen + .35 + reach + pad) { hit = true; if (ahead > v.halfLen - .6 && Math.abs(lz) < v.halfWid) nose = true; }
         }
         if (!hit) continue;
         const closing = Math.abs(-v.vx * b.sin + v.vz * b.cos);        // speed straight at the panel
-        if (b.hard ? closing < SMASH.through : v.speed < SMASH.touch) continue;
+        if (b.hard ? closing < SMASH.through : v.speed < SMASH.touch && !(shove && nose)) continue;
         const sp = v.speed || 1; smash(b, v.vx / sp, v.vz / sp, v.vx, v.vz, clamp(v.speed / 20, .3, 1.5));
         if (b.hard || KINDS[b.kind].prop && !KINDS[b.kind].soft) {       // bursting through costs a little speed and paint
           const keep = b.hard ? SMASH.keep : SMASH.keepProp, lv = v.body.linvel(); v.body.setLinvel({ x: lv.x * keep, y: lv.y * keep }, true); v._set.x *= keep; v._set.y *= keep;
@@ -152,7 +153,7 @@ export function createPlaces(game) {
     update(dt, t) {
       const north = p.z > 330;
       for (const k in KINDS) if (KINDS[k].im) KINDS[k].im.visible = north;
-      if (north) for (const v of game.traffic.vehicles) if (v.speed > 1.5 && v.z > 400 && Math.abs(v.x - p.x) < 160 && Math.abs(v.z - p.z) < 160) carCheck(v);
+      if (north) for (const v of game.traffic.vehicles) if ((v.speed > 1.5 || v.driver === 'player') && v.z > 400 && Math.abs(v.x - p.x) < 160 && Math.abs(v.z - p.z) < 160) carCheck(v);
       // put things back once nobody is near enough to see it happen
       if (broken.length && (tidy -= dt) <= 0) {
         tidy = 3;

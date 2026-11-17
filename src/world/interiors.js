@@ -6,16 +6,19 @@
 //   createInteriors()  what you can do in them: the E key, the people, hold-ups, the lift (main.js)
 import * as THREE from 'three';
 import { V, seeded, angleDiff } from '../core/utils.js';
-import { RESPAWN, INDOORS, COMBAT } from '../config.js';
+import { RESPAWN, INDOORS, COMBAT, WEAPONS } from '../config.js';
 import { mats, std, G, mesh, rbox, ctex } from './materials.js';
 import { bakeStatic, plainGeometry } from './batching.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { frontage } from './landmarks.js';
-import { addRibbon } from './terrain.js';
+import { addRibbon, groundY } from './terrain.js';
+import { makeWeapon } from '../combat/weaponModels.js';
 import { makeCharacter, animateCharacter } from '../characters/models.js';
 
 // Where they are. block / corner pick the building (as in city.js), face is the side its door is on.
 // landmark: the building landmarks.js hangs that sign on, whichever it turns out to be.
+// at: a shop out in the districts, which gets a building of its own at [x, z] (size = [wide, deep, tall]).
+// New shops go at the end of the list: the rooms roll their furniture from one set of dice, in this order.
 const SHOPS = [
   { id: 'mart', name: '24/7 MART', kind: 'mart', block: [-1, -1], corner: [-1, 1], face: [-1, 0], who: 'possum' },
   { id: 'tower', name: 'SUNSET TOWER', kind: 'lobby', block: [0, 0], corner: [-1, -1], face: [0, -1], who: 'tess' },
@@ -29,6 +32,9 @@ const SHOPS = [
   { id: 'crab', name: 'CRAB SHACK', kind: 'diner', block: [0, 1], corner: [-1, -1], face: [0, -1], who: 'scrap', tint: 0x3e6fd6 },
   { id: 'hospital', name: 'SUNSET GENERAL', kind: 'clinic', landmark: 'hospital', who: 'tess' },
   { id: 'station', name: 'SUNSET PD', kind: 'police', landmark: 'station', who: 'dale' },
+  { id: 'guns', name: 'BULLSEYE GUNS', kind: 'guns', block: [-2, -1], corner: [1, -1], face: [1, 0], who: 'scrap', sign: '#ff8a3d' },
+  { id: 'gunsNorth', name: 'BULLSEYE GUNS', kind: 'guns', at: [58, 678], size: [15, 13, 7.6], face: [0, -1], who: 'dale', sign: '#ff8a3d' },
+  { id: 'valleyDiner', name: 'VALLEY DINER', kind: 'diner', at: [100, 678], size: [14, 13, 7.6], face: [0, -1], who: 'possum', tint: 0x2f9c8f, sign: '#3de0ff' },
 ];
 const T = .3, H = 4.6, DOOR = 2.6, CEIL = 4.0;      // wall thickness, ground-floor height, doorway width, ceiling height
 
@@ -54,10 +60,10 @@ function materials() {
     gold: std({ color: 0xe2b860, roughness: .3, metalness: .8, emissive: 0xe2b860, emissiveIntensity: .12 }), plant: lit(0x3f9a4a), pot: lit(0xc9703f),
     floors: {
       mart: floor(tiles('#eef0ee', '#cfd8d6')), diner: floor(tiles('#f3ede2', '#2b2f38')), lobby: floor(tiles('#f1e7d2', '#d9c49a', 4)), pawn: floor(planks('#8a5f3c', '#5e3f2a')),
-      arcade: floor(tiles('#2a2147', '#3a2d63', 10)), motel: floor(planks('#b08a5c', '#7d5f3c')), laundry: floor(tiles('#dfeaf0', '#9fc3d6')), clinic: floor(tiles('#f2f6f5', '#d5e6e2')), police: floor(tiles('#dfe3ea', '#aab4c6')),
+      arcade: floor(tiles('#2a2147', '#3a2d63', 10)), motel: floor(planks('#b08a5c', '#7d5f3c')), laundry: floor(tiles('#dfeaf0', '#9fc3d6')), clinic: floor(tiles('#f2f6f5', '#d5e6e2')), police: floor(tiles('#dfe3ea', '#aab4c6')), guns: floor(planks('#6b6f66', '#3f433c')),
     },
-    walls: { mart: lit(0xe8f1ee), diner: lit(0xf6ead6), lobby: lit(0xf3e9d8), pawn: lit(0xd9c7a6), arcade: lit(0x1d1a33), motel: lit(0xf0d9b8), laundry: lit(0xdcecf4), clinic: lit(0xeef6f3), police: lit(0xdde3ee) },
-    accent: { mart: lit(0x2f8f83), lobby: lit(0xc9a45a), pawn: lit(0x7a4a2a), arcade: lit(0xff4d8d), motel: lit(0xe8455b), laundry: lit(0x3e8fd6), clinic: lit(0xe8455b), police: lit(0x24408f) },
+    walls: { mart: lit(0xe8f1ee), diner: lit(0xf6ead6), lobby: lit(0xf3e9d8), pawn: lit(0xd9c7a6), arcade: lit(0x1d1a33), motel: lit(0xf0d9b8), laundry: lit(0xdcecf4), clinic: lit(0xeef6f3), police: lit(0xdde3ee), guns: lit(0xd8d2c0) },
+    accent: { mart: lit(0x2f8f83), lobby: lit(0xc9a45a), pawn: lit(0x7a4a2a), arcade: lit(0xff4d8d), motel: lit(0xe8455b), laundry: lit(0x3e8fd6), clinic: lit(0xe8455b), police: lit(0x24408f), guns: lit(0xc7622a) },
     goods: [0xff4d6d, 0xffd34d, 0x3de0ff, 0x7dff8a, 0xff8a3d, 0xc77dff, 0xffffff, 0x4d7dff].map(c => lit(c)),
     screens: [0x3de0ff, 0xff4d8d, 0x7dff8a, 0xffd34d, 0xc77dff, 0xff8a3d].map(c => glowing(c, 1.8)),
     cool: glowing(0xcdefff, 1.1), red: glowing(0xff3b4f, 1.6), green: glowing(0x5dff8a, 1.6), tints: new Map(),
@@ -66,19 +72,21 @@ function materials() {
 }
 const tinted = (c) => { const m = materials(); if (!m.tints.has(c)) m.tints.set(c, m.lit(c)); return m.tints.get(c); };
 
-function towerSign() {
+function towerSign(name = 'SUNSET TOWER', col = '#ffd34d') {
   const t = ctex(512, (x, s) => {
     x.clearRect(0, 0, s, s); x.fillStyle = 'rgba(15,16,22,.92)'; x.beginPath(); x.roundRect(8, s * .3, s - 16, s * .4, 30); x.fill();
     x.font = '900 58px "Archivo Black",Impact,sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.shadowColor = '#ffd34d'; x.shadowBlur = 24; x.fillStyle = '#ffd34d'; x.fillText('SUNSET TOWER', s / 2, s / 2);
-    x.shadowBlur = 0; x.fillStyle = '#fff'; x.globalAlpha = .55; x.fillText('SUNSET TOWER', s / 2, s / 2);
+    const tw = x.measureText(name).width; if (tw > s - 60) x.font = `900 ${Math.floor(58 * (s - 60) / tw)}px "Archivo Black",Impact,sans-serif`;
+    x.shadowColor = col; x.shadowBlur = 24; x.fillStyle = col; x.fillText(name, s / 2, s / 2);
+    x.shadowBlur = 0; x.fillStyle = '#fff'; x.globalAlpha = .55; x.fillText(name, s / 2, s / 2);
   });
   return new THREE.MeshBasicMaterial({ map: t, transparent: true });
 }
 
 // ---------- building the rooms ----------
 export function buildInteriors(api) {
-  const { scene, realScene, solids, lots, signMats, signNames, skyline } = api, m = materials(), r = seeded(3301);
+  const { scene, realScene, solids, lots, signMats, signNames, skyline, building } = api, m = materials(), r = seeded(3301);
+  const named = new Map();        // signs made for shops that are not in the city's own set, one per name
   const _mx = new THREE.Matrix4(), _q = new THREE.Quaternion();
   const rooms = [], spots = [];
   for (const shop of SHOPS) {
@@ -88,6 +96,10 @@ export function buildInteriors(api) {
       const def = RESPAWN[shop.landmark], f = frontage(solids.boxes, def.block, def.side); if (!f) continue;
       face = def.side;
       lot = lots.find(l => Math.abs(l.x + face[0] * (l.w / 2 + .1) - f.fx) < .05 && Math.abs(l.z + face[1] * (l.d / 2 + .1) - f.fz) < .05);
+    } else if (shop.at) {
+      const [x, z] = shop.at, [w, d, h] = shop.size, ys = [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([a, b]) => groundY(x + a * w / 2, z + b * d / 2)), y = Math.max(...ys) + .12;
+      building(x, z, w, d, h, false, y, false); lot = lots[lots.length - 1];
+      if (y - Math.min(...ys) > .2) mesh(G.box, mats.trim, V(x, (y + Math.min(...ys)) / 2 - .5, z), V(w + .2, y - Math.min(...ys) + 1, d + .2), scene);
     } else {
       const cx = 27 + 54 * shop.block[0] + shop.corner[0] * 9, cz = 27 + 54 * shop.block[1] + shop.corner[1] * 9;
       lot = lots.find(l => Math.abs(l.x - cx) < 5 && Math.abs(l.z - cz) < 5);
@@ -141,12 +153,14 @@ export function buildInteriors(api) {
 
     // its own sign over the door (the landmarks hang theirs themselves)
     if (!shop.landmark) {
-      const i = signNames.indexOf(shop.name), sign = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 4.6), i >= 0 ? signMats[i] : towerSign());
-      sign.position.copy(P(0, 5.9, -.08)); sign.rotation.y = Math.atan2(fx, fz); g.add(sign); if (i < 0) signMats.push(sign.material);
+      const i = signNames.indexOf(shop.name); let sm = i >= 0 ? signMats[i] : named.get(shop.name);
+      if (!sm) { sm = shop.sign ? towerSign(shop.name, shop.sign) : towerSign(); named.set(shop.name, sm); signMats.push(sm); }
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 4.6), sm);
+      sign.position.copy(P(0, 5.9, -.08)); sign.rotation.y = Math.atan2(fx, fz); g.add(sign);
     }
 
     // --- what is in it
-    const hw = L / 2 - T, room = { ...shop, x: lot.x, z: lot.z, y: lot.y, hw: lot.w / 2, hd: lot.d / 2, face: [fx, fz], door: world(0, -.9), clerk: null, light: { ...world(0, D / 2), y: lot.y + 3.4 }, till: 0 };
+    const extra = [], hw = L / 2 - T, room = { ...shop, x: lot.x, z: lot.z, y: lot.y, hw: lot.w / 2, hd: lot.d / 2, face: [fx, fz], door: world(0, -.9), clerk: null, light: { ...world(0, D / 2), y: lot.y + 3.4 }, till: 0 };
     const clerkAt = (a, b, da, db) => { const p = world(a, b), dx = rx * da - fx * db, dz = rz * da - fz * db; room.clerk = { ...p, face: Math.atan2(dx, dz), kind: shop.who }; };
     const spot = (a, b, what, rad = 1.5) => spots.push({ ...world(a, b), y: lot.y, r: rad, room, what });
     const counter = (a, b, sa, sb, top = m.steel, body = ac) => { block(body, a, 0, b, sa, 1.02, sb, 1.1); put(top, a, 1.06, b, sa + .12, .08, sb + .12); };
@@ -241,6 +255,25 @@ export function buildInteriors(api) {
         put(tinted(0x9fd3c7), hw - 2.5, 1.5, b + .9, .05, 2.1, 1.4);
       }
       plant(-hw + .7, D - 1); plant(hw - .7, .9);
+    } else if (shop.kind === 'guns') {
+      // the guns hang on the back wall, one stretch of counter each; armor by the door; crates of rounds, a target to prove it
+      const ids = ['pistol', 'smg', 'shotgun', 'burst', 'sniper'], span = L - T * 2 - 2.2, step = span / ids.length;
+      counter(0, D - 2.9, span, .9, m.steel, m.darkWood); clerkAt(0, D - 1.8, 0, -1);
+      put(m.dark, 0, 2.35, D - T - .1, span, 1.9, .08);
+      ids.forEach((id, k) => {
+        const a = -span / 2 + step * (k + .5), w = makeWeapon(id), at = P(a, 2.35, D - T - .32).add(g.position);
+        w.position.copy(at); w.rotation.y = Math.atan2(rx, rz); w.scale.setScalar(Math.min(2.2, step * .8 / WEAPONS[id].length)); realScene.add(w); extra.push(w);
+        put(ac, a, 1.32, D - T - .16, step - .3, .06, .1); put(m.gold, a, 1.2, D - 2.9, .5, .06, .3);
+        spot(a, D - 4, 'gun:' + id, Math.min(1.05, step / 2 - .05));
+      });
+      for (const s of [-1, 1]) {            // cases down the sides: boxes of rounds, a vest on a stand
+        counter(s * (hw - 1.1), 4.3, .9, 4.4, m.cool, m.darkWood);
+        for (let b = 2.5; b < 6.4; b += .7) put(m.goods[Math.floor(r() * 3) + 3], s * (hw - 1.1), 1.16, b, .42, .14, .3);
+        for (let k = 0; k < 3; k++) { put(m.darkWood, s * (hw - .2), 1.9 + k * .62, 4.3, .36, .05, 4.4); for (let b = 2.5; b < 6.4; b += .62) put(k === 1 ? m.dark : tinted(0x4d5a36), s * (hw - .24), 2.08 + k * .62, b, .3, .3, .44); }
+      }
+      put(tinted(0x2f5fb8), -hw + 1.1, 1.75, 7.6, .5, .62, .26); put(m.steel, -hw + 1.1, .7, 7.6, .08, 1.4, .08, false, G.cyl); solid(-hw + 1.1, 7.6, .6, .5, 1.4); spot(-hw + 2.1, 7.6, 'vest', 1.1);
+      for (const [k, c] of [[.62, m.white], [.46, m.red], [.3, m.white], [.14, m.red]]) put(c, hw - .08, 2.5, 7.8, .03, k, k, false, G.sph);
+      plant(hw - .6, .9);
     } else if (shop.kind === 'police') {
       // the front desk behind glass, a bench for the public, a holding cell in the back corner
       counter(0, D - 4.2, L - T * 2 - 5, .9, m.steel, ac); clerkAt(-1, D - 3.1, 0, -1); spot(-1, D - 5.4, 'police', 1.7);
@@ -253,7 +286,7 @@ export function buildInteriors(api) {
       put(m.darkWood, hw - .08, 2, 4, .06, 1.4, 3); for (let k = 0; k < 6; k++) put(m.cream, hw - .13, 1.7 + (k % 2) * .6, 3 + Math.floor(k / 2) * .95, .03, .45, .6);
       put(ac, 0, 3.3, D - T - .08, 3.2, .7, .06); put(m.gold, 0, 3.3, D - T - .12, .5, .5, .04, false, rbox(1, 1, 1, .2));
     }
-    room.meshes = bakeStatic(inner, realScene, () => 'room');
+    room.meshes = bakeStatic(inner, realScene, () => 'room'); room.meshes.push(...extra);
     for (const [mat, list] of coloured) { const mm = new THREE.Mesh(mergeGeometries(list), mat); mm.receiveShadow = true; mm.matrixAutoUpdate = false; realScene.add(mm); room.meshes.push(mm); list.forEach(o => o.dispose()); }
     rooms.push(room);
   }
@@ -288,7 +321,7 @@ export function createInteriors(game) {
   const fade = document.createElement('div'); fade.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;transition:opacity .22s;pointer-events:none;z-index:5'; document.body.appendChild(fade);
   const light = new THREE.PointLight(0xffe6c4, 0, 22, 1.3); game.scene.add(light);
   for (const q of rooms) if (q.clerk) { const c = q.clerk; c.model = makeCharacter(c.kind); c.model.position.set(c.x, q.y, c.z); c.model.rotation.y = c.face; c.model.visible = false; game.scene.add(c.model); }
-  for (const q of rooms) game.markers.push({ x: q.door.x, z: q.door.z, color: '#ffffff', glyph: q.kind === 'clinic' ? '+' : q.kind === 'lobby' ? '▲' : '', size: q.kind === 'lobby' || q.kind === 'clinic' ? 6 : 3.2 });
+  for (const q of rooms) game.markers.push({ x: q.door.x, z: q.door.z, color: q.kind === 'guns' ? '#ff8a3d' : '#ffffff', glyph: q.kind === 'clinic' ? '+' : q.kind === 'lobby' ? '▲' : q.kind === 'guns' ? 'G' : '', size: q.kind === 'lobby' || q.kind === 'clinic' || q.kind === 'guns' ? 6 : 3.2 });
 
   const pay = (n) => { if (game.money < n) { hud.toast('NOT ENOUGH CASH', 'bad'); return false; } game.money -= n; audio.cash(); return true; };
   const heal = (n) => { p.health = Math.min(100, p.health + n); };
@@ -315,12 +348,18 @@ export function createInteriors(game) {
     liftUp: () => !roof ? null : wanted() ? ['Lift locked: lose the cops first', () => { }] : ['Lift to the roof', () => ride(roof.x, roof.z, roof.y, 0, 'SUNSET TOWER ROOF')],
     liftDown: () => ['Lift to the lobby', () => { const s = spots.find(o => o.what === 'liftUp'); ride(s.x, s.z, s.room.y, Math.atan2(-s.room.face[1], -s.room.face[0]), null); }],
   };
+  offers.vest = () => p.armor < COMBAT.armor ? [`Body armor  ${cash(C.armor)}`, () => { if (pay(C.armor)) { p.armor = COMBAT.armor; hud.toast('BODY ARMOR', 'good'); } }] : ['Armor is good', () => { }];
+  // Bullseye Guns: a gun you don't have is sold whole; one you have is topped up
+  const gun = (id) => { const w = WEAPONS[id], c = game.combat;
+    return c.owned.has(id) ? [`${w.name} ammo  ${cash(C.gunAmmo[id])}`, () => { if (pay(C.gunAmmo[id])) { c.give(id); hud.toast(`+${w.give} ${w.name} AMMO`, 'good'); } }]
+      : [`Buy ${w.name}  ${cash(C.guns[id])}`, () => { if (pay(C.guns[id])) { c.give(id); hud.toast(`${w.name} BOUGHT`, 'good'); } }]; };
+  const offer = (what) => what.startsWith('gun:') ? gun(what.slice(4)) : offers[what]();
   let here = null, at = null, shown = '', robT = 0;
   const inside = (q, x, z, m = 0) => Math.abs(x - q.x) < q.hw + m && Math.abs(z - q.z) < q.hd + m;
 
   const indoors = {
     rooms, busy: false, get room() { return here; },
-    use() { if (at && !indoors.busy && game.state === 'playing' && !game.over && p.mode === 'foot') { const o = offers[at.what](); if (o) o[1](); } },
+    use() { if (at && !indoors.busy && game.state === 'playing' && !game.over && p.mode === 'foot') { const o = offer(at.what); if (o) o[1](); } },
     update(dt, t) {
       // the nearest room: its light is on and whoever works there is at their post
       let near = null, nd = 46;
@@ -331,7 +370,7 @@ export function createInteriors(game) {
       }
       if (near) light.position.set(near.light.x, near.light.y, near.light.z);
       light.intensity += ((near ? 26 : 0) - light.intensity) * Math.min(1, dt * 4);
-      const was = here; here = p.mode === 'foot' && p.y < 3 ? rooms.find(q => inside(q, p.x, p.z)) || null : null;
+      const was = here; here = p.mode === 'foot' ? rooms.find(q => Math.abs(p.y - q.y) < 3 && inside(q, p.x, p.z)) || null : null;
       if (here && here !== was && game.state === 'playing') hud.toast(here.name, 'place');
       if (near?.clerk) {
         const c = near.clerk, scared = near.scared > 0; near.scared = Math.max(0, (near.scared || 0) - dt);
@@ -341,11 +380,11 @@ export function createInteriors(game) {
       // a spot to press E at?
       at = null;
       if (p.mode === 'foot' && !game.over) for (const s of spots) if (Math.abs(s.y - p.y) < 1.5 && Math.hypot(s.x - p.x, s.z - p.z) < s.r) { at = s; break; }
-      const o = at && !indoors.busy ? offers[at.what]() : null, text = o ? `<kbd>E</kbd> ${o[0]}` : '';
+      const o = at && !indoors.busy ? offer(at.what) : null, text = o ? `<kbd>E</kbd> ${o[0]}` : '';
       if (text !== shown) { hint.innerHTML = text; hint.hidden = !text; shown = text; }
       // a hold-up: keep a gun on whoever is behind the counter
-      const c = here?.clerk, gun = game.combat.aiming && game.combat.weapon !== 'fists';
-      if (c && gun && here.kind !== 'police' && here.kind !== 'clinic' && here.kind !== 'lobby') {
+      const c = here?.clerk, armed = game.combat.aiming && game.combat.weapon !== 'fists';
+      if (c && armed && here.kind !== 'police' && here.kind !== 'clinic' && here.kind !== 'lobby' && here.kind !== 'guns') {
         const dx = c.x - p.x, dz = c.z - p.z, d = Math.hypot(dx, dz) || 1, dir = game.cam.dir;
         if (d < 12 && (dx * dir.x + dz * dir.z) / d > .93) {
           here.scared = .6;

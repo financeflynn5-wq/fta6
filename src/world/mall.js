@@ -19,9 +19,9 @@ export function buildMall(K) {
   keepOut(81, 567, 75);
 
   // ---------- materials ----------
-  const tile = (a, b) => { const t = ctex(128, (x, s) => { x.fillStyle = a; x.fillRect(0, 0, s, s); x.fillStyle = b; x.fillRect(0, 0, s / 2, s / 2); x.fillRect(s / 2, s / 2, s / 2, s / 2); x.strokeStyle = 'rgba(0,0,0,.08)'; x.lineWidth = 2; x.strokeRect(0, 0, s / 2, s / 2); x.strokeRect(s / 2, s / 2, s / 2, s / 2); }); return std({ map: t, color: 0xffffff, roughness: .4, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: .2 }); };
+  const tile = (a, b, k = .14) => { const t = ctex(128, (x, s) => { x.fillStyle = a; x.fillRect(0, 0, s, s); x.fillStyle = b; x.fillRect(0, 0, s / 2, s / 2); x.fillRect(s / 2, s / 2, s / 2, s / 2); x.strokeStyle = 'rgba(0,0,0,.08)'; x.lineWidth = 2; x.strokeRect(0, 0, s / 2, s / 2); x.strokeRect(s / 2, s / 2, s / 2, s / 2); }); return std({ map: t, color: 0xffffff, roughness: .4, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: k }); };
   const glow = (c, k = .3) => std({ color: c, roughness: .7, emissive: c, emissiveIntensity: k });
-  const wallM = facade[3], coral = facade[0], floorM = tile('#f3ecdf', '#f0c4b4'), hallM = tile('#f6f1e6', '#9fd3c7'), liner = glow(0xf6efe2, .24), ceilM = glow(0xf4efe6, .2), lightM = glow(0xfff1d6, 1.5);
+  const wallM = facade[3], coral = facade[0], floorM = tile('#f3ecdf', '#f0c4b4'), hallM = tile('#f6f1e6', '#9fd3c7', .06), liner = glow(0xf6efe2, .24), ceilM = glow(0xf4efe6, .2), lightM = glow(0xfff1d6, 1.5);
   const shows = [0xff7fa6, 0x3de0ff, 0xffd34d, 0x7dff8a, 0xc77dff, 0xff8a3d].map(c => glow(c, .5)), dark = glow(0x2b2f38, .1), teal = std({ color: 0x2f9c8f, roughness: .6 });
   const skyM = std({ color: 0xbfe6f0, roughness: .05, metalness: .3, transparent: true, opacity: .28, depthWrite: false });
 
@@ -129,7 +129,7 @@ export function buildMall(K) {
     wx(68, 94, z, HH - GH - .1, GH + .1, coral);
     S.put(roofGeo(26.5, 3.7, .5), coral, 81, Y + HH, z);
     S.box(mats.trim, 81, Y + GH + .5, z + (z < 600 ? -2 : 2), 27, .3, 4.4);
-    P.sign('CORAL PLAZA', 81, Y + 8, z + (z < 600 ? -.32 : .32), z < 600 ? PI : 0, 21, 4.4, null, '#fff4e6', 170);
+    P.sign('CORAL PLAZA', 81, Y + 8, z + (z < 600 ? -.32 : .32), z < 600 ? PI : 0, 20, 4, '#14244f', '#ffd34d', 170);
   }
   for (const x of [14.25, 147.75]) { glassZ(x, 600, 612, 5, [2]); wz(x, 600, 612, WH - GH - .1, GH + .1, coral); S.box(mats.trim, x + (x < 81 ? -1.6 : 1.6), Y + GH + .5, 606, 3.4, .3, 13); }
   // the hall: walls rising above the wings, a glass roof on steel ribs
@@ -151,7 +151,16 @@ export function buildMall(K) {
   for (const [x, z] of [[70.2, 590.5], [91.8, 590.5], [70.2, 621.5], [91.8, 621.5], [75, 606], [87, 606]]) prop('planter', x, z);
   ['planter', 'kiosk', 'planter', 'kiosk', 'planter'].forEach((k, i) => { prop(k, 23 + i * 9.5, 606); prop(k, 101 + i * 9.5, 606); });
 
-  out.zones.roofs = [{ x0: 14, x1: 68, z0: 580, z1: 632, y: Y + WH }, { x0: 94, x1: 148, z0: 580, z1: 632, y: Y + WH }, { x0: 68, x1: 94, z0: 580, z1: 632, y: Y + HH + .6 }];
+  (out.zones.roofs ||= []).push({ x0: 14, x1: 68, z0: 580, z1: 632, y: Y + WH }, { x0: 94, x1: 148, z0: 580, z1: 632, y: Y + WH }, { x0: 68, x1: 94, z0: 580, z1: 632, y: Y + HH + .6 });
   out.walkers.push({ cx: 81, cz: 606, hx: 62, hz: 4.4, n: 9 }, { cx: 81, cz: 606, hx: 9.6, hz: 23, n: 5 }, { cx: 81, cz: 560, hx: 36, hz: 17.5, n: 6 });
   out.spots.mall = { x: 81, z: 560 };
+
+  // ---------- the strip behind the mall: Bullseye Guns and the Valley Diner (the rooms are in interiors.js), parking out front ----------
+  K.drape(mats.asphalt, 38, 654.5, 122, 668.5, .07, 420, 4); K.drape(mats.walk, 38, 668.5, 122, 671.4, .09, 40, 3);
+  for (let x = 44; x <= 116; x += 2.8) K.paint(x, 665.6, .13, 5.4, 6.07);
+  out.parked.push(['car', 50.6, 665.4, PI / 2], ['sport', 64.6, 665.4, PI / 2], ['van', 92.6, 665.4, PI / 2], ['bike', 106.6, 665.4, PI / 2]);
+  P.lamp(40, 670, 1, 0); P.lamp(120, 670, -1, 0); keepOut(80, 672, 44);
+  for (const x of [16, 26, 134, 146]) P.tree(x, rr(668, 690), rr(1, 1.4)); for (const x of [78, 79.6]) K.breakable('planter', x, 6, 670, 0, 1, 1);
+  out.walkers.push({ cx: 80, cz: 669.6, hx: 36, hz: .7, n: 2 });
+  out.spots.gunShop = { x: 58, z: 671 };
 }
