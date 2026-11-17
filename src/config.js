@@ -217,6 +217,7 @@ export const SMASH = {
   through: 3.5,                                 // m/s straight at a sheet of mall glass to burst through it
   touch: 2.5,                                   // m/s to knock down a fence panel or shatter a shop window
   keep: .9,                                     // share of your speed you keep after bursting through glass
+  keepProp: .96,                                // ...and after ploughing through a table, a kiosk or a hay bale
   damage: 1.5,                                  // what it costs the car
   mend: 170,                                    // everything is put back once you are this far away (m)
 };

@@ -1,6 +1,7 @@
 // FTA 6 entry point: builds every system, runs the game loop, and holds the handful of
 // rules that connect systems together (what counts as a crime, what happens when you crash).
 import { clamp } from './core/utils.js';
+import { groundY } from './world/terrain.js';
 import { POLICE } from './config.js';
 import { createEngine } from './core/engine.js';
 import { createPhysics } from './core/physics.js';
@@ -53,8 +54,9 @@ async function boot() {
   game.input = createInput(canvas);
   game.audio = createAudio();
   game.city = buildCity(engine.scene);
-  for (const b of game.city.solids.boxes) if (!b.hollow) game.physics.addStaticBox(b.x, b.z, b.hw, b.hd, b.low, b.h);       // hollow: you can walk in (its walls are in solids.walls)
-  for (const p of game.city.solids.posts) game.physics.addStaticPost(p.x, p.z, p.r, p.h);
+  // heights say what a shot, a look or the camera can pass over; things that give none stand 2.6 m (low) or 7 m (posts) above their own ground
+  for (const b of game.city.solids.boxes) if (!b.hollow) game.physics.addStaticBox(b.x, b.z, b.hw, b.hd, b.low, b.h ?? (b.low ? groundY(b.x, b.z) + 2.6 : undefined));       // hollow: you can walk in (its walls are in solids.walls)
+  for (const p of game.city.solids.posts) game.physics.addStaticPost(p.x, p.z, p.r, p.h ?? groundY(p.x, p.z) + 7);
   for (const w of game.city.solids.walls) game.physics.addWall(w.x, w.z, w.hl, w.ht, w.rot, w.kind, w.h);
   game.env = createSky(engine, game.city);
   game.fx = createEffects(engine.scene);

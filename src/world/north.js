@@ -54,7 +54,7 @@ export function northKit(K) {
       for (let k = i ? 1 : 0; k <= segs; k++) {
         const s = len * k / segs, x = ax + dx * s, z = az + dz * s;
         for (const side of [-1, 1]) { const px = x - dz * side * w / 2, pz = z + dx * side * w / 2; pos.push(px - ox, groundY(px, pz) + lift - oy, pz - oz); uv.push(side > 0 ? w / tile : 0, (run + s) / tile); }
-        if (n > 0) { const q = (n - 1) * 2; idx.push(q, q + 2, q + 1, q + 1, q + 2, q + 3); }
+        if (n > 0) { const q = (n - 1) * 2; idx.push(q, q + 1, q + 2, q + 1, q + 3, q + 2); }
         n++;
       }
       run += len;
@@ -112,10 +112,39 @@ export function northKit(K) {
   K.gate = (name, x, z, along = 'x', span = 14, bg = '#1f6b4a', fg = '#ffd9e6') => {
     const y = groundY(x, z);
     for (const s of [-1, 1]) { const px = x + (along === 'x' ? s * span / 2 : 0), pz = z + (along === 'x' ? 0 : s * span / 2), py = groundY(px, pz); K.box(mats.trim, px, (py + y + 6.4) / 2, pz, .9, y + 6.4 - py, .9); K.box(K.N.gold, px, y + 6.6, pz, 1.2, .3, 1.2, false); K.post(px, pz, .6); }
-    P.sign(name, x, y + 6.9, z, along === 'x' ? 0 : PI / 2, span + 1.4, 2.9, bg, fg, 150, true);
+    P.sign(name, x, y + 5.2, z, along === 'x' ? 0 : PI / 2, span - 1.2, 2.5, bg, fg, 150, true);
   };
   // Somewhere to press E outside the walk-in shops (a food cart, a food court counter): what = one of interiors.js's offers.
   K.spot = (x, z, what, r = 1.7, y = groundY(x, z)) => api.shopSpots?.push({ x, z, y, r, room: null, what });
+  // One place, one weld: everything built through a site lands in the same chunk, so a whole mall or base
+  // is a couple of dozen draws however many pieces it has. Positions are given in world metres as usual.
+  K.site = (ox, oz) => {
+    const g = P.top(ox, 0, oz);
+    return {
+      g, own: (m) => { g.add(m); m.position.x -= ox; m.position.z -= oz; return m; },
+      box: (mat, x, y, z, sx, sy, sz, cast = true) => mesh(G.box, mat, V(x - ox, y, z - oz), V(sx, sy, sz), g, cast),
+      put: (geo, mat, x, y, z, sx = 1, sy = sx, sz = sx, cast = true) => mesh(geo, mat, V(x - ox, y, z - oz), V(sx, sy, sz), g, cast),
+    };
+  };
+  // Shop names: many boards drawn on one sheet, so twenty signs cost one texture. Returns label(name, x, y, z, ry, w, parent).
+  K.atlas = (names) => {
+    const rows = Math.ceil(names.length / 2), cols = ['#ff4d6d', '#3de0ff', '#ffd34d', '#7dff8a', '#ff8a3d', '#c77dff'];
+    const t = ctex(1024, (x, s) => {
+      const h = s / rows; x.clearRect(0, 0, s, s); x.textAlign = 'center'; x.textBaseline = 'middle';
+      names.forEach((n, i) => {
+        const cx = (i % 2) * s / 2, cy = Math.floor(i / 2) * h, col = cols[i % cols.length];
+        x.fillStyle = 'rgba(15,16,22,.94)'; x.beginPath(); x.roundRect(cx + 5, cy + 5, s / 2 - 10, h - 10, 16); x.fill();
+        let f = Math.floor(h * .56); x.font = `900 ${f}px "Archivo Black",Impact,sans-serif`; const tw = x.measureText(n).width; if (tw > s / 2 - 50) x.font = `900 ${Math.floor(f * (s / 2 - 50) / tw)}px "Archivo Black",Impact,sans-serif`;
+        x.shadowColor = col; x.shadowBlur = 14; x.fillStyle = col; x.fillText(n, cx + s / 4, cy + h / 2 + 2); x.shadowBlur = 0; x.globalAlpha = .5; x.fillStyle = '#fff'; x.fillText(n, cx + s / 4, cy + h / 2 + 2); x.globalAlpha = 1;
+      });
+    });
+    const mat = new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: .08 }); api.signMats.push(mat);
+    return (name, x, y, z, ry, w, parent = scene) => {
+      const i = Math.max(0, names.indexOf(name)), g = new THREE.PlaneGeometry(w, w * 2 / rows), uv = g.attributes.uv, u0 = (i % 2) / 2, v1 = 1 - Math.floor(i / 2) / rows;
+      for (let k = 0; k < 4; k++) uv.setXY(k, u0 + uv.getX(k) / 2, v1 - (1 - uv.getY(k)) / rows);
+      const off = parent === scene ? [0, 0] : [parent.position.x, parent.position.z], m = mesh(g, mat, V(x - off[0], y, z - off[1]), null, parent, false); m.rotation.y = ry; return m;
+    };
+  };
   // materials every northern district shares (few of them, so welded meshes stay few)
   const stripes = (bg, line, n, wide = 3) => ctex(128, (x, s) => { x.fillStyle = bg; x.fillRect(0, 0, s, s); x.fillStyle = line; for (let i = 0; i < n; i++) x.fillRect(i * s / n, 0, wide, s); });
   K.N = {
