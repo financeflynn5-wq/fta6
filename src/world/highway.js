@@ -139,7 +139,7 @@ export function planHighway() {
   const eIn = lane('east entrance', [...onGround([[164.6, -9, 9], [165.6, -14, 9], [170, -20, 9]]), ...centre(eOn)], 16, { entry: { x: 164.6, z: -9, h: -PI / 2 } }); join(eIn);
   // Highway 6 westbound: off the Loop round the corner, along the south side, right onto the desert road
   const hOut = lane('highway 6 west', [
-    ...trace(-167.3, 30.7, PI / 2).arc(18, PI / 2).pts.map(p => ({ x: p.x, z: p.z, y: D })),
+    ...trace(-167.3, 30.7, PI / 2).arc(18, PI / 2).pts.map(p => ({ x: p.x, z: p.z, y: D, v: 9.5 })),
     ...laneOf(h6, b, 1, 28),
     ...onGround([[-308, 48.7, 10], [-315.4, 48.7, 7], [-319.6, 46.9, 6], [-321.4, 42.7, 6], [-321.4, 34, 8]]),
   ], 22, { grid: true });
@@ -148,7 +148,7 @@ export function planHighway() {
   const hIn = lane('highway 6 east', [
     ...onGround([[-321.4, 74, 7], [-321.4, 66, 6], [-319.6, 61.1, 6], [-315.4, 59.3, 7], [-308, 59.3, 10]]),
     ...laneOf(h6, -b, -1, 28),
-    ...trace(-185.3, 59.3, 0).arc(18, PI / 2).pts.map(p => ({ x: p.x, z: p.z, y: D })),
+    ...trace(-185.3, 59.3, 0).arc(18, PI / 2).pts.map(p => ({ x: p.x, z: p.z, y: D, v: 9.5 })),
   ], 22, { entry: { x: -321.4, z: 74, h: -PI / 2 } });
   join(hIn);
 
@@ -158,11 +158,13 @@ export function planHighway() {
 }
 
 // ---------- drawing ----------
-// Triangles are collected per material per 108 m square, so the whole highway is a few dozen draw calls.
+// Triangles are collected per material per big square, so the whole highway is a handful of draw calls.
+// (It is only a few thousand triangles, so drawing a little more of it than is in view costs nothing.)
+const CHUNK = 2000;
 function makeBatch() {
   const chunks = new Map();
   const e1 = new THREE.Vector3(), e2 = new THREE.Vector3(), n = new THREE.Vector3();
-  const target = (mat, x, z) => { const k = mat.uuid + '|' + Math.floor((x + 432) / 108) + ',' + Math.floor((z + 432) / 108); let t = chunks.get(k); if (!t) chunks.set(k, t = { mat, pos: [], nor: [], uv: [], col: [] }); return t; };
+  const target = (mat, x, z) => { const k = mat.uuid + '|' + Math.floor((x + 432) / CHUNK) + ',' + Math.floor((z + 432) / CHUNK); let t = chunks.get(k); if (!t) chunks.set(k, t = { mat, pos: [], nor: [], uv: [], col: [] }); return t; };
   return {
     // a four-cornered face; (hx, hy, hz) is roughly the way it should face
     quad(mat, p0, p1, p2, p3, hx, hy, hz, color = null) {

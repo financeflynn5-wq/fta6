@@ -200,5 +200,6 @@ export const ACTIVITIES = {
 export const INDOORS = {
   snack: 15, meal: 25, armor: 300, ammo: 120, play: 10, jackpot: 250, room: 40, clothes: 100, patchUp: 50,
   bribe: 400,                                   // per wanted star, at the Sunset PD front desk
+  drawDist: 95,                                 // a room's furniture is only drawn within this many metres
   robTime: 2.2, robCash: [150, 450], robHeat: 60, robStars: 2, tillRefill: 300,     // seconds of aiming at the clerk; what the till holds; how long until it fills again
 };

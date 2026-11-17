@@ -223,7 +223,7 @@ export function buildCity(realScene) {
   // The towers roll their own dice, so the rest of the map comes out exactly as it did before there were any.
   const dice = randSeed(), skyline = buildSkyline(towers, { scene, solids, building });
   // ...and so do the shops and lobbies you can walk into, which open up buildings that are already standing
-  const interiors = buildInteriors({ scene, solids, lots, signMats, signNames, skyline }); randSeed(dice);
+  const interiors = buildInteriors({ scene, realScene, solids, lots, signMats, signNames, skyline }); randSeed(dice);
 
   // Everything beyond downtown: the land itself, the elevated roads, then what stands on the land.
   buildGround(realScene);

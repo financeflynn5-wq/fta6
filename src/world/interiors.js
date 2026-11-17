@@ -8,6 +8,8 @@ import * as THREE from 'three';
 import { V, seeded, angleDiff } from '../core/utils.js';
 import { RESPAWN, INDOORS, COMBAT } from '../config.js';
 import { mats, std, G, mesh, rbox, ctex } from './materials.js';
+import { bakeStatic, plainGeometry } from './batching.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { frontage } from './landmarks.js';
 import { addRibbon } from './terrain.js';
 import { makeCharacter, animateCharacter } from '../characters/models.js';
@@ -34,16 +36,20 @@ const T = .3, H = 4.6, DOOR = 2.6, CEIL = 4.0;      // wall thickness, ground-fl
 let M = null;
 function materials() {
   if (M) return M;
-  // rooms glow a little by themselves, so they read as lit from the street at night
-  const lit = (color, o = {}) => std({ color, roughness: .8, emissive: color, emissiveIntensity: .2, ...o });
+  // Rooms glow a little by themselves, so they read as lit from the street at night.
+  // Every plain colour in a room is drawn by one of two shared materials, with the colour stored in the mesh:
+  // `lit` things glow faintly, `glowing` things (screens, light panels) shine. That keeps a whole room to a few draws.
+  const inColour = (o) => { const mat = std({ color: 0xffffff, vertexColors: true, ...o }); mat.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance *= vColor.rgb;'); }; return mat; };
+  const litVC = inColour({ roughness: .8, emissive: 0xffffff, emissiveIntensity: .2 }), glowVC = inColour({ roughness: .4, emissive: 0xffffff, emissiveIntensity: 2 });
+  const lit = (color) => ({ vc: litVC, color: new THREE.Color(color) });
   const tiles = (a, b, n = 8) => { const t = ctex(256, (x, s) => { const c = s / 2; x.fillStyle = a; x.fillRect(0, 0, s, s); x.fillStyle = b; x.fillRect(0, 0, c, c); x.fillRect(c, c, c, c); }); t.repeat.set(n, n); return t; };
   const planks = (a, b) => { const t = ctex(256, (x, s) => { x.fillStyle = a; x.fillRect(0, 0, s, s); x.strokeStyle = b; x.lineWidth = 3; for (let i = 0; i <= 8; i++) { x.beginPath(); x.moveTo(0, i * s / 8); x.lineTo(s, i * s / 8); x.stroke(); } for (let i = 0; i < 8; i++) { const o = (i % 2) * s / 2 + s / 4; x.beginPath(); x.moveTo(o, i * s / 8); x.lineTo(o, (i + 1) * s / 8); x.stroke(); } }); t.repeat.set(5, 5); return t; };
   const floor = (map) => std({ map, color: 0xffffff, roughness: .55, emissive: 0xffffff, emissiveMap: map, emissiveIntensity: .16 });
-  const glowing = (c, k = 2.2) => std({ color: c, emissive: c, emissiveIntensity: k, roughness: .4 });
+  const glowing = (c, k = 2.2) => ({ vc: glowVC, color: new THREE.Color(c).multiplyScalar(k / 2) });
   M = {
     lit,
     glass: std({ color: 0xcfe6ee, roughness: .04, metalness: .2, transparent: true, opacity: .2, depthWrite: false }),
-    ceiling: lit(0xf4efe6), panel: glowing(0xfff1d6, 2.6), white: lit(0xf7f4ee), cream: lit(0xefe4cf), dark: lit(0x2b2f38, { roughness: .6 }),
+    ceiling: lit(0xf4efe6), panel: glowing(0xfff1d6, 2.6), white: lit(0xf7f4ee), cream: lit(0xefe4cf), dark: lit(0x2b2f38),
     steel: std({ color: 0xb9c0c8, roughness: .35, metalness: .7, emissive: 0xb9c0c8, emissiveIntensity: .08 }), wood: lit(0x9a6a44), darkWood: lit(0x5e3f2a),
     gold: std({ color: 0xe2b860, roughness: .3, metalness: .8, emissive: 0xe2b860, emissiveIntensity: .12 }), plant: lit(0x3f9a4a), pot: lit(0xc9703f),
     floors: {
@@ -52,7 +58,7 @@ function materials() {
     },
     walls: { mart: lit(0xe8f1ee), diner: lit(0xf6ead6), lobby: lit(0xf3e9d8), pawn: lit(0xd9c7a6), arcade: lit(0x1d1a33), motel: lit(0xf0d9b8), laundry: lit(0xdcecf4), clinic: lit(0xeef6f3), police: lit(0xdde3ee) },
     accent: { mart: lit(0x2f8f83), lobby: lit(0xc9a45a), pawn: lit(0x7a4a2a), arcade: lit(0xff4d8d), motel: lit(0xe8455b), laundry: lit(0x3e8fd6), clinic: lit(0xe8455b), police: lit(0x24408f) },
-    goods: [0xff4d6d, 0xffd34d, 0x3de0ff, 0x7dff8a, 0xff8a3d, 0xc77dff, 0xffffff, 0x4d7dff].map(c => lit(c, { emissiveIntensity: .3 })),
+    goods: [0xff4d6d, 0xffd34d, 0x3de0ff, 0x7dff8a, 0xff8a3d, 0xc77dff, 0xffffff, 0x4d7dff].map(c => lit(c)),
     screens: [0x3de0ff, 0xff4d8d, 0x7dff8a, 0xffd34d, 0xc77dff, 0xff8a3d].map(c => glowing(c, 1.8)),
     cool: glowing(0xcdefff, 1.1), red: glowing(0xff3b4f, 1.6), green: glowing(0x5dff8a, 1.6), tints: new Map(),
   };
@@ -72,7 +78,8 @@ function towerSign() {
 
 // ---------- building the rooms ----------
 export function buildInteriors(api) {
-  const { scene, solids, lots, signMats, signNames, skyline } = api, m = materials(), r = seeded(3301);
+  const { scene, realScene, solids, lots, signMats, signNames, skyline } = api, m = materials(), r = seeded(3301);
+  const _mx = new THREE.Matrix4(), _q = new THREE.Quaternion();
   const rooms = [], spots = [];
   for (const shop of SHOPS) {
     // which building is it?
@@ -95,7 +102,17 @@ export function buildInteriors(api) {
     // (a, b): a = metres along the front (0 = the door), b = metres back from the front wall
     const P = (a, y, b) => V(fx * (D / 2 - b) + rx * a, y, fz * (D / 2 - b) + rz * a);
     const S = (sa, sy, sb) => fx ? V(sb, sy, sa) : V(sa, sy, sb);
-    const put = (mat, a, y, b, sa, sy, sb, cast = false, geo = G.box) => mesh(geo, mat, P(a, y, b), S(sa, sy, sb), g, cast);
+    // The walls and frames join the city's own welded meshes (seen from far off). What is inside is welded into a few
+    // meshes of this room's own, which are only drawn while you are near (createInteriors hides them beyond that).
+    const inner = new THREE.Group(); inner.position.copy(g.position); const coloured = new Map();
+    const put = (mat, a, y, b, sa, sy, sb, cast = false, geo = G.box) => {
+      if (mat === mats.trim || mat === mats.darkMetal) return mesh(geo, mat, P(a, y, b), S(sa, sy, sb), g, cast);
+      if (!mat.vc) return mesh(geo, mat, P(a, y, b), S(sa, sy, sb), inner, false);
+      const geom = plainGeometry(geo, _mx.compose(P(a, y, b).add(g.position), _q, S(sa, sy, sb))), n = geom.attributes.position.count, col = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) { col[i * 3] = mat.color.r; col[i * 3 + 1] = mat.color.g; col[i * 3 + 2] = mat.color.b; }
+      geom.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      if (!coloured.has(mat.vc)) coloured.set(mat.vc, []); coloured.get(mat.vc).push(geom);
+    };
     const world = (a, b) => { const p = P(a, 0, b); return { x: lot.x + p.x, z: lot.z + p.z }; };
     const wall = (a, b, sa, sb, h) => { const p = world(a, b), wx = fx ? sb : sa, wz = fx ? sa : sb; solids.walls.push({ x: p.x, z: p.z, hl: Math.max(wx, wz) / 2, ht: Math.min(wx, wz) / 2, rot: wx >= wz ? 0 : Math.PI / 2, kind: 'solid', h }); };
     // something you bump into but can see (and shoot) over
@@ -213,7 +230,7 @@ export function buildInteriors(api) {
       for (const s of [-1, 1]) { block(tinted(0x2f5f6f), 1.2 + s * 1.8, 0, 3.4, 1, .5, 2.6, .9); put(tinted(0x2f5f6f), 1.2 + s * 2.2, .8, 3.4, .22, .7, 2.6); }
       block(m.darkWood, 1.2, 0, 3.4, 1.1, .4, 1.5, .5); put(m.gold, 1.2, .42, 3.4, 1.2, .04, 1.6);
       plant(-hw + .7, .9); plant(hw - .7, .9); plant(-hw + .7, D - 1); plant(hw - .7, D - 1);
-      for (const [k, w] of [[.1, 2.6], [.3, 1.8], [.5, 1]]) { put(m.gold, 1.2, CEIL - k, D / 2, w, .06, w, false, G.cyl); put(m.panel, 1.2, CEIL - k - .05, D / 2, w * .9, .04, w * .9, false, G.cyl); }      // chandelier
+      for (const [k, w] of [[.08, 2.6], [.22, 1.8], [.36, 1]]) { put(m.gold, 1.2, CEIL - k, D / 2, w, .06, w, false, G.cyl); put(m.panel, 1.2, CEIL - k - .05, D / 2, w * .9, .04, w * .9, false, G.cyl); }      // chandelier
     } else if (shop.kind === 'clinic') {
       counter(0, D - 3.4, 4.6, .9, m.white, ac); clerkAt(0, D - 2.3, 0, -1); spot(0, D - 4.6, 'clinic', 1.7);
       put(m.white, 0, 3, D - T - .08, 1.5, 1.5, .06); put(m.red, 0, 3, D - T - .12, 1.1, .34, .04); put(m.red, 0, 3, D - T - .12, .34, 1.1, .04);
@@ -236,6 +253,8 @@ export function buildInteriors(api) {
       put(m.darkWood, hw - .08, 2, 4, .06, 1.4, 3); for (let k = 0; k < 6; k++) put(m.cream, hw - .13, 1.7 + (k % 2) * .6, 3 + Math.floor(k / 2) * .95, .03, .45, .6);
       put(ac, 0, 3.3, D - T - .08, 3.2, .7, .06); put(m.gold, 0, 3.3, D - T - .12, .5, .5, .04, false, rbox(1, 1, 1, .2));
     }
+    room.meshes = bakeStatic(inner, realScene, () => 'room');
+    for (const [mat, list] of coloured) { const mm = new THREE.Mesh(mergeGeometries(list), mat); mm.receiveShadow = true; mm.matrixAutoUpdate = false; realScene.add(mm); room.meshes.push(mm); list.forEach(o => o.dispose()); }
     rooms.push(room);
   }
 
@@ -254,7 +273,6 @@ export function buildInteriors(api) {
     }
     // the lift door in the lantern, and two coin telescopes for the view
     mesh(G.box, m.gold, V(0, 1.25, -core - .02), V(1.7, 2.5, .1), g, false); mesh(G.box, m.steel, V(-.38, 1.2, -core - .08), V(.72, 2.3, .05), g, false); mesh(G.box, m.steel, V(.38, 1.2, -core - .08), V(.72, 2.3, .05), g, false);
-    mesh(G.box, m.green, V(0, 2.62, -core - .09), V(.5, .14, .04), g, false);
     for (const s of [-1, 1]) { mesh(G.cyl, m.steel, V(s * (hw - 1), .6, hd - 1), V(.07, 1.2, .07), g, false); mesh(rbox(.3, .34, .6, .1), m.steel, V(s * (hw - 1), 1.3, hd - 1), null, g, false); }
     roof = { x, z: z - core - 1.1, y };
     spots.push({ x, z: z - core - 1.1, y, r: 1.6, room: tower, what: 'liftDown' });
@@ -306,7 +324,11 @@ export function createInteriors(game) {
     update(dt, t) {
       // the nearest room: its light is on and whoever works there is at their post
       let near = null, nd = 46;
-      for (const q of rooms) { const d = Math.hypot(q.x - p.x, q.z - p.z); if (q.clerk) q.clerk.model.visible = d < 46; if (d < nd) { nd = d; near = q; } }
+      for (const q of rooms) {
+        const d = Math.hypot(q.x - p.x, q.z - p.z), show = d < C.drawDist;
+        if (q.shown !== show) { q.shown = show; for (const o of q.meshes) o.visible = show; }
+        if (q.clerk) q.clerk.model.visible = d < 46; if (d < nd) { nd = d; near = q; }
+      }
       if (near) light.position.set(near.light.x, near.light.y, near.light.z);
       light.intensity += ((near ? 26 : 0) - light.intensity) * Math.min(1, dt * 4);
       const was = here; here = p.mode === 'foot' && p.y < 3 ? rooms.find(q => inside(q, p.x, p.z)) || null : null;
@@ -338,7 +360,7 @@ export function createInteriors(game) {
       // keep the camera under the ceiling
       const cam = game.camera;
       if (here && !game.combat.aiming) {
-        const top = here.y + CEIL - .25;
+        const top = here.y + CEIL - .85;
         if (cam.position.y > top && inside(here, cam.position.x, cam.position.z, .5)) { cam.position.y = top; cam.lookAt(game.cam.lookAt); }
       }
     },

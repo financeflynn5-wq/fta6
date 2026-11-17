@@ -1,7 +1,7 @@
 // Hold Tab: the whole of Sunset Coast, with everything there is to do and how much of it you've done.
 // Drawn with the hills at the top and the sea at the bottom. The game keeps running underneath.
 const PLACES = [['VISTA HEIGHTS', 0, 300], ['PORT SUNSET', 300, -20], ['THE DUSTLANDS', -250, 40], ['SUNSET BEACH', 0, -268], ['DOWNTOWN', 0, 0], ['HIGH MEADOWS', -262, 292], ['LIGHTHOUSE BLUFFS', 300, 262], ['PALM PROMENADE', 0, -193]];
-const KEY = [['#3de0ff', 'R', 'Race'], ['#ff8a3d', 'J', 'Stunt jump'], ['#ff6b3d', 'P', 'Pizza run'], ['#ffffff', 'S', 'Speed camera'], ['#ff4d6d', 'B', 'Car bowling'], ['#ff4fd8', '', 'Scrap\'s chop shop'], ['#ffd34d', '', 'Golden tin (when close)']];
+const KEY = [['#3de0ff', 'R', 'Race'], ['#ff8a3d', 'J', 'Stunt jump'], ['#ff6b3d', 'P', 'Pizza run'], ['#ffffff', 'S', 'Speed camera'], ['#ff4d6d', 'B', 'Car bowling'], ['#ff4fd8', '', 'Scrap\'s chop shop'], ['#ffd34d', '', 'Golden tin (when close)'], ['#ffffff', '', 'Open door: shop, diner or lobby']];
 
 export function createBigMap(A) {
   const { game } = A, p = game.player, mini = game.minimap;
