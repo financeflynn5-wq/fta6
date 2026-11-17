@@ -51,11 +51,11 @@ export function createPlayer(game) {
       body.setLinvel(vel, true);
       if (moving && !player.aiming) player.face += angleDiff(Math.atan2(mx, mz), player.face) * Math.min(1, dt * 14);   // when aiming, combat turns Rocco
 
-      // which car could we take?
+      // which car could we take? (not one another player is sitting in)
       let best = null, bd = PLAYER.enterRange;
-      for (const c of game.traffic.vehicles) { if (c.wrecked || Math.abs(c.y - player.y) > 2.5) continue; const d = c.distanceTo(player.x, player.z); if (d < bd) { bd = d; best = c; } }
+      for (const c of game.traffic.vehicles) { if (c.wrecked || c.ghost && c.driver || Math.abs(c.y - player.y) > 2.5) continue; const d = c.distanceTo(player.x, player.z); if (d < bd) { bd = d; best = c; } }
       player.nearCar = best;
-      if (best && input.hit('KeyE', 'KeyF')) player.enter(best);
+      if (best && input.hit('KeyE', 'KeyF')) player.enter(best.ghost ? game.net.claim(best) : best);      // a car another player left behind becomes ours first
     },
 
     postStep() {

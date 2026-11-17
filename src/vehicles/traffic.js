@@ -1,7 +1,8 @@
 // Owns every car in the city: parked cars, cruising traffic, and keeping the streets stocked.
 import { WORLD, TRAFFIC, PLAYER, CAR } from '../config.js';
-import { rand, choose } from '../core/utils.js';
+import { rand, choose, seeded } from '../core/utils.js';
 import { Vehicle } from './vehicle.js';
+import { carPalette } from './carModel.js';
 import { AIDriver } from './aiDriver.js';
 import { makeCharacter, CIVILIANS } from '../characters/models.js';
 import { ROAD_EDGES } from '../world/roads.js';
@@ -22,7 +23,8 @@ export function createTraffic(game) {
   const vehicles = [];
   const traffic = {
     vehicles,
-    add(type, x, z, h) { const v = new Vehicle(game, type, x, z, h); vehicles.push(v); return v; },
+    add(type, x, z, h, color) { const v = new Vehicle(game, type, x, z, h, color); vehicles.push(v); return v; },
+    adopt(v) { vehicles.push(v); return v; },          // a car made elsewhere (another player's, see net/ghostCar.js)
     remove(v) { const i = vehicles.indexOf(v); if (i >= 0) vehicles.splice(i, 1); v.dispose(); },
 
     // A free stretch of road, optionally far from (and hidden from) the player.
@@ -63,19 +65,23 @@ export function createTraffic(game) {
     },
 
     init() {
-      // parked cars along the three main streets, as in the concept
+      // parked cars along the three main streets, as in the concept. Their paint comes from its own seeded dice,
+      // so every player's screen starts with the same cars in the same colours.
+      const dice = seeded(4242), tint = (type) => { const p = carPalette(type); return p[Math.floor(dice() * p.length)]; };
       for (const r of [-54, 0, 54]) for (const axis of ['x', 'z']) for (let t = -140; t < 140; t += 11) {
         if (WORLD.roadsAt.some(q => Math.abs(t - q) < 14) || rand() < .45) continue;
         const side = rand() < .5 ? 1 : -1; let type = pickType(1, rand());
         if (tooLong(type, t)) type = 'van';
-        if (axis === 'x') traffic.add(type, t, r + side * 5.6, side > 0 ? 0 : Math.PI);
-        else traffic.add(type, r + side * 5.6, t, side > 0 ? -Math.PI / 2 : Math.PI / 2);
+        if (axis === 'x') traffic.add(type, t, r + side * 5.6, side > 0 ? 0 : Math.PI, tint(type));
+        else traffic.add(type, r + side * 5.6, t, side > 0 ? -Math.PI / 2 : Math.PI / 2, tint(type));
       }
       // one guaranteed ride right next to where Rocco starts
       const sx = -48.4, sz = PLAYER.spawn.z - 7;
       // ...with a motorbike and a sports car a few steps further along the same kerb
       for (const v of vehicles.slice()) if (Math.abs(v.x - sx) < 3 && v.z > sz - 17 && v.z < sz + 18) traffic.remove(v);
-      traffic.add('car', sx, sz, -Math.PI / 2); traffic.add('bike', sx + .5, sz + 11, -Math.PI / 2); traffic.add('sport', sx, sz - 10.5, -Math.PI / 2);
+      traffic.add('car', sx, sz, -Math.PI / 2, tint('car')); traffic.add('bike', sx + .5, sz + 11, -Math.PI / 2, tint('bike')); traffic.add('sport', sx, sz - 10.5, -Math.PI / 2, tint('sport'));
+      // The parked cars above are the same on every screen (seeded dice), so each gets a number other players can name it by.
+      vehicles.forEach((v, i) => { v.sid = i; });
       for (let i = 0; i < TRAFFIC.count; i++) traffic.spawnCruiser(pickType(0, Math.random()), 0, TRAFFIC.near);
     },
 
@@ -92,7 +98,7 @@ export function createTraffic(game) {
         const far = Math.hypot(v.x - p.x, v.z - p.z);
         const street = v.driver instanceof AIDriver && v.driver.mode !== 'lane';        // highway traffic is counted by highwayTraffic.js
         if (street && v.type !== 'police' && !v.wrecked) cruising++;
-        if (v.driver === 'player' || game.police.owns(v) || v.outlaw) continue;      // a crook on the run is the mission's business (outlaws.js)
+        if (v.driver === 'player' || v.ghost || game.police.owns(v) || v.outlaw) continue;      // ghost: another player's car, theirs to clear away; a crook on the run is the mission's business (outlaws.js)
         // the map is big: ordinary traffic that has drifted far from you is recycled closer
         if (v.driver instanceof AIDriver && v.type !== 'police' && far > TRAFFIC.near + 70) { if (!v.wrecked && street) cruising--; traffic.remove(v); continue; }
         const abandoned = !v.driver && (v.temp || v.wrecked) && v.idleTime > 12;

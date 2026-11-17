@@ -96,7 +96,7 @@ export function createCombat(game) {
       combat.onTarget = false;
       if (combat.aiming && combat.aimBlend > .5 && !w.melee) {
         const h = hits.cast(cam.origin.x, cam.origin.y, cam.origin.z, cam.dir.x, cam.dir.y, cam.dir.z, w.range, pastRocco(cam.origin, cam.dir), COMBAT.aimAssist * .35);
-        combat.onTarget = h.kind === 'ped' || h.kind === 'officer';
+        combat.onTarget = h.kind === 'ped' || h.kind === 'officer' || h.kind === 'rival';
       }
       if (combat.ready) p.face += angleDiff(faceYaw(), p.face) * Math.min(1, dt * 22);
       pose(w, t);
@@ -147,6 +147,7 @@ export function createCombat(game) {
     // every pellet lands somewhere inside the cone the crosshair shows
     const spread = spreadNow(w);
     side.crossVectors(d, UP); if (side.lengthSq() < 1e-6) side.set(1, 0, 0); side.normalize(); up.crossVectors(side, d);
+    const ends = game.net?.active ? [] : null;
     for (let i = 0; i < w.pellets; i++) {
       const r = Math.tan(spread * Math.sqrt(Math.random())), a = Math.random() * TAU;
       shot.copy(d).addScaledVector(side, Math.cos(a) * r).addScaledVector(up, Math.sin(a) * r).normalize();
@@ -158,11 +159,13 @@ export function createCombat(game) {
         if (b >= 0) { const len = Math.hypot(h.x - muzzle.x, h.z - muzzle.z), k = b / len; h.x = muzzle.x + (h.x - muzzle.x) * k; h.y = muzzle.y + (h.y - muzzle.y) * k; h.z = muzzle.z + (h.z - muzzle.z) * k; h.kind = 'wall'; h.obj = null; }
       }
       gfx.tracer(muzzle.x, muzzle.y, muzzle.z, h.x, h.y, h.z, w.pellets > 1 ? .014 : .022);
+      ends?.push(h.x, h.y, h.z);
       if (h.kind) hits.apply(h, w.damage, dx, dz);
     }
     gfx.flash(muzzle.x, muzzle.y, muzzle.z, (.35 + w.loud * .25) * (sighted ? .42 : 1));      // smaller when it goes off right in front of the eye
     view.fire(w);
     audio.shot(w.loud, 1);
+    if (ends) game.net.shot(id, muzzle, ends);
     game.cam.shake(w.kick * .9); if (combat.aiming) game.cam.kick(w.kick); combat.kick = w.kick * 4; combat.bloom = Math.min(AIM.bloomMax, combat.bloom + AIM.bloom);
     game.peds.scare(p.x, p.z, 40, 8);
     if (!combat.quiet && reportT <= 0 && game.police.witnessed(p.x, p.z, COMBAT.witnessRange)) { reportT = 1.5; game.police.crime(...COMBAT.crime.shotsFired, 'SHOTS FIRED!'); }
@@ -195,6 +198,7 @@ export function createCombat(game) {
     };
     for (const q of game.peds.list) if (q.state !== 'ko' && q.state !== 'down' && q.state !== 'air') check(q);
     for (const o of game.police.officers) check(o.ped);
+    if (game.net?.active) for (const r of game.net.targets) if (r.state !== 'down') check(r);
     return best;
   }
 
@@ -210,6 +214,8 @@ export function createCombat(game) {
     };
     for (const q of game.peds.list) check(q, 'ped', q);
     for (const o of game.police.officers) check(o.ped, 'officer', o);
+    if (game.net?.active) for (const r of game.net.targets) check(r, 'rival', r);
+    game.net?.swing();
     if (!best) { p.face = faceYaw(); return; }
     const q = best.q, dx = (q.x - p.x) / (bd || 1), dz = (q.z - p.z) / (bd || 1);
     p.face = Math.atan2(dx, dz);
@@ -218,31 +224,35 @@ export function createCombat(game) {
     hits.apply(h, w.damage, dx, dz, { melee: true, knock: w.knock });
   }
 
-  // ---------- how Rocco holds things (runs after the walk cycle has posed his arms) ----------
-  function pose(w, t, force = false) {
-    const [R, L] = arms, ready = force || combat.ready, pitch = combat.aimPitch;
-    R.rotation.y = L.rotation.y = 0; R.rotation.z = -.12; L.rotation.z = .12;   // the rig's resting shoulder angles
-    if (w.melee) {
-      if (combat.swingT > 0) {
-        const k = 1 - combat.swingT / .3, ext = Math.sin(Math.min(1, k * 1.6) * Math.PI);
-        const jab = combat.swingSide ? L : R, guard = combat.swingSide ? R : L;
-        jab.rotation.x = -.9 - ext * .75; jab.rotation.z = (jab === R ? .25 : -.25) * (1 - ext * .5);
-        guard.rotation.x = -1.25; guard.rotation.z = guard === R ? .5 : -.5;
-      } else if (ready) { R.rotation.x = L.rotation.x = -1.25 + Math.sin(t * 6) * .05; R.rotation.z = .5; L.rotation.z = -.5; }
-      return;
-    }
-    if (combat.reloading > 0) {
-      const k = Math.sin(t * 14) * .08;
-      R.rotation.x = -.85; R.rotation.z = .35; L.rotation.x = -1.05 + k; L.rotation.z = -.55; return;
-    }
-    if (ready) {
-      R.rotation.x = -HALF_PI - pitch - combat.kick * .5; R.rotation.z = .12;
-      L.rotation.x = -HALF_PI - pitch + (w.twoHand ? .2 : .1) - combat.kick * .4; L.rotation.z = w.twoHand ? -.62 : -.5;
-    } else if (w.twoHand) {
-      R.rotation.x = -.95; R.rotation.z = .2; L.rotation.x = -1.1; L.rotation.z = -.6;   // low ready across the body
-    }
-  }
+  // how Rocco holds things (runs after the walk cycle has posed his arms)
+  const pose = (w, t, force = false) => holdPose(arms, w, combat, t, force || combat.ready);
 
   combat.rehand();
   return combat;
+}
+
+// ---------- how anyone holds a weapon (runs after the walk cycle has posed the arms) ----------
+// arms: [right, left]. c: { aimPitch, swingT, swingSide, reloading, kick }. Other players' bodies are posed with this too (net/remote.js).
+export function holdPose(arms, w, c, t, ready) {
+  const [R, L] = arms, pitch = c.aimPitch;
+  R.rotation.y = L.rotation.y = 0; R.rotation.z = -.12; L.rotation.z = .12;   // the rig's resting shoulder angles
+  if (w.melee) {
+    if (c.swingT > 0) {
+      const k = 1 - c.swingT / .3, ext = Math.sin(Math.min(1, k * 1.6) * Math.PI);
+      const jab = c.swingSide ? L : R, guard = c.swingSide ? R : L;
+      jab.rotation.x = -.9 - ext * .75; jab.rotation.z = (jab === R ? .25 : -.25) * (1 - ext * .5);
+      guard.rotation.x = -1.25; guard.rotation.z = guard === R ? .5 : -.5;
+    } else if (ready) { R.rotation.x = L.rotation.x = -1.25 + Math.sin(t * 6) * .05; R.rotation.z = .5; L.rotation.z = -.5; }
+    return;
+  }
+  if (c.reloading > 0) {
+    const k = Math.sin(t * 14) * .08;
+    R.rotation.x = -.85; R.rotation.z = .35; L.rotation.x = -1.05 + k; L.rotation.z = -.55; return;
+  }
+  if (ready) {
+    R.rotation.x = -HALF_PI - pitch - c.kick * .5; R.rotation.z = .12;
+    L.rotation.x = -HALF_PI - pitch + (w.twoHand ? .2 : .1) - c.kick * .4; L.rotation.z = w.twoHand ? -.62 : -.5;
+  } else if (w.twoHand) {
+    R.rotation.x = -.95; R.rotation.z = .2; L.rotation.x = -1.1; L.rotation.z = -.6;   // low ready across the body
+  }
 }

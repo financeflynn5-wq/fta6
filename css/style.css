@@ -120,3 +120,19 @@ button.ghost kbd{font:700 .7rem var(--body);background:#fff;color:#111;border-ra
   #playBtn{padding:10px 28px}
   #title .keys{order:2}                /* the play button stays in view; the key list scrolls below it */
 }
+
+/* ---------- playing together ---------- */
+.mp{display:grid;gap:8px;justify-items:center;width:100%;padding-top:12px;border-top:1px solid rgba(255,255,255,.12)}
+.mpHead{font:700 .78rem var(--body);letter-spacing:.14em;text-transform:uppercase;color:#aeb4c2}
+.mpHead small{margin-left:6px;padding:2px 7px;border-radius:999px;background:rgba(77,227,255,.16);color:#4de3ff;letter-spacing:.06em}
+.mpRow{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.mpRow input{font:600 .95rem var(--body);color:#fff;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.22);border-radius:12px;padding:8px 12px;width:9.5em;text-align:center}
+.mpRow input:focus{outline:none;border-color:var(--gold)}
+.mpRow input#mpRoom{text-transform:uppercase;letter-spacing:.1em;width:8.5em}
+.mp .tip{margin:0}
+.mpList{position:absolute;left:18px;top:104px;display:grid;gap:3px;font:700 .8rem var(--body);color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8)}
+.mpList[hidden]{display:none}
+.mpList b{font-weight:700;letter-spacing:.12em;font-size:.68rem;color:#aeb4c2}
+.mpList span{display:flex;align-items:center;gap:6px}
+.mpList i{width:9px;height:9px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 2px rgba(0,0,0,.5)}
+@media (max-width:620px){.mpList{top:14px}}

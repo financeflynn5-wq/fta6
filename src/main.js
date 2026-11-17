@@ -41,6 +41,8 @@ import { createWhoPicker } from './ui/whoPicker.js';
 import { createOutlaws } from './missions/outlaws.js';
 import { createWallet } from './story/wallet.js';
 import { createStory } from './story/story.js';
+import { createNet } from './net/net.js';
+import { createLobby } from './ui/lobby.js';
 
 const STEP = 1 / 60;
 const $ = (id) => document.getElementById(id);
@@ -91,6 +93,7 @@ async function boot() {
   game.activities = createActivities(game);     // races, stunt jumps, collectibles and the rest
   game.indoors = createInteriors(game);         // shops and lobbies you can walk into
   game.places = createPlaces(game);             // the valley: glass and fences that break, the mall roof, the base
+  game.net = createNet(game);                   // other players, once a room is joined
   game.env.touch();
   engine.resize();
 
@@ -99,7 +102,7 @@ async function boot() {
   let crashSound = 0;
 
   game.addMoney = (n) => { game.money = Math.max(0, game.money + n); if (n > 0) { audio.cash(); hud.moneyPop(); } };
-  game.honk = (v) => audio.horn(v, v === player.vehicle);
+  game.honk = (v) => { audio.horn(v, v === player.vehicle); game.net.horn(v); };
 
   game.onCarTaken = (car, old, speed) => {
     audio.door(); cam.shake(.12);
@@ -111,6 +114,7 @@ async function boot() {
       else hud.toast('NICE AND QUIET', 'good');
     }
     car.stolen = true; car.temp = true; game.firstTheft = true;
+    game.net.own(car);
     game.jobs.onCarTaken(car);
   };
   game.onCarLeft = () => { };
@@ -193,6 +197,7 @@ async function boot() {
   };
   const play = () => { setState('playing'); game.input.lock(); };
   game.who = createWhoPicker(game);
+  game.lobby = createLobby(game, () => { if (game.state === 'title') cam.yaw = -Math.PI / 2; play(); });
   $('playBtn').textContent = 'Hit the streets'; $('playBtn').disabled = false;
   $('playBtn').addEventListener('click', () => { cam.yaw = -Math.PI / 2; play(); hud.toast('FIND A RIDE', 'info'); });
   $('resumeBtn').addEventListener('click', play);
@@ -227,6 +232,7 @@ async function boot() {
     game.time += dt;
     player.preStep(dt);
     game.combat.preStep(dt);
+    game.net.preStep();
     game.traffic.preStep(dt, game.time);
     game.world.preStep(dt);
     game.physics.step(onContact);
@@ -239,7 +245,7 @@ async function boot() {
   function frame(now) {
     requestAnimationFrame(frame);
     const dt = Math.min(.05, (now - last) / 1000); last = now;
-    if (game.state === 'paused') return;
+    if (game.state === 'paused' && !game.net.active) return;      // with other players around the city keeps going behind the pause menu
     advance(dt);
   }
   function advance(dt) {
@@ -251,6 +257,7 @@ async function boot() {
     peds.update(dt, t);
     player.update(dt, t);
     game.combat.update(dt, t);
+    game.net.update(dt, t);
     police.update(dt, t);
     game.copGuns.update(dt, t);
     game.pickups.update(dt, t);

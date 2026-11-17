@@ -45,6 +45,7 @@
   <div class="prompt" id="prompt" hidden></div>
   <div class="toasts" id="toasts"></div>
   <div class="clock" id="clock"></div>
+  <div class="mpList" id="mpList" hidden></div>
 </div>
 
 <div class="overlay" id="title">
@@ -73,6 +74,15 @@
       <div><kbd>Esc</kbd><span>Pause</span></div>
     </div>
     <button id="playBtn" disabled>Building the city…</button>
+    <div class="mp" id="mp">
+      <div class="mpHead">Play together <small>early test</small></div>
+      <div class="mpRow">
+        <input id="mpName" maxlength="14" placeholder="Your name" autocomplete="off" spellcheck="false" aria-label="Your name">
+        <input id="mpRoom" maxlength="12" placeholder="Room code" autocomplete="off" spellcheck="false" aria-label="Room code">
+        <button id="mpBtn" type="button" class="ghost" disabled>Join room</button>
+      </div>
+      <p class="tip" id="mpNote">Pick a room code and tell your friends. Everyone who joins the same code plays in the same city.</p>
+    </div>
     <button class="ghost fsBtn" type="button">Full screen <kbd>F11</kbd></button>
   </div>
 </div>
@@ -82,6 +92,8 @@
     <div class="biglogo">PAUSED</div>
     <div class="who" hidden></div>
     <button id="resumeBtn">Back to the streets</button>
+    <p class="tip" id="mpStatus" hidden></p>
+    <button class="ghost" id="mpLeave" type="button" hidden>Leave the room</button>
     <button class="ghost fsBtn" type="button">Full screen <kbd>F11</kbd></button>
   </div>
 </div>

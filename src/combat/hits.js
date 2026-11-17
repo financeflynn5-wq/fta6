@@ -52,13 +52,14 @@ export function createHits(game) {
       };
       for (const p of game.peds.list) if (p.state !== 'ko' && p.model.visible) body(p, 'ped', p);
       for (const o of game.police.officers) body(o.ped, 'officer', o);
+      if (game.net?.active) for (const r of game.net.targets) body(r, 'rival', r);            // other players on foot
       for (const v of game.traffic.vehicles) if (v !== skipCar && Math.abs(v.x - ox) < range + 3 && Math.abs(v.z - oz) < range + 3) consider(carBox(ox, oy, oz, dx, dy, dz, v, tmin, best), 'car', v);
       // buildings, posts and trees
       const h = Math.hypot(dx, dz);
       if (h > 1e-4) { const free = game.physics.probeSolid(ox, oz, dx / h, dz / h, best * h); if (free < best * h) { best = free / h; kind = 'wall'; obj = null; } }
       { const tg = rayGround(ox, oy, oz, dx, dy, dz, best); if (tg >= 0 && tg < best) { best = tg; kind = 'ground'; obj = null; } }
       hit.t = best; hit.x = ox + dx * best; hit.y = oy + dy * best; hit.z = oz + dz * best; hit.kind = kind; hit.obj = obj;
-      const who = kind === 'ped' ? obj : kind === 'officer' ? obj.ped : null;
+      const who = kind === 'ped' || kind === 'rival' ? obj : kind === 'officer' ? obj.ped : null;
       hit.head = !!who && !pose(who) && hit.y - who.y > (who.model.userData.big ? who.model.userData.big.headY - .02 : HEAD_Y);
       return hit;
     },
@@ -84,6 +85,11 @@ export function createHits(game) {
           game.combat?.hitMarker(out);
         }
         return out;
+      }
+      if (h.kind === 'rival') {           // another player: their own game decides what the hit does to them
+        const r = h.obj; bonkHead(r.model, h.head ? 1.6 : 1); if (near) { fx.smoke(h.x, h.y, h.z, .95, .35, .45, dx * 2, dz * 2); audio.oof(); }
+        if (byPlayer) { game.net.hitRival(r, damage, h.head, dx, dz, melee ? knock : 0); game.combat?.hitMarker(false); }
+        return false;
       }
       if (h.kind === 'officer') {
         const o = h.obj; bonkHead(o.ped.model, h.head ? 1.6 : 1); if (near) { if (o.ped.model.userData.bot) { fx.spark(h.x, h.y, h.z, 7, .7); audio.clank(); } else { fx.smoke(h.x, h.y, h.z, .95, .35, .45, dx * 2, dz * 2); audio.oof(); } }

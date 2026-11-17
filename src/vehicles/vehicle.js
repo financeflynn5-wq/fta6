@@ -8,10 +8,10 @@ import { makeCarModel } from './carModel.js';
 const GEARS = [0, 9, 17, 25, 32, 42];
 
 export class Vehicle {
-  constructor(game, type, x, z, heading) {
+  constructor(game, type, x, z, heading, color) {
     this.game = game; this.type = type; this.stats = CAR.types[type];
     this.isVehicle = true;
-    this.mesh = makeCarModel(type); game.scene.add(this.mesh);
+    this.mesh = makeCarModel(type, color); game.scene.add(this.mesh); this.color = this.mesh.userData.color;
     // Every handling number is read through `tune`: the shared CAR numbers, with this type's own on top.
     this.tune = { ...CAR, ...CAR.types[type] }; this.halfLen = this.tune.halfLen; this.halfWid = this.tune.halfWid;
     this.body = game.physics.addCar(this, x, z, heading, this.halfLen, this.halfWid, this.stats.mass);

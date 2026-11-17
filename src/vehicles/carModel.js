@@ -146,10 +146,13 @@ const SHAPES = {
 const built = {};
 const shapeOf = (type) => built[type] || (built[type] = SHAPES[type]());
 
-export function makeCarModel(type) {
-  if (SHAPES[type]) return makeFromShape(type);
+// col: a set paint colour (a car another player drives must look the same on every screen); left out, one is rolled.
+// The paint colours a type comes in.
+export const carPalette = (type) => SHAPES[type] ? shapeOf(type).colors : type === 'taxi' ? [0xf6c21c] : type === 'police' ? [0x1d2230] : carColors;
+export function makeCarModel(type, col) {
+  if (SHAPES[type]) return makeFromShape(type, col);
   const g = new THREE.Group(), chassis = new THREE.Group(); g.add(chassis);
-  const col = type === 'taxi' ? 0xf6c21c : type === 'police' ? 0x1d2230 : choose(carColors);
+  col ??= type === 'taxi' ? 0xf6c21c : type === 'police' ? 0x1d2230 : choose(carColors);
   if (type === 'police') { mesh(bodyGeo, paint(col), null, null, chassis); mesh(liveryGeo, paint(0xf4f4f4), null, null, chassis); }
   else mesh(shellGeo, paint(col), null, null, chassis);
   mesh(cabGeo, mats.carGlass, null, null, chassis);
@@ -178,9 +181,9 @@ export function makeCarModel(type) {
 }
 
 
-function makeFromShape(type) {
+function makeFromShape(type, col) {
   const S = shapeOf(type), g = new THREE.Group(), chassis = new THREE.Group(); g.add(chassis);
-  const col = choose(S.colors);
+  col ??= choose(S.colors);
   mesh(S.shell, paint(col), null, null, chassis);
   if (S.white) mesh(S.white, paint(0xf4f1ea), null, null, chassis);
   if (S.glass) mesh(S.glass, mats.carGlass, null, null, chassis);

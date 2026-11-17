@@ -95,7 +95,7 @@ export function createJobs(game) {
       let total = 0, type = 'car'; for (const k in O.want) total += O.want[k];
       let pickN = Math.random() * total; for (const k in O.want) { pickN -= O.want[k]; if (pickN < 0) { type = k; break; } }
       const away = (x, z) => Math.hypot(x - chop.x, z - chop.z) > 60;
-      const parked = traffic.vehicles.filter(v => v.type === type && !v.driver && !v.stolen && !v.wrecked && dist(v, player) > O.minDist && away(v.x, v.z));
+      const parked = traffic.vehicles.filter(v => v.type === type && !v.driver && !v.ghost && !v.stolen && !v.wrecked && dist(v, player) > O.minDist && away(v.x, v.z));
       const car = parked.length ? choose(parked) : traffic.spawnParked(type, O.minDist, away);
       if (!car) { orderWait = 4; return; }
       order = { type, car, pay: round10(O.pay[type] + dist(car, chop) * 1.2), life: O.life };
