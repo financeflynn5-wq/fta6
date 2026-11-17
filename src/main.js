@@ -17,7 +17,7 @@ import { createTraffic } from './vehicles/traffic.js';
 import { AIDriver } from './vehicles/aiDriver.js';
 import { createWheelBatch } from './vehicles/carModel.js';
 import { createPedestrians } from './characters/pedestrians.js';
-import { CIVILIANS } from './characters/models.js';
+import { CIVILIANS, bonkHead } from './characters/models.js';
 import { createPlayer } from './player/player.js';
 import { createCamera } from './player/camera.js';
 import { createPolice } from './police/police.js';
@@ -36,6 +36,7 @@ import { createJobs } from './missions/jobs.js';
 import { createHighwayTraffic } from './vehicles/highwayTraffic.js';
 import { createInteriors } from './world/interiors.js';
 import { createPlaces } from './world/places.js';
+import { createWhoPicker } from './ui/whoPicker.js';
 
 const STEP = 1 / 60;
 const $ = (id) => document.getElementById(id);
@@ -130,6 +131,7 @@ async function boot() {
   };
 
   game.onPedHit = (ped, v) => {
+    bonkHead(ped.model, 1.5);
     const d = Math.hypot(ped.x - player.x, ped.z - player.z);
     if (d < 45) { if (ped.model.userData.bot) { audio.clank(); fx.spark(ped.x, ped.y + 1, ped.z, 8); } else audio.bonk(); }
     peds.scare(ped.x, ped.z, 20);
@@ -181,6 +183,7 @@ async function boot() {
     if (s === 'playing') { audio.start(); audio.resume(); } else if (s === 'paused') audio.suspend();
   };
   const play = () => { setState('playing'); game.input.lock(); };
+  game.who = createWhoPicker(game);
   $('playBtn').textContent = 'Hit the streets'; $('playBtn').disabled = false;
   $('playBtn').addEventListener('click', () => { cam.yaw = -Math.PI / 2; play(); hud.toast('FIND A RIDE', 'info'); });
   $('resumeBtn').addEventListener('click', play);

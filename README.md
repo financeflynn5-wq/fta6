@@ -31,6 +31,12 @@ There is no build step.
 
 ## How the game works
 
+- **The cast.** Three families share the streets: Critters (raccoons, possums, pigeon cops), Tin Bots, and Big Heads, goofy humans
+  with giant heads and loud outfits. Every Big Head is rolled from skin tones, head shapes, hair, hats, eyewear, mustaches and
+  clothes, so no two match. Big Sal runs the motel, Tiff minds the arcade and Officer Dale sits at the police desk. Their heads
+  bobble when they run and snap back when they are hit, and that head is a much bigger target for a headshot (they are a little tougher to make up for it).
+- **Play as.** The title and pause menus let you be Rocco, Big Sal, Tiff or a freshly rolled Big Head (click Random again for another).
+  The swap happens on the spot and keeps your guns and cash; the choice is remembered.
 - **Driving.** Steering alone never breaks the tyres loose: the car turns as tight as its grip allows at that speed and no tighter. Hold the handbrake and steer to swing the tail round; let go and the tyres bite again within half a second, keeping most of the speed.
 - **Aiming.** Hold right mouse and you look through Rocco's eyes, down the sights of the gun in his hands: the pistol's notch and post (with night-sight dots), the SMG's red dot, the bead on the shotgun's rib and the burst rifle's optic. Shots go where the sights point, which is always the middle of the screen. The gun kicks, its slide or pump cycles, and it trails the hand a little when you turn. The aim lands on whoever is nearly dead ahead when the gun comes up, and a lit aiming mark brightens over someone you can hit. The sniper keeps its full scope.
 - **Steal a car.** Parked cars may set off an alarm. Taking one with a driver in it always gets you a star.
@@ -77,7 +83,9 @@ src/vehicles/               damage (dents, scuffs, cracked glass, dead lamps, to
                             vehicle (handling, rider seat), carModel (stand-in shapes + the wheel batch), vehicleModels (loads the
                             Blender models from assets/vehicles/ and swaps them in), aiDriver (traffic + pursuit), traffic,
                             highwayTraffic (drivers and cruisers on the elevated roads)
-src/characters/             models (Critters + Tin Bots), pedestrians
+src/characters/             rig (the body everyone shares), models (Critters + Tin Bots, who walks the streets, the walk cycle),
+                            bigheads (the Big Head builder: heads, hair, hats, faces, clothes), bigheadLooks (what a Big Head can
+                            look like: the named three and the dice for everyone else), pedestrians
 src/player/                 player (on foot, in/out of cars), camera
 src/police/                 police (stars, cruisers, officers on foot)
 src/missions/               jobs (chop-shop orders, taxi fares, their markers and radar blips)
@@ -87,9 +95,10 @@ src/combat/                 combat (Rocco's weapons, aim, punch), hits (damage r
 assets/weapons/             Flynn's guns as self-contained glTF (.gltf.json), converted from GrappleStrikeGuns.fbx
 assets/vehicles/            the eight vehicles built in Blender (.gltf.json) + their shared texture atlas (atlas_*.png).
                             Sources, .blend files and .glb copies: /mnt/project-files/models/vehicles/
-src/ui/                     hud, weaponHud (ammo, armor, crosshair, scope), minimap
+src/ui/                     hud, weaponHud (ammo, armor, crosshair, scope), minimap, whoPicker ("Play as" on the menus)
 src/fx/                     effects (tyre marks, smoke, sparks), carLights, debris (shards and torn-off parts)
 dev/damage-lab.html         a bench for the crash damage: vehicles on a plain floor, dented from the console (not part of the game)
+dev/cast-lab.html           a bench for the characters: a line-up of any cast members, e.g. ?kinds=sal,dale,tiff,bighead*9
 vendor/                     three.js r160 and Rapier 2D, vendored so the game works offline
 ```
 

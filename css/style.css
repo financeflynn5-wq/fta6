@@ -99,3 +99,24 @@ button.ghost kbd{font:700 .7rem var(--body);background:#fff;color:#111;border-ra
 .job em{font:400 .95rem var(--display);font-style:normal;color:#7dffa8}
 .tip{margin:-6px 0 0;color:#aeb4c2;font-size:.86rem;line-height:1.4}.tip b{color:#ff8ae6}
 @media (max-width:620px){.keys{grid-template-columns:1fr}.logo{display:none}}
+
+/* ---------- play as (title and pause menus) ---------- */
+.who{display:flex;align-items:flex-start;justify-content:center;gap:10px;flex-wrap:wrap}
+.who[hidden]{display:none}
+.who>span{align-self:center;font:700 .78rem var(--body);letter-spacing:.14em;text-transform:uppercase;color:#aeb4c2;margin-right:4px}
+.who button{display:grid;justify-items:center;gap:4px;padding:0;background:none;box-shadow:none;border-radius:14px;font:600 .74rem var(--body);color:#cfd3dc}
+.who button:active:not(:disabled){box-shadow:none}
+.who canvas{width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 50% 35%,#ffd9a8,#ff9f8a 70%,#c96a7a);border:3px solid rgba(255,255,255,.22)}
+.who button.on canvas{border-color:var(--gold);box-shadow:0 0 0 3px rgba(255,211,77,.25)}
+.who button.on{color:var(--gold)}
+/* short screens: the title menu still has to fit */
+.panel{max-height:96vh;overflow-y:auto}
+@media (max-height:900px){
+  .panel{gap:11px;padding:18px 30px}
+  .biglogo{font-size:clamp(1.8rem,4.6vw,2.5rem)}
+  .keys{gap:4px 22px;font-size:.8rem}
+  .tip{font-size:.8rem;margin-top:-3px}
+  .who canvas{width:52px;height:52px}
+  #playBtn{padding:10px 28px}
+  #title .keys{order:2}                /* the play button stays in view; the key list scrolls below it */
+}

@@ -1,43 +1,12 @@
-// The cast: Critters (raccoon, possum, pigeon cop) and Tin Bots (Scrap, Tess, Unit 5-0),
-// all built on one shared rig so they animate the same way. Shapes come from the cast concepts.
+// The cast: Critters (raccoon, possum, pigeon cop), Tin Bots (Scrap, Tess, Unit 5-0) and Big Heads
+// (bigheads.js), all built on one shared rig (rig.js) so they animate the same way. Shapes come from the cast concepts.
 import * as THREE from 'three';
 import { V, choose } from '../core/utils.js';
-import { std, G, mesh, rbox, cap } from '../world/materials.js';
+import { std, G, rbox } from '../world/materials.js';
+import { rig, googlyEyes, mat, glow, eyeW, eyeB, gold, cone, M, cache } from './rig.js';
+import { bigHead } from './bigheads.js';
 import { plainGeometry } from '../world/batching.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-
-const cache = {};
-const mat = (c, r = .7, m = 0) => cache[c + '/' + r + '/' + m] || (cache[c + '/' + r + '/' + m] = std({ color: c, roughness: r, metalness: m }));
-const glow = (c, i) => std({ color: 0x000000, emissive: c, emissiveIntensity: i });
-const eyeW = mat(0xffffff, .15), eyeB = mat(0x0d0d10, .05), gold = mat(0xffd34d, .3, 1);
-const cone = (r, h, seg = 12) => new THREE.ConeGeometry(r, h, seg);
-const M = (geo, m, p, s, parent, rot) => { const o = mesh(geo, m, p, s, parent); if (rot) o.rotation.set(...rot); return o; };
-
-function rig({ shirt, pants, shoes, skin, headY = 1.66, armMat }) {
-  const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
-  const legs = [], arms = [];
-  for (const s of [-1, 1]) {
-    const h = new THREE.Group(); h.position.set(s * .16, .74, 0); body.add(h);
-    M(cap(.11, .42), pants, V(0, -.3, 0), null, h); M(rbox(.24, .14, .36, .06), shoes, V(0, -.66, .06), null, h); legs.push(h);
-  }
-  M(cap(.3, .34), shirt, V(0, 1.08, 0), V(1, 1, .88), body);
-  for (const s of [-1, 1]) {
-    const sh = new THREE.Group(); sh.position.set(s * .36, 1.3, 0); sh.rotation.z = s * .12; body.add(sh);
-    M(cap(.085, .36), armMat || shirt, V(0, -.22, 0), null, sh); M(G.sph, skin, V(0, -.47, 0), .1, sh); arms.push(sh);
-  }
-  const head = new THREE.Group(); head.position.set(0, headY, 0); body.add(head);
-  root.userData = { legs, arms, head, body, pupils: [], phase: Math.random() * 6, lie: 0 };
-  return root;
-}
-function googlyEyes(head, y = .06, z = .27) {
-  const pupils = [];
-  for (const k of [-1, 1]) {
-    M(G.sph, eyeW, V(k * .13, y, z), V(.11, .12, .08), head);
-    const p = M(G.sph, eyeB, V(k * .13, y - .01, z + .07), V(.055, .06, .03), head); p.userData.live = true; pupils.push(p);
-    M(G.sph, eyeW, V(k * .13 + .02, y + .02, z + .1), .016, head);
-  }
-  return pupils;
-}
 
 const OUTFITS = [0xe8455b, 0x3e6fd6, 0xf2a93b, 0x2f8f83, 0x9b5de5, 0xff7aa2, 0xf4f1ea, 0x2b2f35];
 const PANTS = [0x2b3443, 0x4a3b2e, 0x33415c, 0x5a5f66];
@@ -138,12 +107,17 @@ export function setCharacterShadow(c, on) {
   c.traverse(o => { if (o.isMesh) o.castShadow = on; });
 }
 
-export const CIVILIANS = ['raccoon', 'raccoon', 'possum', 'possum', 'scrap', 'scrap', 'scrap'];
-export const COPS = ['pigeon', 'unit50'];
+// Who walks the streets and who polices them (repeats make a kind more common). 'bighead' and 'bigcop' are rolled fresh every time.
+export const CIVILIANS = ['raccoon', 'raccoon', 'possum', 'possum', 'scrap', 'scrap', 'scrap', 'bighead', 'bighead', 'bighead', 'bighead', 'bighead'];
+export const COPS = ['pigeon', 'unit50', 'bigcop'];
+export const BIG_HEADS = ['bighead', 'bigcop', 'sal', 'dale', 'tiff'];
+// Who you can play as (the title and pause menus). Rocco is the default.
+export const PLAYABLE = [['rocco', 'Rocco'], ['sal', 'Big Sal'], ['tiff', 'Tiff'], ['bighead', 'Random Big Head']];
 
-export function makeCharacter(kind) {
+export function makeCharacter(kind, opt) {
   let c;
-  if (kind === 'rocco') c = critter('raccoon', { outfit: 0xe8455b, hood: true });
+  if (BIG_HEADS.includes(kind)) c = bigHead(kind, opt);
+  else if (kind === 'rocco') c = critter('raccoon', { outfit: 0xe8455b, hood: true });
   else if (kind === 'scrap') c = scrap();
   else if (kind === 'tess') c = tess();
   else if (kind === 'unit50') c = unit50();
@@ -171,9 +145,34 @@ export function animateCharacter(c, t, dt, speed, pose = 'move', alert = false) 
   u.body.position.z = u.lie * .9;
   u.body.rotation.z = moving && speed > 5 ? Math.sin(ph) * .05 : 0;
   u.head.rotation.z = Math.sin(ph * .5) * .06;
+  if (u.big) {                       // arms go round the giant head rather than through it
+    const out = pose === 'flail' ? .85 : .12; u.arms[0].rotation.z = -out; u.arms[1].rotation.z = out;
+    bobble(u, dt, pose, moving, 3.2 + speed * 1.55, ph, amp);
+  }
   for (let i = 0; i < u.pupils.length; i++) {
-    const p = u.pupils[i]; p.position.x = (i ? .13 : -.13) + Math.sin(t * 7 + i + u.phase) * .025; p.position.y = .05 + Math.cos(t * 5 + i) * .02;
+    const p = u.pupils[i], d = p.userData; p.position.x = d.bx + Math.sin(t * 7 + i + u.phase) * .025 * d.amp; p.position.y = d.by + Math.cos(t * 5 + i) * .02 * d.amp;
   }
   if (u.tail) u.tail.rotation.y = Math.sin(t * 3 + u.phase) * .35;
   if (u.siren) { const on = alert ? Math.floor(t * 6) % 2 : -1; u.siren[0].emissiveIntensity = on === 1 ? 6 : .1; u.siren[1].emissiveIntensity = on === 0 ? 6 : .1; }
 }
+
+// Big Heads are bobbleheads: the head sits on a soft spring. Every stride nudges it, and being
+// knocked over, punched or scared gives it a proper shove, so it nods and rolls a moment after the body.
+const BOB = { stiff: 95, damp: 5.5, sway: .17, kick: 5.5, max: .5 };      // sway: how far (radians) a full stride rocks the head
+function bobble(u, dt, pose, moving, rate, ph, amp) {
+  const b = u.big, h = Math.min(dt, 1 / 30);
+  if (pose !== b.pose) {
+    if (pose === 'down') { b.vx -= BOB.kick; b.vz += (u.phase % 2 - 1) * BOB.kick; }
+    else if (pose === 'flail' || b.pose === 'down') { b.vx += BOB.kick * .55; b.vz -= (u.phase % 2 - 1) * BOB.kick * .5; }
+    b.pose = pose;
+  }
+  // the stride pushes just hard enough for the spring to swing `sway` at this step rate, so a sprint rocks it more than a stroll
+  const push = moving ? amp * BOB.sway * Math.hypot(BOB.stiff - rate * rate, rate * BOB.damp) : 0;
+  b.vx += (-BOB.stiff * b.rx + Math.cos(ph) * push * .6) * h; b.vz += (-BOB.stiff * b.rz + Math.sin(ph) * push) * h;
+  const k = Math.max(0, 1 - BOB.damp * h); b.vx *= k; b.vz *= k;
+  b.rx = Math.max(-BOB.max, Math.min(BOB.max, b.rx + b.vx * h)); b.rz = Math.max(-BOB.max, Math.min(BOB.max, b.rz + b.vz * h));
+  u.head.rotation.x = b.rx; u.head.rotation.z = b.rz;
+  u.head.position.z = u.lie * .27;                 // lying on their back: the big head rests on the ground, not in it
+}
+// Give a Big Head's head a shove from outside (a punch, a bullet, a car): dx, dz in the character's own frame are not needed, any direction reads fine.
+export function bonkHead(c, power = 1) { const b = c.userData.big; if (b) { b.vx += (Math.random() - .5) * 9 * power; b.vz += (Math.random() < .5 ? -1 : 1) * 6 * power; } }

@@ -80,7 +80,8 @@ export function createCamera(game) {
         tx = car.ix + fx * (1 + k * 2.5); tz = car.iz + fz * (1 + k * 2.5); ty = car.y + 1.7 * big;
       } else {
         if (idle && p.speed > 1 && !p.aiming) cam.yaw += angleDiff(Math.atan2(p.vz, p.vx), cam.yaw) * Math.min(1, dt * 1.1);
-        wantDist = 6.6; tx = p.ix; tz = p.iz; ty = p.y + 1.55;
+        const tall = p.model.userData.big ? 1 : 0;          // a Big Head is followed from a little higher and further back, to see over it
+        wantDist = 6.6 + tall * .7; tx = p.ix; tz = p.iz; ty = p.y + 1.55 + tall * .35;
       }
       cam.tx = damp(cam.tx, tx, 14, dt); cam.tz = damp(cam.tz, tz, 14, dt); cam.ty = damp(cam.ty, ty, 10, dt);
       if (Math.hypot(cam.tx - tx, cam.tz - tz) > 30) { cam.tx = tx; cam.tz = tz; }
@@ -104,7 +105,7 @@ export function createCamera(game) {
         const scope = !!w?.scope, first = scope || !!combat.view?.has(combat.weapon), pa = cam.aimPitch - cam.recoil, cpa = Math.cos(pa), spa = Math.sin(pa);
         let ax, ay, az, move = a;
         if (first) {          // sights and scopes look from Rocco's eye. The camera gets there early, so the gun can come up in front of it
-          ax = p.ix + cy * AIM.eyeAhead; az = p.iz + sy * AIM.eyeAhead; ay = p.y + AIM.eye; move = 1 - (1 - a) ** 3;
+          ax = p.ix + cy * AIM.eyeAhead; az = p.iz + sy * AIM.eyeAhead; ay = p.y + AIM.eye + (p.model.userData.big ? AIM.bigEye : 0); move = 1 - (1 - a) ** 3;
         } else {
           // right shoulder, pulled in when a wall is on that side or behind
           const side = clamp(game.physics.probe(p.ix, p.iz, -sy, cy, AIM.shoulder + .35) - .35, .05, AIM.shoulder);

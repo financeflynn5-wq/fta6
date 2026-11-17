@@ -2,10 +2,11 @@
 // knocking people out, and telling the police about it.
 import { rayGround } from '../world/terrain.js';
 import { COMBAT, CAR } from '../config.js';
+import { bonkHead } from '../characters/models.js';
 
 const BODY_R = .42, BODY_H = 2.0, HEAD_Y = 1.45;
 
-export const maxHp = (ped) => ped.model.userData.bot ? COMBAT.hp.bot : ped.cop ? COMBAT.hp.officer : COMBAT.hp.critter;
+export const maxHp = (ped) => ped.model.userData.bot ? COMBAT.hp.bot : ped.cop ? COMBAT.hp.officer : ped.model.userData.big ? COMBAT.hp.bighead : COMBAT.hp.critter;
 
 export function createHits(game) {
   const hit = { t: 0, x: 0, y: 0, z: 0, kind: null, obj: null, head: false };
@@ -45,7 +46,9 @@ export function createHits(game) {
       const body = (p, k, o) => {
         if (Math.abs(p.x - ox) > range + 2 && Math.abs(p.z - oz) > range + 2) return;
         const lying = pose(p), r = (lying ? .75 : BODY_R) + assist * Math.hypot(p.x - ox, p.z - oz);
-        consider(cylinder(ox, oy, oz, dx, dy, dz, p.x, p.z, r, p.y, p.y + (lying ? .7 : BODY_H), tmin, best), k, o);
+        const big = !lying && p.model.userData.big;                 // a Big Head: a small body with a much wider head on top
+        consider(cylinder(ox, oy, oz, dx, dy, dz, p.x, p.z, r, p.y, p.y + (lying ? .7 : big ? big.headY : BODY_H), tmin, best), k, o);
+        if (big) consider(cylinder(ox, oy, oz, dx, dy, dz, p.x, p.z, r - BODY_R + big.headR, p.y + big.headY, p.y + big.top, tmin, best), k, o);
       };
       for (const p of game.peds.list) if (p.state !== 'ko' && p.model.visible) body(p, 'ped', p);
       for (const o of game.police.officers) body(o.ped, 'officer', o);
@@ -55,7 +58,8 @@ export function createHits(game) {
       if (h > 1e-4) { const free = game.physics.probeSolid(ox, oz, dx / h, dz / h, best * h); if (free < best * h) { best = free / h; kind = 'wall'; obj = null; } }
       { const tg = rayGround(ox, oy, oz, dx, dy, dz, best); if (tg >= 0 && tg < best) { best = tg; kind = 'ground'; obj = null; } }
       hit.t = best; hit.x = ox + dx * best; hit.y = oy + dy * best; hit.z = oz + dz * best; hit.kind = kind; hit.obj = obj;
-      hit.head = (kind === 'ped' || kind === 'officer') && !pose(kind === 'ped' ? obj : obj.ped) && hit.y - (kind === 'ped' ? obj.y : obj.ped.y) > HEAD_Y;
+      const who = kind === 'ped' ? obj : kind === 'officer' ? obj.ped : null;
+      hit.head = !!who && !pose(who) && hit.y - who.y > (who.model.userData.big ? who.model.userData.big.headY - .02 : HEAD_Y);
       return hit;
     },
 
@@ -64,7 +68,7 @@ export function createHits(game) {
       const { fx, audio, peds, police } = game, p = game.player;
       const near = Math.hypot(h.x - p.x, h.z - p.z) < 60;
       if (h.kind === 'ped') {
-        const ped = h.obj, bot = ped.model.userData.bot;
+        const ped = h.obj, bot = ped.model.userData.bot; bonkHead(ped.model, h.head ? 1.6 : 1);
         if (near) { if (bot) { fx.spark(h.x, h.y, h.z, 7, .7); audio.clank(); } else { fx.smoke(h.x, h.y, h.z, .95, .35, .45, dx * 2, dz * 2); audio.oof(); } }
         ped.hp = (ped.hp ?? maxHp(ped)) - damage * (h.head ? COMBAT.headshot : 1);
         const out = ped.hp <= 0;
@@ -81,7 +85,7 @@ export function createHits(game) {
         return out;
       }
       if (h.kind === 'officer') {
-        const o = h.obj; if (near) { if (o.ped.model.userData.bot) { fx.spark(h.x, h.y, h.z, 7, .7); audio.clank(); } else { fx.smoke(h.x, h.y, h.z, .95, .35, .45, dx * 2, dz * 2); audio.oof(); } }
+        const o = h.obj; bonkHead(o.ped.model, h.head ? 1.6 : 1); if (near) { if (o.ped.model.userData.bot) { fx.spark(h.x, h.y, h.z, 7, .7); audio.clank(); } else { fx.smoke(h.x, h.y, h.z, .95, .35, .45, dx * 2, dz * 2); audio.oof(); } }
         const out = police.hurtOfficer(o, damage * (h.head ? COMBAT.headshot : 1), dx, dz, melee ? knock : 1.5);
         if (byPlayer) { report(out ? COMBAT.crime.copKo : COMBAT.crime.copAssault, out ? 'OFFICER DOWN!' : 'ASSAULTED AN OFFICER!'); game.combat?.hitMarker(out); }
         if (out) game.pickups?.drop(o.ped.x, o.ped.z);

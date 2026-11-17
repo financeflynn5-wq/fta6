@@ -51,7 +51,7 @@ function opticReticle() {
   return reticleTex;
 }
 
-// Rocco's paws and sleeves, as seen from his own eyes.
+// Your hands and sleeves, as seen from your own eyes (Rocco's paws unless you play as someone else: see setHands).
 let fur = null, sleeve = null;
 const pawGeo = new THREE.SphereGeometry(1, 20, 14), armGeo = new THREE.CapsuleGeometry(.07, .5, 6, 14);
 function makeHand(elbow) {
@@ -169,6 +169,8 @@ export function createSightView(game) {
 
   const view = {
     scene, pass, shown: false, up: 0,
+    // Whose hands these are: skin (or fur) and sleeve colours.
+    setHands(skin, cuff) { fur ||= std({ color: skin, roughness: .75 }); sleeve ||= std({ color: cuff, roughness: .9 }); fur.color.setHex(skin); sleeve.color.setHex(cuff); },
     // Does this weapon have sights to look down (and is its model here)?
     has: (id) => !!rigFor(id),
     // Where the barrel ends, in the world, for the flash and tracers of a shot fired from this view.
