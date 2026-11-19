@@ -77,7 +77,7 @@ export function createNet(game) {
     claim(ghost) {
       const owner = ghost.owner, id = ghost.netId;
       const v = game.traffic.add(ghost.type, ghost.x, ghost.z, ghost.h, ghost.color);
-      v.health = ghost.health; v.sid = ghost.sid; v.stolen = true; v.temp = true; v.netId = id; game.ride.setHeight(v, ghost.y); v.syncVisual(0, 0);
+      v.health = ghost.health; v.sid = ghost.sid; v.stolen = true; v.temp = true; v.netId = id; if (v.craft) v.craft.setHeight(v, ghost.y, ghost.air > 0); else game.ride.setHeight(v, ghost.y); v.syncVisual(0, 0);
       owner.dropCar(id); taken.set(id, clock + 3);
       owned.unshift(v); tr.emit('take', { id });
       return v;

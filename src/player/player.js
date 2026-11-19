@@ -12,7 +12,7 @@ export function createPlayer(game) {
   try { const s = localStorage.getItem('fta6.who'); if (PLAYABLE.some(([id]) => id === s)) who = s; } catch { /* storage blocked: Rocco it is */ }
   let look; try { if (who === 'bighead') look = JSON.parse(localStorage.getItem('fta6.look') || 'null') || undefined; } catch { /* a fresh face, then */ }
   let model = makeCharacter(who, { props: false, look }); game.scene.add(model);
-  const body = game.physics.addPerson(null, PLAYER.spawn.x, PLAYER.spawn.z, PLAYER.radius);
+  const body = game.physics.addPerson(null, PLAYER.spawn.x, PLAYER.spawn.z, PLAYER.radius); game.physics.freeOfEdge(body);
   const vel = { x: 0, y: 0 };
 
   const player = {
@@ -30,6 +30,7 @@ export function createPlayer(game) {
         c.throttle = input.axis(['KeyS', 'ArrowDown'], ['KeyW', 'ArrowUp']);
         c.steer = input.axis(['KeyA', 'ArrowLeft'], ['KeyD', 'ArrowRight']);
         c.handbrake = input.down('Space');
+        if (v.stats.craft === 'heli') { c.handbrake = false; c.lift = input.axis(['ShiftLeft', 'ShiftRight', 'KeyC'], ['Space']); }      // Space climbs, Shift sinks
         if (input.hit('KeyH')) game.honk(v);
         if (input.hit('KeyE', 'KeyF')) player.exit();
         return;
@@ -81,9 +82,10 @@ export function createPlayer(game) {
 
     exit() {
       const car = player.vehicle, ph = game.physics;
+      if (car.craft?.canExit && !car.craft.canExit(car)) return;                   // a helicopter in the sky
       // driver's side first, then passenger side, then out the back
       const side = car.halfWid + .8, end = car.halfLen + .9;
-      const spots = [[-car.rx * side, -car.rz * side], [car.rx * side, car.rz * side], [-car.fx * end, -car.fz * end], [car.fx * end, car.fz * end]];
+      const spots = car.craft?.exitSpots?.(car) ?? [[-car.rx * side, -car.rz * side], [car.rx * side, car.rz * side], [-car.fx * end, -car.fz * end], [car.fx * end, car.fz * end]];
       let sx = car.x + spots[0][0], sz = car.z + spots[0][1];
       for (const [ox, oz] of spots) {
         const x = car.x + ox, z = car.z + oz;
@@ -94,7 +96,7 @@ export function createPlayer(game) {
       if (car.rider === model) { car.unseat(); game.scene.add(model); }
       body.setEnabled(true); body.setTranslation({ x: sx, y: sz }, true);
       player.x = player.px = sx; player.z = player.pz = sz; player.face = -car.h + Math.PI / 2;
-      car.driver = null; car.controls.throttle = 0; player.vehicle = null; player.mode = 'foot'; model.visible = true;
+      car.driver = null; car.controls.throttle = 0; car.controls.lift = 0; player.vehicle = null; player.mode = 'foot'; model.visible = true;
       if (car.speed > PLAYER.bailSpeed) {         // bailing out at speed hurts
         body.setLinvel({ x: car.vx * .7, y: car.vz * .7 }, true); player.tumble = 1.3; player.hurt(4 + (car.speed - PLAYER.bailSpeed) * 1.3);
       } else body.setLinvel({ x: 0, y: 0 }, true);

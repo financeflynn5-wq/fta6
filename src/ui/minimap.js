@@ -23,11 +23,12 @@ export function createMinimap(game) {
       x.clearRect(0, 0, S, S); x.save();
       x.beginPath(); x.arc(R, R, R, 0, 7); x.clip();
       x.translate(R, R); x.rotate(-yaw - Math.PI / 2); x.scale(SCALE, SCALE); x.translate(-p.x, -p.z);
+      x.fillStyle = '#2b8fa8'; x.fillRect(p.x - 150, p.z - 150, 300, 300);      // open sea beyond the edge of the plan (boats and helicopters go there)
       x.drawImage(plan, -half, -half);
       // other cars
       for (const v of game.traffic.vehicles) {
         if (Math.abs(v.x - p.x) > 120 || Math.abs(v.z - p.z) > 120 || v === p.vehicle) continue;
-        const cop = v.type === 'police' && (v.siren || v.driver);
+        const cop = v.type.startsWith('police') && (v.siren || (v.driver && v.driver !== 'player'));
         x.save(); x.translate(v.x, v.z); x.rotate(v.h);
         x.fillStyle = cop ? (v.siren ? (Math.floor(t * 6) % 2 ? '#ff3048' : '#3d7bff') : '#7fb0ff') : v.wrecked ? '#333' : '#f1f1f1';
         const hl = v.halfLen * 1.3, hw = Math.max(1.1, v.halfWid * 1.7); x.fillRect(-hl, -hw, hl * 2, hw * 2); x.restore();

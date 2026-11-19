@@ -46,6 +46,7 @@ export function createPolice(game) {
       for (const u of units) { u.car.siren = false; u.car.temp = true; if (u.driver && !u.car.wrecked && u.car.driver === u.driver) { if (u.deployed) u.driver.mode = 'pursue'; u.driver.resumeCruise(); } }
       units.length = 0;
       for (const o of officers.slice()) retire(o);
+      game.airSea?.standDown();
       if (!silent) game.audio.evade();
     },
 
@@ -100,6 +101,7 @@ export function createPolice(game) {
         const sees = (x, z) => { const d = Math.hypot(x - p.x, z - p.z); return d < POLICE.nearRange || (d < POLICE.sightRange && game.physics.canSee(x, z, p.x, p.z)); };
         for (const u of units) if (!u.car.wrecked && sees(u.car.x, u.car.z)) { police.seen = true; break; }
         if (!police.seen) for (const o of officers) if (sees(o.ped.x, o.ped.z)) { police.seen = true; break; }
+        if (!police.seen && game.airSea?.sees()) police.seen = true;          // the helicopter overhead, a patrol boat
         if (!police.seen) for (const c of peds.list) if (c.cop && (c.state === 'walk' || c.state === 'return') && Math.hypot(c.x - p.x, c.z - p.z) < 45 && sees(c.x, c.z)) { police.seen = true; break; }
         // beat cops close by join the chase on foot
         for (const c of peds.list.slice()) {
@@ -140,7 +142,7 @@ export function createPolice(game) {
       }
 
       // ----- drive each unit -----
-      const inCar = p.mode === 'car', stars = police.stars;
+      const inCar = p.mode === 'car', stars = police.stars, shore = game.airSea?.offRoad();      // shore: the player is afloat or in the air; the cars wait at the nearest street
       for (const u of units) {
         const car = u.car, d = u.driver; if (car.wrecked) continue;
         car.siren = true;
@@ -156,7 +158,8 @@ export function createPolice(game) {
         d.maxSpeed = car.stats.maxSpeed * [0, .78, .86, .94, 1, 1][stars];
         d.ram = inCar && stars >= 2;
         d.hold = police.hidden < 2 && (!inCar || (p.speed < 3.5 && dist < 16));
-        if (police.hidden < 1.5 || !police.contact) {
+        if (shore) { d.target.x = shore.x; d.target.z = shore.z; d.ram = false; d.hold = Math.hypot(car.x - shore.x, car.z - shore.z) < 20; u.search = null; }
+        else if (police.hidden < 1.5 || !police.contact) {
           const lead = clamp(dist / 34, 0, 1.1);
           d.target.x = p.x + p.vx * lead - car.rx * 0; d.target.z = p.z + p.vz * lead; u.search = null;
           if (dist > 22 && d.ram) { d.target.x += -p.vz / (p.speed + 1) * u.flank; d.target.z += p.vx / (p.speed + 1) * u.flank; }   // come at them from different sides
@@ -170,7 +173,7 @@ export function createPolice(game) {
           d.target.x = (u.search || police.lastKnown).x; d.target.z = (u.search || police.lastKnown).z; d.hold = false; d.ram = false; d.maxSpeed = 17;
         }
         // boxed in or cornered: the officer gets out
-        if (d.hold && dist < 9.5 && car.speed < 2.5 && !u.officer && police.seen) {
+        if (d.hold && !shore && dist < 9.5 && car.speed < 2.5 && !u.officer && police.seen) {
           u.deployed = true; d.mode = 'wait';
           u.officer = footOfficer(choose(COPS), car.x - car.rx * 1.8, car.z - car.rz * 1.8, u); game.audio.door();
         }
@@ -181,7 +184,7 @@ export function createPolice(game) {
     sirenLevel() {
       const p = game.player; let best = 0;
       for (const u of units) if (u.car.siren) best = Math.max(best, clamp(1 - Math.hypot(u.car.x - p.x, u.car.z - p.z) / 110, 0, 1));
-      return best;
+      return game.airSea ? game.airSea.sirenLevel(best) : best;
     },
   };
 

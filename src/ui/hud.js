@@ -7,7 +7,7 @@ export function createHud(game) {
   const el = { hud: $('hud'), money: $('money'), stars: $('stars'), health: $('healthBar'), stamina: $('staminaBar'), speedo: $('speedo'), kmh: $('kmh'), carBar: $('carBar'), carName: $('carName'), prompt: $('prompt'), toasts: $('toasts'), siren: $('sirenFx'), hurt: $('hurtFx'), clock: $('clock'), job: $('job') };
   el.stars.innerHTML = '<span>★</span>'.repeat(5);
   const starEls = [...el.stars.children];
-  let shownMoney = 0, lastPrompt = '', hurtT = 0, lastKmh = -1, lastClock = '', lastJob = '', jobT = 0;
+  let lastName = '', shownMoney = 0, lastPrompt = '', hurtT = 0, lastKmh = -1, lastClock = '', lastJob = '', jobT = 0;
 
   const hud = {
     show(v) { el.hud.hidden = !v; },
@@ -33,11 +33,13 @@ export function createHud(game) {
       el.speedo.hidden = !car;
       if (car) {
         const k = Math.round(car.speed * 3.6); if (k !== lastKmh) { el.kmh.textContent = k; lastKmh = k; }
-        el.carBar.style.width = (car.health / car.stats.health * 100) + '%'; el.carName.textContent = car.wrecked ? 'TOTALED' : car.stats.name;
+        const alt = car.stats.craft === 'heli' && car.air > 0 ? '  ·  ' + Math.max(0, Math.round(car.y - Math.max(car.floorY ?? car.y, -1))) + ' M UP' : '';
+        el.carBar.style.width = (car.health / car.stats.health * 100) + '%'; const name = car.wrecked ? 'TOTALED' : car.stats.name + alt; if (name !== lastName) el.carName.textContent = lastName = name;
       }
       let prompt = '';
       if (!game.over) {
-        if (car) prompt = car.wrecked ? '<kbd>E</kbd> Bail out, it\'s dead' : (car.speed < 1 && police.stars === 0 && game.hints.exit-- > 0 ? '<kbd>E</kbd> Get out' : '');
+        if (car && car.stats.craft === 'heli' && !car.wrecked) prompt = car.air > 0 ? (game.hints.fly-- > 0 ? '<kbd>Space</kbd> Up &nbsp; <kbd>Shift</kbd> Down' : '') : car.rotor < .86 ? 'Rotor spinning up…' : '<kbd>Space</kbd> Take off &nbsp; <kbd>E</kbd> Get out';
+        else if (car) prompt = car.wrecked ? '<kbd>E</kbd> Bail out, it\'s dead' : (car.speed < 1 && police.stars === 0 && game.hints.exit-- > 0 ? '<kbd>E</kbd> Get out' : '');
         else if (p.nearCar) prompt = p.nearCar.stolen ? '<kbd>E</kbd> Get back in' : `<kbd>E</kbd> ${p.nearCar.driver ? 'Carjack' : 'Steal'} this ${p.nearCar.stats.name.toLowerCase()}`;
       }
       if (prompt !== lastPrompt) { el.prompt.innerHTML = prompt; el.prompt.hidden = !prompt; lastPrompt = prompt; }

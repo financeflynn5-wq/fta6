@@ -96,7 +96,7 @@ export function createRemote(game, id, index) {
       let tx = r.x, ty = r.y + (model.userData.big ? model.userData.big.top + .35 : 2.25), tz = r.z;
       if (car) {
         r.x = car.ix; r.z = car.iz; r.y = car.y;                    // they are wherever their car is
-        if (car.stats.rider) { if (riding !== car && car.seat(model)) riding = car; } else model.visible = false;
+        if (car.mesh.userData.seat) { if (riding !== car && car.seat(model)) riding = car; } else model.visible = false;      // bikes, boats: you can see who is on them
         tx = car.ix; tz = car.iz; ty = car.y + (car.stats.rider ? 2.3 : 2.5);
       } else if (r.inCar) model.visible = false;                    // their car has not reached us yet
       else {

@@ -14,7 +14,7 @@ export class Vehicle {
     this.mesh = makeCarModel(type, color); game.scene.add(this.mesh); this.color = this.mesh.userData.color;
     // Every handling number is read through `tune`: the shared CAR numbers, with this type's own on top.
     this.tune = { ...CAR, ...CAR.types[type] }; this.halfLen = this.tune.halfLen; this.halfWid = this.tune.halfWid;
-    this.body = game.physics.addCar(this, x, z, heading, this.halfLen, this.halfWid, this.stats.mass);
+    this.body = game.physics.addCar(this, x, z, heading, this.halfLen, this.halfWid, this.stats.mass, this.stats.tail);
     this.controls = { throttle: 0, steer: 0, handbrake: false };
     this.driver = null;            // null | 'player' | AI driver object
     this.health = this.stats.health; this.wrecked = false;
@@ -29,6 +29,10 @@ export class Vehicle {
     this.smokeT = 0; this.skidPrev = [null, null]; this.spin = 0; this.idleTime = 0;
     this._set = { x: 0, y: 0 };
     this.wheelSlot = -1; this.wheelKind = null; this.wheelsDirty = true;      // slot taken in pushWheels, in the batch for this model's wheels
+    // Boats and helicopters are vehicles like any other (you steal them, they dent, other players see them), but each
+    // kind brings its own way of moving: vehicles/boats.js, vehicles/helis.js.
+    this.craft = this.stats.craft ? game.craft[this.stats.craft] : null;
+    if (this.craft) this.craft.init(this);
     this.syncVisual(0, 0);
   }
 
@@ -39,6 +43,7 @@ export class Vehicle {
   preStep(dt) {
     const b = this.body;
     this.px = this.x; this.pz = this.z; this.ph = this.h;
+    if (this.craft) return this.craft.preStep(this, dt);
     if (!this.driver && b.isSleeping()) { this.speed = this.vf = this.vl = 0; this.sliding = false; this.loose = 0; return; }
     if (this.game.ride?.preStep(this, dt)) return;      // terrain: slopes and flight (world/ride.js)
     const v = b.linvel(); this.h = b.rotation();
@@ -123,6 +128,7 @@ export class Vehicle {
   // --- once per rendered frame ---
   syncVisual(dt, t) {
     const m = this.mesh, u = m.userData, g = this.game;
+    if (this.craft) return this.craft.syncVisual(this, dt, t);
     // Physics runs at a fixed 60 steps a second; draw the car between the last two steps so it
     // moves smoothly at any frame rate.
     const k = dt ? g.alpha ?? 1 : 1;
@@ -162,11 +168,19 @@ export class Vehicle {
         if (Math.random() < dt * 14) fxs.smoke(wx, this.y + .2, wz, .7, .85, .5);
       }
     } else this.skidPrev[0] = this.skidPrev[1] = null;
-    // damage smoke from the bonnet: thin grey wisps at first, thicker and blacker as the engine dies.
-    // A wreck burns for a while under a tall black column, then just smoulders.
+    this.engineSmoke(dt, this.halfLen * .74, 1);
+    // fake gearbox for the engine note
+    const s = Math.abs(this.vf); let gi = 1; while (gi < 5 && s > GEARS[gi]) gi++; this.gear = gi;
+    this.rpm = damp(this.rpm, clamp(.22 + .78 * (s - GEARS[gi - 1]) / (GEARS[gi] - GEARS[gi - 1]), 0, 1) * (burn ? 1.3 : 1), 12, dt);
+  }
+
+  // Damage smoke from the engine (ahead metres in front of the middle, up metres above the ground): thin grey wisps
+  // at first, thicker and blacker as the engine dies. A wreck burns for a while under a tall black column, then just smoulders.
+  engineSmoke(dt, ahead, up) {
+    const fxs = this.game.fx;
     if (this.health < this.stats.health * FX.smokeAt && (this.smokeT -= dt) <= 0) {
-      const bad = clamp(1 - this.health / (this.stats.health * FX.smokeAt), 0, 1), nose = this.halfLen * .74;
-      const hx = this.ix + Math.cos(this.ih) * nose, hz = this.iz + Math.sin(this.ih) * nose, hy = this.y + 1;
+      const bad = clamp(1 - this.health / (this.stats.health * FX.smokeAt), 0, 1);
+      const hx = this.ix + Math.cos(this.ih) * ahead, hz = this.iz + Math.sin(this.ih) * ahead, hy = this.y + up;
       if (this.wrecked) {
         this.burn ??= 18 + Math.random() * 14; this.burn -= .085; this.smokeT = .085;
         const lit = this.burn > 0;
@@ -182,14 +196,12 @@ export class Vehicle {
         fxs.smoke(hx, hy, hz, lerp(.92, .13, Math.pow(bad, 1.4)), .5 + bad * .6, 1.2 + bad * 1.3, this.vx * .5, this.vz * .5, { alpha: (.38 + bad * .36) * thin, floor: hy - .25 });
       }
     }
-    // fake gearbox for the engine note
-    const s = Math.abs(this.vf); let gi = 1; while (gi < 5 && s > GEARS[gi]) gi++; this.gear = gi;
-    this.rpm = damp(this.rpm, clamp(.22 + .78 * (s - GEARS[gi - 1]) / (GEARS[gi] - GEARS[gi - 1]), 0, 1) * (burn ? 1.3 : 1), 12, dt);
   }
 
   // Copy the wheel positions into the shared wheel batch.
   pushWheels() {
     const u = this.mesh.userData, w = this.game.wheels;
+    if (!u.wheels.length) return;                 // boats and helicopters
     if (this.wheelKind !== u.wheelKind) {          // first time, or the stand-in just became the real model
       w.release(this.wheelSlot); this.wheelKind = u.wheelKind; this.wheelSlot = w.alloc(u.wheelKind);
     }
@@ -206,15 +218,17 @@ export class Vehicle {
 
   teleport(x, z, h) {
     this.body.setTranslation({ x, y: z }, true); this.body.setRotation(h, true); this.body.setLinvel({ x: 0, y: 0 }, true); this.body.setAngvel(0, true);
-    this.x = this.px = x; this.z = this.pz = z; this.h = this.ph = h; this.loose = 0; this.syncVisual(0, 0);
+    this.x = this.px = x; this.z = this.pz = z; this.h = this.ph = h; this.loose = 0; this.craft?.init(this); this.syncVisual(0, 0);
   }
   // A rider you can see (motorbikes): the character sits on the seat and leans with the bike.
   seat(model) {
     const s = this.mesh.userData.seat; if (!s) return false;
     this.dropRider(); this.rider = model; this.mesh.userData.chassis.add(model);
     model.position.set(s.x, s.y, s.z); model.rotation.set(0, Math.PI / 2, 0); model.visible = true;
-    const u = model.userData; u.lie = 0; u.body.position.set(0, 0, 0); u.body.rotation.set(.3, 0, 0);
-    u.legs.forEach((l, i) => l.rotation.set(-.95, 0, i ? .28 : -.28)); u.arms.forEach(a => { a.rotation.x = -1.2; });
+    const u = model.userData; u.lie = 0; u.body.position.set(0, 0, 0);
+    if (s.pose === 'sit') { u.body.rotation.set(0, 0, 0); u.legs.forEach((l, i) => l.rotation.set(-1.5, 0, i ? .1 : -.1)); u.arms.forEach(a => { a.rotation.x = -1.15; }); }               // at a boat's wheel
+    else if (s.pose === 'stand') { u.body.rotation.set(0, 0, 0); u.legs.forEach(l => l.rotation.set(0, 0, 0)); u.arms.forEach(a => { a.rotation.x = -1.1; }); }                          // standing at a console
+    else { u.body.rotation.set(.3, 0, 0); u.legs.forEach((l, i) => l.rotation.set(-.95, 0, i ? .28 : -.28)); u.arms.forEach(a => { a.rotation.x = -1.2; }); }
     return true;
   }
   // Take the rider off and stand them up straight again. The caller decides where the model goes next.

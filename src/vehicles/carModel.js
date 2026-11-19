@@ -8,6 +8,7 @@ import { mats, std, paint, G, mesh, rbox, ctex } from '../world/materials.js';
 import { plainGeometry } from '../world/batching.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { dressCar, wheelParts } from './vehicleModels.js';
+import { isCraft, makeCraftModel, craftPalette } from './craftModels.js';
 
 const bodyShape = (() => {
   const s = new THREE.Shape(); s.moveTo(-2.15, .34); s.lineTo(2.1, .34); s.quadraticCurveTo(2.32, .36, 2.3, .62); s.lineTo(2.24, .86); s.quadraticCurveTo(1.9, .98, 1.1, 1.0);
@@ -148,8 +149,9 @@ const shapeOf = (type) => built[type] || (built[type] = SHAPES[type]());
 
 // col: a set paint colour (a car another player drives must look the same on every screen); left out, one is rolled.
 // The paint colours a type comes in.
-export const carPalette = (type) => SHAPES[type] ? shapeOf(type).colors : type === 'taxi' ? [0xf6c21c] : type === 'police' ? [0x1d2230] : carColors;
+export const carPalette = (type) => isCraft(type) ? craftPalette(type) : SHAPES[type] ? shapeOf(type).colors : type === 'taxi' ? [0xf6c21c] : type === 'police' ? [0x1d2230] : carColors;
 export function makeCarModel(type, col) {
+  if (isCraft(type)) return makeCraftModel(type, col);        // boats and helicopters (craftModels.js)
   if (SHAPES[type]) return makeFromShape(type, col);
   const g = new THREE.Group(), chassis = new THREE.Group(); g.add(chassis);
   col ??= type === 'taxi' ? 0xf6c21c : type === 'police' ? 0x1d2230 : choose(carColors);

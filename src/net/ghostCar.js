@@ -4,6 +4,7 @@
 // is a solid thing that moves by itself.
 import { Vehicle } from '../vehicles/vehicle.js';
 import { angleDiff } from '../core/utils.js';
+import { BOAT } from '../config.js';
 
 // what the owner packs into one number
 export const FLAG = { driven: 1, braking: 2, sliding: 4, siren: 8, wrecked: 16, air: 32, flying: 64, up: 128, handbrake: 256 };
@@ -43,8 +44,8 @@ export class GhostVehicle extends Vehicle {
     this.controls.throttle = s.th; this.controls.handbrake = !!(f & FLAG.handbrake); this.steer = s.se; this.vf = s.vf; this.vx = s.vx; this.vz = s.vz;
     this.health = s.hp; this.wrecked = !!(f & FLAG.wrecked);
     this.netAir = !!(f & FLAG.air); this.netY = s.y; this.netVy = s.vy || 0;
-    const mode = f & FLAG.flying ? 1 : f & FLAG.up ? 2 : 0;
-    if (mode !== this.mode) { this.mode = mode; this.flying = mode === 1; this.up = mode === 2; this.game.physics.setCarMode(this.body, mode); }
+    const kind = this.stats.craft, mode = kind === 'boat' ? 4 : f & FLAG.flying ? (kind ? 3 : 1) : f & FLAG.up ? 2 : 0;
+    if (mode !== this.mode) { this.mode = mode; this.flying = mode === 1 || mode === 3; this.up = mode === 2; this.game.physics.setCarMode(this.body, mode); }
   }
 
   // Where the car is at time T on our clock: between the two reports either side of it, or a little past the last one.
@@ -75,7 +76,12 @@ export class GhostVehicle extends Vehicle {
 
   syncVisual(dt, t) {
     // in the air it is wherever its owner says; on the ground it sits on our own land, on the level they are on
-    if (this.netAir) { this.air = 1; this.y = this.rideReady ? this.to.y ?? this.netY : this.netY; this.vy = this.netVy; }
+    if (this.craft) {                                            // boats and helicopters are wherever their owner says
+      if (!this.to) return super.syncVisual(dt, t);              // still being built
+      this.y = this.to.y ?? this.netY; this.air = this.netAir ? 1 : 0; this.vy = this.netVy;
+      if (this.wrecked && this.stats.craft === 'boat') { this.sink += dt; if (this.sink > BOAT.sinkTime) this.sunk = Math.min(2.2, this.sunk + dt * .22); }
+    }
+    else if (this.netAir) { this.air = 1; this.y = this.rideReady ? this.to.y ?? this.netY : this.netY; this.vy = this.netVy; }
     else { if (this.air) this.air = 0; if (Math.abs(this.y - this.netY) > 1.5) this.y = this.netY; }
     super.syncVisual(dt, t);
   }

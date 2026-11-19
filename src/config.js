@@ -27,6 +27,14 @@ export const CAR = {
     van:    { name: 'VAN',         mass: 1900, maxSpeed: 30, accel: 11, health: 150, halfLen: 2.6, halfWid: 1.03, wheelbase: 3.2, grip: 21, steerLock: .64, lean: 1.7, leanMax: .11, pitch: .85, cam: 1.15, cruise: .95 },
     truck:  { name: 'BOX TRUCK',   mass: 4200, maxSpeed: 26, accel: 8, health: 260, halfLen: 3.7, halfWid: 1.25, wheelbase: 4.9, grip: 18, gripHandbrake: 10, brake: 22, steerLock: .8, steerIn: 5, steerInFast: 3, lean: 1.4, leanMax: .09, pitch: .6, cam: 1.55, cruise: .85 },
     limo:   { name: 'STRETCH',     mass: 1800, maxSpeed: 34, accel: 12, health: 130, halfLen: 3.1, wheelbase: 4.4, grip: 23, steerLock: .75, lean: 1.2, pitch: .9, cam: 1.2, cruise: .95 },
+    // Boats and helicopters (craft: which). They take maxSpeed, accel, health and size from here; how they float and fly is in BOAT and HELI below.
+    //   draft: how deep the hull sits (m)   turn: helm rate (rad/s)   tail: a helicopter's boom, as a second box [x, half length, half width]
+    speedboat:  { name: 'SPEEDBOAT',      craft: 'boat', mass: 1400, maxSpeed: 27, accel: 9, health: 120, halfLen: 3.3, halfWid: 1.08, draft: .5, turn: 1.2, cam: 1.25 },
+    jetski:     { name: 'JET SKI',        craft: 'boat', mass: 320, maxSpeed: 25, accel: 12, health: 55, halfLen: 1.8, halfWid: .64, draft: .3, turn: 1.9, cam: .85, rider: true, throwAt: 9 },
+    policeboat: { name: 'POLICE BOAT',    craft: 'boat', mass: 1700, maxSpeed: 28.5, accel: 10, health: 170, halfLen: 3.6, halfWid: 1.3, draft: .5, turn: 1.3, cam: 1.3, tall: 2.5 },
+    heli:       { name: 'DRAGONFLY',      craft: 'heli', mass: 1300, maxSpeed: 50, accel: 11, health: 110, halfLen: 2.75, halfWid: 1.05, tail: [-4.7, 1.95, .3], cam: 1.75, tall: 2.6 },
+    policeheli: { name: 'POLICE CHOPPER', craft: 'heli', mass: 1400, maxSpeed: 52, accel: 12, health: 150, halfLen: 2.75, halfWid: 1.05, tail: [-4.7, 1.95, .3], cam: 1.75, tall: 2.6 },
+    armyheli:   { name: 'PELICAN',        craft: 'heli', mass: 2600, maxSpeed: 46, accel: 9, health: 240, halfLen: 3.2, halfWid: 1.2, tail: [-5.5, 2.3, .32], cam: 2.1, tall: 3 },
     bike:   { name: 'MOTORBIKE',   mass: 260, maxSpeed: 44, accel: 23, health: 55, halfLen: 1.05, halfWid: .32, wheelbase: 1.55, grip: 29, gripHandbrake: 13, brake: 34, steerLock: .5, steerIn: 9, steerInFast: 6, lean: -18, leanMax: .7, pitch: 1.75, cam: .82, cruise: 1.1, rider: true, throwAt: 7 },
   },
   maxReverse: 11, reverseAccel: 9,
@@ -46,6 +54,40 @@ export const CAR = {
   looseIn: 8, looseOut: 2.8,              // how fast the rear lets go / bites again (per second)
   slideKeep: .65,                         // share of sideways speed turned back into forward speed when the tyres bite
   damageScale: 1.7, damageMin: 2.2,
+};
+
+// ---------- boats (vehicles/boats.js) ----------
+export const BOAT = {
+  reverse: 6, reverseAccel: 5,         // top speed and acceleration astern
+  drag: .002, coast: .45,              // water drag (grows with the square of speed); with the throttle shut a boat loses this share of its speed each second
+  keel: 3.2, keelFast: 1.5,            // how fast a sideways slide dies (per second): at a crawl / flat out (boats skid wide when fast)
+  turnAt: 6,                           // speed (m/s) at which the helm has its full bite
+  brake: 8,                            // Space, or pulling back while moving: engines hard astern (m/s^2)
+  lean: .012, leanMax: .32,            // banking into a turn
+  trim: .1, lift: .16, bob: .05,       // bow rise climbing onto the plane (rad), how far the hull lifts at speed (m), waves at rest (m)
+  beach: 6, hardHit: .45,              // push back off a beach (m/s per metre aground); a bank this far above the keel is a wall, not a beach
+  limit: 210,                          // how far past the edge of the map a boat can go (m)
+  sinkTime: 12,                        // a wreck burns this long, then goes down
+  wake: 1,                             // foam (0 = none)
+};
+// ---------- helicopters (vehicles/helis.js) ----------
+export const HELI = {
+  spoolUp: 3, spoolDown: 7,            // seconds for the rotor to reach full speed, and to stop
+  climb: 10, sink: 8, liftRate: 2.8,   // m/s up (Space), m/s down (Shift), how quickly it answers
+  flare: 2.2,                          // ...but close to the ground it only sinks this fast
+  back: 14, brake: .7, slide: 1.4,     // top speed backwards; with the stick let go it slows at this share of its acceleration; how fast sideways drift dies (per second)
+  yaw: 1.5, yawFast: .9, yawRate: 4,   // turn rate hovering / flat out (rad/s), and how quickly it answers
+  ceiling: 170,                        // metres above the sea
+  tilt: .22, bank: .5,                 // nose-down flat out (rad), most bank in a turn (rad)
+  hardLanding: 5.5, landingDamage: 9,  // touchdown speed (m/s) that starts to hurt, and damage per m/s beyond it
+  wallDamage: 3.4,                       // damage per m/s of flying into the side of something
+  fall: 11,                            // m/s^2 once the engine is dead (the blades still slow it a little)
+  radius: 2.3, skids: 1.2,             // the disc that must be clear of walls, and the smaller one it lands on
+  step: 1.5,                           // anything this far (m) above the skids is a wall; lower things it rides up over
+  vague: 16,                           // a building with no known height is taken to be this tall
+  limit: 320,                          // how far past the edge of the map it can go
+  wash: 9,                             // rotor wash kicks up dust or spray below this height
+  jump: 2.5,                           // you can bail out below this height
 };
 
 // ---------- crash damage you can see (vehicles/damage.js, fx/debris.js) ----------
@@ -84,7 +126,9 @@ export const FX = {
 export const SOUND = {
   master: .5,
   // which engine each vehicle has, and how high it is pitched. Anything not listed sounds like the sedan.
-  engine: { car: ['i4', 1], taxi: ['i4', .95], police: ['v8', 1.04], sport: ['v8', 1.2], van: ['diesel', 1.12], truck: ['diesel', .84], limo: ['v8', .88], bike: ['bike', 1] },
+  engine: { car: ['i4', 1], taxi: ['i4', .95], police: ['v8', 1.04], sport: ['v8', 1.2], van: ['diesel', 1.12], truck: ['diesel', .84], limo: ['v8', .88], bike: ['bike', 1],
+    speedboat: ['v8', .78], policeboat: ['v8', .72], jetski: ['bike', .8] },      // helicopters have their own sound (audio/craftSounds.js)
+  rotorVol: 1, washVol: 1,             // rotor chop and turbine whine; water rushing past a boat
   engineVol: 1, trafficVol: 1, tyreVol: 1, windVol: 1, sirenVol: 1,      // turn any layer up or down (1 = as mixed)
   traffic: 5,                          // how many other cars you can hear at once
   hearing: 60,                         // and from how far (m)
@@ -199,7 +243,7 @@ export const JOBS = {
     first: 14, gap: 16, life: 360,                 // seconds: before the first order, between orders, until an ignored order is swapped
     // a delivered order, in mint condition (plus a little for distance); any other stolen vehicle is still worth scrap
     pay:   { car: 500, taxi: 650, van: 600, bike: 450, truck: 900, limo: 1400, sport: 1700, police: 2200 },
-    scrap: { car: 90, taxi: 110, van: 120, bike: 60, truck: 200, limo: 280, sport: 340, police: 450 },
+    scrap: { car: 90, taxi: 110, van: 120, bike: 60, truck: 200, limo: 280, sport: 340, police: 450, speedboat: 400, jetski: 150, policeboat: 600, heli: 900, policeheli: 1500, armyheli: 2000 },
     want:  { car: 4, taxi: 2, van: 2, bike: 2, truck: 1, limo: 1, sport: 2 },   // how often Scrap asks for each
     rare: ['sport', 'limo'],
     minDist: 90,                                   // order cars are parked at least this far from you
@@ -279,6 +323,25 @@ export const SMASH = {
   mend: 170,                                    // everything is put back once you are this far away (m)
 };
 // Fort Pelican is a restricted area.
+// The law off the road: the police helicopter and the patrol boats (police/airSea.js).
+export const POLICE_CRAFT = {
+  heliStars: 3,              // a helicopter joins the chase from this many stars...
+  heliStarsOff: 3,           // ...or this many, when you are in a boat or in the air and the cruisers can't follow
+  heliPace: .88,             // how hard it flies after you (1 = flat out): a Dragonfly held wide open slowly gets away
+  heliFrom: 260,             // how far away it arrives from, m
+  cruise: 75,                // the height it comes in at, m above the sea
+  orbit: 30, orbitRate: .35, // it circles you this far out, at this many radians a second
+  above: 24,                 // and this far above you (or above the roofs under it)
+  heliSight: 150,            // while it is this close and you are not under cover, the cops can see you
+  boatSight: 80,
+  boatFrom: [110, 170],      // patrol boats arrive from this far off, over open water
+  boats: [0, 1, 1, 2, 2, 3], // how many, by stars, while you are afloat
+  grab: 1.6,                 // seconds alongside a stopped boat before you are busted
+  giveUp: 25,                // seconds after you leave the water before the boats drift off
+  heliAgain: 40,             // seconds before another helicopter comes after you bring one down
+  heliPay: 500, boatPay: 300,
+};
+
 export const BASE = {
   stars: 3,                                     // wanted level for trespassing (0 = the army doesn't mind)
   grace: 4,                                     // seconds inside the fence before the alarm goes

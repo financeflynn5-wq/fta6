@@ -1,7 +1,7 @@
 // Glue between the land and the rest of the game: owns the ride system (cars on hills),
 // keeps Rocco's feet on the slope, slows him down in the sea, keeps the camera out of
 // hillsides, and announces the district you have just entered.
-import { RIDE } from '../config.js';
+import { RIDE, WORLD, BOAT } from '../config.js';
 import { damp } from '../core/utils.js';
 import { groundY, waterDepth, layer, ceilingY } from './terrain.js';
 import { districtAt } from './map.js';
@@ -25,6 +25,15 @@ export function createWorld(game) {
       const depth = waterDepth(p.x, p.z);
       p.swimming = depth > RIDE.wadeDepth;
       if (p.swimming) { const v = p.body.linvel(), k = RIDE.wadeSpeed + (1 - RIDE.wadeSpeed) * Math.max(0, 1 - (depth - RIDE.wadeDepth) * 3); vel.x = v.x * k; vel.y = v.y * k; p.body.setLinvel(vel, true); }
+      // The edge of the world. The walls there don't hold the player (a boat can take you past them, and you may have to
+      // wade back), so here: on dry land you can't walk out past the edge, and in the sea not past where the boats turn back.
+      const L = WORLD.LIMIT, out = depth > .3 ? BOAT.limit + 6 : 0;
+      if (p.x < -L - out || p.x > L + out || p.z < -L - out || p.z > WORLD.LIMIT_N + out) {
+        const v = p.body.linvel(); vel.x = v.x; vel.y = v.y;
+        if (p.x < -L - out) vel.x = Math.max(vel.x, 1.5); if (p.x > L + out) vel.x = Math.min(vel.x, -1.5);
+        if (p.z < -L - out) vel.y = Math.max(vel.y, 1.5); if (p.z > WORLD.LIMIT_N + out) vel.y = Math.min(vel.y, -1.5);
+        p.body.setLinvel(vel, true);
+      }
     },
 
     // after the physics step: on a slope Rocco's height follows the ground exactly (only kerbs are eased)
@@ -53,6 +62,8 @@ export function createWorld(game) {
         const roof = ceilingY(cam.position.x, cam.position.z, p.y + 1) - .5;
         if (cam.position.y > roof && !game.combat?.aiming) { cam.position.y = Math.max(roof, p.y + 1.2); cam.lookAt(game.cam.lookAt); }
       }
+      // from a helicopter you see further: the haze thins as the camera climbs
+      if (game.scene.fog && game.env?.fogFar) { const up = Math.min(170, Math.max(0, cam.position.y - 14)), fog = game.scene.fog; fog.near = game.env.fogNear + up * 1.2; fog.far = game.env.fogFar + up * 3.2; }
       // scenery the haze has swallowed isn't drawn: nothing shows past the far edge of the fog
       if ((hazeT -= dt) <= 0 && game.scene.fog) {
         hazeT = .2; cam.getWorldDirection(fwd); const far = game.scene.fog.far + 6, c = cam.position;

@@ -45,7 +45,7 @@ export function buildDistricts(api) {
 
   // the edge of the world: invisible walls out at sea and up in the mountains
   const LN = WORLD.LIMIT_N, mid = (LN - L) / 2, tall = (LN + L) / 2 + 4;
-  for (const [x, z, hw, hd] of [[0, -L - 2, L + 4, 2], [0, LN + 2, L + 4, 2], [-L - 2, mid, 2, tall], [L + 2, mid, 2, tall]]) solids.boxes.push({ x, z, hw, hd, wall: true });
+  for (const [x, z, hw, hd] of [[0, -L - 2, L + 4, 2], [0, LN + 2, L + 4, 2], [-L - 2, mid, 2, tall], [L + 2, mid, 2, tall]]) solids.boxes.push({ x, z, hw, hd, wall: true, edge: true });
 
   // ---------- scatter helpers ----------
   const taken = [], keepOut = (x, z, r) => taken.push([x, z, r]);

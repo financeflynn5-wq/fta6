@@ -2,6 +2,7 @@
 // the loops in engineLoops.js), its tyres and the wind, the traffic around you (each car placed left or
 // right of you, fading with distance, its pitch bending as it passes), sirens, horns and the starter.
 import { ENGINES, makeLoop } from './engineLoops.js';
+import { createCraftSounds } from './craftSounds.js';
 import { SOUND } from '../config.js';
 import { clamp } from '../core/utils.js';
 import { surfaceAt } from '../world/terrain.js';
@@ -31,6 +32,7 @@ export function createCarSounds(ctx, bus) {
   setTimeout(buildNext, 60);
   const want = (kind) => { if (!bank[kind]?.ready) queue.sort((a, b) => (b[0] === kind) - (a[0] === kind)); };     // the engine about to be heard jumps the queue
   const engineOf = (v) => SOUND.engine[v.type] ?? SOUND.engine.car;
+  const craft = createCraftSounds(ctx, bus);      // helicopters: rotor and turbine
   const realRpm = (E, r) => E.idle + Math.pow(clamp(r, 0, 1.15), .85) * (E.redline - E.idle);
 
   // One engine: every loop plays all the time, in step with the others; only their volumes and speeds change.
@@ -82,7 +84,7 @@ export function createCarSounds(ctx, bus) {
       me.car = car; me.voice?.stop(.25); me.voice = null; me.load = 0; me.shift = 0; me.gear = car?.gear ?? 0;
       if (car) want(engineOf(car)[0]);
     }
-    const running = car && !car.wrecked;
+    const kind = car?.stats.craft, running = car && !car.wrecked && kind !== 'heli';      // a helicopter has no piston engine (craftSounds.js)
     if (running && !me.voice && bank[engineOf(car)[0]]?.ready) me.voice = engineVoice(engineOf(car)[0], miss, [0, 1], [0, 1, 2, 3]);
     if (!running) set(engGain.gain, 0, .12);
     if (!car) { set(rollG.gain, 0, .1); set(windG.gain, 0, .2); set(skidG.gain, 0, .05); return; }
@@ -109,10 +111,11 @@ export function createCarSounds(ctx, bus) {
     }
     // tyres on the road, louder and grittier on dirt and sand
     if ((me.surfT -= dt) <= 0) { me.surfT = .2; me.dusty = !car.up && !!DUSTY[surfaceAt(car.x, car.z)]; }
-    const roll = flying ? 0 : Math.pow(Math.min(1, speed / 40), 1.3) * (me.dusty ? .34 : .2) * SOUND.tyreVol;
-    set(rollG.gain, roll, .08); set(rollF.frequency, (260 + speed * 30) * (me.dusty ? 1.7 : 1), .1);
+    // ...or, for a boat, the water rushing past the hull
+    const roll = kind === 'boat' ? Math.pow(Math.min(1, speed / 26), 1.2) * .3 * SOUND.washVol : flying || kind ? 0 : Math.pow(Math.min(1, speed / 40), 1.3) * (me.dusty ? .34 : .2) * SOUND.tyreVol;
+    set(rollG.gain, roll, .08); set(rollF.frequency, kind === 'boat' ? 700 + speed * 55 : (260 + speed * 30) * (me.dusty ? 1.7 : 1), .1);
     const w = Math.min(1.2, speed / 45); set(windG.gain, w * w * (car.stats.rider ? .34 : .17) * SOUND.windVol, .15); set(windF.frequency, 450 + speed * 24, .15);
-    const slide = car.sliding && !flying ? clamp(.35 + car.slip / 9, 0, 1) : 0;
+    const slide = car.sliding && !flying && !kind ? clamp(.35 + car.slip / 9, 0, 1) : 0;
     set(skidG.gain, slide * (me.dusty ? .05 : .2) * SOUND.tyreVol, .05);
     if (slide > 0) { set(sq1.frequency, 1050 + slide * 260 + Math.sin(t * 9.1) * 70, .06); set(sq2.frequency, 1600 + slide * 330 + Math.sin(t * 6.3 + 1) * 110, .06); }
   }
@@ -127,7 +130,7 @@ export function createCarSounds(ctx, bus) {
   function traffic(game, lx, lz, ly, lvx, lvz, rx, rz, t, mine, live) {
     picks.length = 0;
     if (live) for (const v of game.traffic.vehicles) {
-      if (v === mine || !v.driver || v.wrecked || v.gone) continue;
+      if (v === mine || !v.driver || v.wrecked || v.gone || v.stats.craft === 'heli') continue;
       const d = Math.hypot(v.x - lx, v.z - lz, (v.y - ly) * 1.5); if (d > SOUND.hearing) continue;
       v._loud = (.3 + Math.min(1, v.speed / 14)) / (1 + (d / 11) * (d / 11)) * (v._voice ? 1.5 : 1);      // whoever already has a voice tends to keep it
       picks.push(v);
@@ -161,6 +164,7 @@ export function createCarSounds(ctx, bus) {
   function siren(game, lx, lz, rx, rz, live) {
     let best = null, level = 0;
     if (live) for (const u of game.police.units) { if (!u.car.siren) continue; const l = clamp(1 - Math.hypot(u.car.x - lx, u.car.z - lz) / 110, 0, 1); if (l > level) { level = l; best = u.car; } }
+    if (live && game.airSea) for (const u of game.airSea.units) { if (!u.v.siren || u.kind !== 'boat') continue; const l = clamp(1 - Math.hypot(u.v.x - lx, u.v.z - lz) / 110, 0, 1); if (l > level) { level = l; best = u.v; } }
     set(sirenG.gain, level * level * .13 * SOUND.sirenVol, .15); set(lfo.frequency, level > .88 ? 3.6 : .3, .3);
     if (best && sirenPan.pan) { const dx = best.x - lx, dz = best.z - lz, d = Math.max(1, Math.hypot(dx, dz)); set(sirenPan.pan, clamp((dx * rx + dz * rz) / d, -1, 1) * .8, .1); }
   }
@@ -180,6 +184,7 @@ export function createCarSounds(ctx, bus) {
       drive(car, step, t);
       traffic(game, p.x, p.z, p.y ?? 0, p.vx ?? 0, p.vz ?? 0, rx, rz, t, car, live);
       siren(game, p.x, p.z, rx, rz, live);
+      craft.update(game, car, p.x, p.z, p.y ?? 0, rx, rz, live);
     },
     // turning the key on a parked car: the starter churns, then the engine catches with a little rev
     ignition() {

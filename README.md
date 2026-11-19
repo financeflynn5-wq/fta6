@@ -13,7 +13,8 @@ There is no build step.
 | W A S D / arrows | Walk, drive |
 | Mouse | Look around (click the game to capture the mouse) |
 | E | Steal a car / get out; buy at a counter; call the lift |
-| Space | Handbrake |
+| Space | Handbrake (in a boat: hard astern) |
+| Space / Shift | In a helicopter: up / down (let go and it hovers; W S fly forward and back, A D turn) |
 | Shift | Sprint |
 | Left click | Punch / shoot (hold for the SMG) |
 | Right click (hold) | Aim down the gun's own sights; the sniper looks through its scope (mouse wheel: 4× / 8×) |
@@ -55,7 +56,7 @@ There is no build step.
   - **Palmview**: a neighborhood of houses with driveways, picket fences, pools and parked cars.
   - **Flamingo Park**: a big city park with a promenade, a pond with flamingos and a dock, a bandstand, a fountain plaza and lawns. All of it is open ground, so you can drive anywhere in it.
   - **Coral Plaza**: a mall with a car park, open-air shops round a plaza, and an indoor hall with a glass roof, a department store and a food court. Walk in through the doorways, or drive through the glass and down the concourse.
-  - **Marlin Bay**: a marina with four piers of moored boats, a fuel dock, a seaplane dock, a slipway, a yacht club and a helipad on the bluff. The boats are scenery for now; the berths, slipway and pads are listed for when boats and aircraft arrive.
+  - **Marlin Bay**: a marina with four piers of moored boats, a fuel dock, a seaplane dock, a slipway, a yacht club and a helipad on the bluff. The big boats are scenery; the speedboats and jet skis tied up in the free berths are yours to take (see Boats and helicopters).
   - **Golden Acres**: farmland. A drive-through barn, silos, a wind pump, a greenhouse, cows in a paddock, corn, wheat, an orchard, a pumpkin patch, a hay field, an old barn and a dirt airstrip with a hangar.
   - **Fort Pelican**: a fenced military base with a guarded gate, barracks, headquarters, a motor pool (the trucks can be taken), a firing range, a runway, three open hangars, a control tower and two helipads. Being inside earns three stars after a few seconds.
 - **Things that break.** In the valley, shop windows shatter when shot, punched or driven into. The tall glass of the mall's entrances, the department store and the food court gives way to a car at speed, and so do the base's gate booms. Picket and rail fences, cafe tables, kiosks, clothes racks, planters, hay bales, crates and cones all break under a car. Everything is put back once you are far away.
@@ -91,6 +92,23 @@ There is no build step.
   the title screen wipes them.
 - **Wasted** (out of health) bills you and wakes you outside Sunset General (red cross on the radar). You keep your guns.
 - **Nabbed** fines you and lets you out of Sunset PD (blue badge). The cops keep your guns.
+
+## Boats and helicopters
+
+Both are ordinary vehicles: walk up, press E, and the same damage, theft and multiplayer rules apply as for a car.
+
+- **Boats** (speedboat, jet ski, police boat) wait in the free berths at Marlin Bay, off the end of the beach pier and along
+  Port Sunset's quay. W/S throttle, A/D helm, Space hard astern. A beach slows a boat and slides it back; a quay wall or a
+  pier is a crash. A wrecked boat burns, then sinks. You can sail about 200 m past the edge of the map before the sea turns you back.
+- **Helicopters** (Dragonfly, police chopper, army Pelican) sit on the pads: Marlin Bay's bluff, Fort Pelican's two, and two
+  painted on the port quay. The rotor takes three seconds to spin up; then Space lifts off. It hovers by itself, flares
+  before it touches down, and can land on any roof (you can't get out up there: no stairs). Flying into a building hurts;
+  ditching in the sea or losing the engine wrecks it.
+- **The law**: stealing a police boat or chopper, or anything of the army's, puts stars on you at once. From three stars
+  (two if you are afloat or in the air) a police helicopter circles over you; while it can see you the cops never lose you,
+  so get under a bridge or indoors, or shoot it down. At night it carries a searchlight. On the water, patrol boats come
+  after you and bust you if you stop. Cruisers wait at the nearest street until you come ashore.
+- Each craft has a home slot (`src/vehicles/fleet.js`) and comes back there once it is stolen, wrecked or lost and you are far away.
 
 ## Playing together
 
@@ -159,12 +177,14 @@ src/story/                  story (the mission runner: start rings, the people w
 src/vehicles/               damage (dents, scuffs, cracked glass, dead lamps, torn-off bumpers: see the notes at its top),
                             vehicle (handling, rider seat), carModel (stand-in shapes + the wheel batch), vehicleModels (loads the
                             Blender models from assets/vehicles/ and swaps them in), aiDriver (traffic + pursuit), traffic,
-                            highwayTraffic (drivers and cruisers on the elevated roads)
+                            highwayTraffic (drivers and cruisers on the elevated roads),
+                            boats (how a boat moves, its wake), helis (how a helicopter flies, lands and crashes), fleet (where
+                            boats and helicopters are kept and put back), craftModels + loft (their models, built in code)
 src/characters/             rig (the body everyone shares), models (Critters + Tin Bots, who walks the streets, the walk cycle),
                             bigheads (the Big Head builder: heads, hair, hats, faces, clothes), bigheadLooks (what a Big Head can
                             look like: the named three and the dice for everyone else), pedestrians
 src/player/                 player (on foot, in/out of cars), camera
-src/police/                 police (stars, cruisers, officers on foot)
+src/police/                 police (stars, cruisers, officers on foot), airSea (the police helicopter, its searchlight, patrol boats)
 src/missions/               jobs (chop-shop orders, taxi fares, their markers and radar blips), outlaws (crooks' cars: runaways
                             you run down, rivals that come after you; used by the story, the bounty hunts and the derby)
 src/combat/                 combat (Rocco's weapons, aim, punch), hits (damage rules), copGuns (cops shoot back),
@@ -179,8 +199,9 @@ src/net/                    net (my snapshots out, everyone else's in, shots and
                             direct, tabs: three ways to carry the same messages), remote (another player on this screen),
                             ghostCar (another player's car on this screen), match (Cops vs Robbers: the rules, the bar at the
                             top, the lobby on the pause menu, the final score)
-src/fx/                     effects (tyre marks, smoke, sparks), carLights, debris (shards and torn-off parts)
+src/fx/                     effects (tyre marks, smoke, sparks), carLights, debris (shards and torn-off parts), wake (foam on the sea)
 dev/damage-lab.html         a bench for the crash damage: vehicles on a plain floor, dented from the console (not part of the game)
+dev/craft-lab.html          a bench for the boats and helicopters, e.g. ?types=heli,speedboat&sea&rider=raccoon
 dev/cast-lab.html           a bench for the characters: a line-up of any cast members, e.g. ?kinds=sal,dale,tiff,bighead*9
 vendor/                     three.js r160, Rapier 2D and PeerJS 1.5.5, vendored so the game needs no build and no CDN
 ```

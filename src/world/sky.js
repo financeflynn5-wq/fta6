@@ -43,7 +43,7 @@ export function createSky(engine, city) {
       const polar = lerp(62, 97, smooth(clamp(n * 1.25, 0, 1)));
       skySun.setFromSphericalCoords(1, THREE.MathUtils.degToRad(polar), THREE.MathUtils.degToRad(215)); su.sunPosition.value.copy(skySun);
       const dark = n > .96; sky.visible = !dark; scene.background = dark ? night.bg : null;
-      scene.fog.color.lerpColors(day.fog, night.fog, n); scene.fog.near = lerp(140, 10, n); scene.fog.far = lerp(420, 340, n);
+      scene.fog.color.lerpColors(day.fog, night.fog, n); scene.fog.near = env.fogNear = lerp(140, 10, n); scene.fog.far = env.fogFar = lerp(420, 340, n);        // world.js pushes both out as the camera climbs
       sun.color.lerpColors(day.sun, night.sun, n); sun.intensity = lerp(2.6, .12, n);
       hemi.color.lerpColors(day.hemi, night.hemi, n); hemi.intensity = lerp(.75, .07, n);
       renderer.toneMappingExposure = lerp(.85, .95, n);

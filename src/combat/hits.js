@@ -34,7 +34,7 @@ export function createHits(game) {
       let a = (-half[i] - lo[i]) / ld[i], b = (half[i] - lo[i]) / ld[i]; if (a > b) [a, b] = [b, a];
       t0 = Math.max(t0, a); t1 = Math.min(t1, b); if (t0 > t1) return -1;
     }
-    const y = oy + dy * t0; return y >= v.y && y <= v.y + 1.55 ? t0 : -1;
+    const y = oy + dy * t0; return y >= v.y - (v.craft ? .4 : 0) && y <= v.y + (v.stats.tall ?? 1.55) ? t0 : -1;
   }
   const pose = (p) => p.state === 'air' || p.state === 'down' || p.state === 'ko';
 
@@ -56,7 +56,12 @@ export function createHits(game) {
       for (const v of game.traffic.vehicles) if (v !== skipCar && Math.abs(v.x - ox) < range + 3 && Math.abs(v.z - oz) < range + 3) consider(carBox(ox, oy, oz, dx, dy, dz, v, tmin, best), 'car', v);
       // buildings, posts and trees
       const h = Math.hypot(dx, dz);
-      if (h > 1e-4) { const free = game.physics.probeSolid(ox, oz, dx / h, dz / h, best * h); if (free < best * h) { best = free / h; kind = 'wall'; obj = null; } }
+      if (h > 1e-4) {
+        // a shot going up (at a helicopter) clears whatever is lower than it is, half way there
+        const eye = game.physics.eyeY; if (dy > .08) game.physics.eyeY = Math.max(eye, oy + dy * best * .5);
+        const free = game.physics.probeSolid(ox, oz, dx / h, dz / h, best * h); if (free < best * h) { best = free / h; kind = 'wall'; obj = null; }
+        game.physics.eyeY = eye;
+      }
       { const tg = rayGround(ox, oy, oz, dx, dy, dz, best); if (tg >= 0 && tg < best) { best = tg; kind = 'ground'; obj = null; } }
       hit.t = best; hit.x = ox + dx * best; hit.y = oy + dy * best; hit.z = oz + dz * best; hit.kind = kind; hit.obj = obj;
       const who = kind === 'ped' || kind === 'rival' ? obj : kind === 'officer' ? obj.ped : null;

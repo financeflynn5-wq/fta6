@@ -225,7 +225,7 @@ export function createDamage(game) {
 
   // ---------- a vehicle's first knock: give it a body of its own ----------
   function begin(v) {
-    const g = v.mesh, u = g.userData, skip = new Set(u.wheels.map(w => w.steer)); if (v.rider) skip.add(v.rider);
+    const g = v.mesh, u = g.userData, skip = new Set(u.wheels.map(w => w.steer)); if (v.rider) skip.add(v.rider); for (const o of u.noDent || []) skip.add(o);      // noDent: rotors
     const st = { v, parts: [], dirty: false, front: 0, rear: 0, tornF: false, tornR: false, head: [1, 1], steamT: 0, tail: null, glassOut: false };
     (function walk(o, M) {
       if (skip.has(o)) return;

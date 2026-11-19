@@ -44,6 +44,11 @@ import { createStory } from './story/story.js';
 import { createNet } from './net/net.js';
 import { createLobby } from './ui/lobby.js';
 import { createMatch } from './net/match.js';
+import { createBoats } from './vehicles/boats.js';
+import { createHelis } from './vehicles/helis.js';
+import { createFleet } from './vehicles/fleet.js';
+import { createAirSea } from './police/airSea.js';
+import { createWake } from './fx/wake.js';
 
 const STEP = 1 / 60;
 const $ = (id) => document.getElementById(id);
@@ -53,7 +58,7 @@ async function boot() {
   const engine = createEngine(canvas);
   const game = {
     engine, scene: engine.scene, camera: engine.camera, state: 'title', over: false, money: 0, time: 0,
-    hints: { exit: 900 }, firstTheft: false,
+    hints: { exit: 900, fly: 1500 }, firstTheft: false,
   };
   window.__fta = game;
   game.physics = await createPhysics();
@@ -61,13 +66,15 @@ async function boot() {
   game.audio = createAudio();
   game.city = buildCity(engine.scene);
   // heights say what a shot, a look or the camera can pass over; things that give none stand 2.6 m (low) or 7 m (posts) above their own ground
-  for (const b of game.city.solids.boxes) if (!b.hollow) game.physics.addStaticBox(b.x, b.z, b.hw, b.hd, b.low, b.h ?? (b.low ? groundY(b.x, b.z) + 2.6 : undefined));       // hollow: you can walk in (its walls are in solids.walls)
+  for (const b of game.city.solids.boxes) if (!b.hollow) game.physics.addStaticBox(b.x, b.z, b.hw, b.hd, b.low, b.h ?? (b.low ? groundY(b.x, b.z) + 2.6 : undefined), b.edge);       // hollow: you can walk in (its walls are in solids.walls)
   for (const p of game.city.solids.posts) game.physics.addStaticPost(p.x, p.z, p.r, p.h ?? groundY(p.x, p.z) + 7);
   for (const w of game.city.solids.walls) game.physics.addWall(w.x, w.z, w.hl, w.ht, w.rot, w.kind, w.h);
   game.env = createSky(engine, game.city);
   game.fx = createEffects(engine.scene, engine.camera);
   game.world = createWorld(game);               // the land: hills, air time, water (also sets game.ride)
   game.wheels = createWheelBatch(engine.scene);
+  game.wake = createWake(game);                 // foam on the sea
+  game.craft = { boat: createBoats(game), heli: createHelis(game) };      // how boats and helicopters move (they are Vehicles like the cars)
   game.traffic = createTraffic(game);
   game.peds = createPedestrians(game);
   game.player = createPlayer(game);
@@ -88,6 +95,8 @@ async function boot() {
   game.debris = createDebris(engine.scene);     // shards and torn-off parts
   game.damage = createDamage(game);             // dents, scuffs, broken glass and lamps
   game.highway = createHighwayTraffic(game); game.traffic.init(); game.highway.init();
+  game.fleet = createFleet(game);               // boats at the docks, helicopters on the pads
+  game.airSea = createAirSea(game);             // the police helicopter and patrol boats
   game.peds.init();
   game.jobs = createJobs(game);
   game.outlaws = createOutlaws(game);           // crooks' cars: runaways to run down, derby rivals that come after you
@@ -109,7 +118,9 @@ async function boot() {
   game.onCarTaken = (car, old, speed) => {
     audio.door(); cam.shake(.12);
     if (!old) audio.ignition();                   // nobody was driving it: start it up
-    if (car.type === 'police') { police.carStolen(car); police.crime(POLICE.crime.copCarTheft, 2, 'STOLE A COP CAR!'); }
+    if (car.craft && !car.stolen) game.fleet.taken(car);          // boats and helicopters: what stealing each one costs you
+    else if (car.craft) { /* yours already */ }
+    else if (car.type === 'police') { police.carStolen(car); police.crime(POLICE.crime.copCarTheft, 2, 'STOLE A COP CAR!'); }
     else if (old instanceof AIDriver) { police.crime(POLICE.crime.carjack, 1, 'CARJACKED!'); peds.scare(car.x, car.z, 16); }
     else if (!car.stolen) {
       if (!game.firstTheft || Math.random() < .35 || police.witnessed(car.x, car.z)) { audio.alarm(); police.crime(POLICE.crime.alarm, 1, 'CAR ALARM!'); }
@@ -133,6 +144,7 @@ async function boot() {
   game.onWrecked = (v) => {
     if (v.driver === 'player') { hud.toast('TOTALED!  BAIL OUT', 'bad'); return; }
     const near = Math.hypot(v.x - player.x, v.z - player.z) < 30;
+    if (game.airSea.wrecked(v)) return;
     if (police.owns(v)) {
       police.carWrecked(v);
       if (near) { game.addMoney(250); hud.toast('CRUISER WRECKED  +$250', 'good'); police.crime(25, 0); }
@@ -266,6 +278,7 @@ async function boot() {
     game.pickups.update(dt, t);
     game.jobs.update(dt, t);
     game.damage.update(dt); game.debris.update(dt);
+    game.fleet.update(dt, t); game.airSea.update(dt); game.wake.update(dt);
     fx.update(dt);
     game.city.updateLights(t);
     if ((maintainT -= dt) <= 0) { maintainT = 2; game.traffic.maintain(); }
