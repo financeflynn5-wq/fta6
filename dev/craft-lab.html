@@ -1,0 +1,64 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>FTA 6 craft lab</title>
+<!-- A bench for the helicopters and boats: one or more on a plain floor (or the sea), looked at from any side.
+     Not part of the game. Open dev/craft-lab.html?types=heli,speedboat from a static server, then e.g.
+     lab.view(40, 20, 14); lab.spin(1) (rotors at full speed); lab.grid([[30, 15, 14], [150, 20, 14]]) -->
+<style>html, body { margin: 0; background: #9aa; overflow: hidden } canvas { display: block }</style>
+<script type="importmap">{"imports":{"three":"../vendor/three/build/three.module.js","three/addons/":"../vendor/three/addons/","rapier":"../vendor/rapier/rapier.mjs"}}</script>
+<canvas id="cv"></canvas>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { makeCraftModel } from '../src/vehicles/craftModels.js';
+import { makeCharacter } from '../src/characters/models.js';
+import { litMaterials, mats, std } from '../src/world/materials.js';
+
+const q = new URLSearchParams(location.search), types = (q.get('types') || 'heli').split(',');
+const W = +(q.get('w') || 1280), H = +(q.get('h') || 720);
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('cv'), antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H, false); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = .85;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xf3d9c0);
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(renderer), .04).texture;
+const camera = new THREE.PerspectiveCamera(42, W / H, .1, 300);
+scene.add(new THREE.HemisphereLight(0xcfe6ff, 0x8a7a66, .75));
+const sun = new THREE.DirectionalLight(0xffe2b8, 2.6); sun.position.set(-14, 22, 9); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20, near: 1, far: 80 }); sun.shadow.bias = -.0004; sun.shadow.normalBias = .04; scene.add(sun);
+const sea = q.has('sea');
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), sea ? mats.sea : std({ color: 0x55585e, roughness: .92 })); floor.rotation.x = -Math.PI / 2; floor.position.y = -.001; floor.receiveShadow = true; scene.add(floor);
+for (const m of litMaterials) m.envMapIntensity = .7;
+
+const colors = (q.get('colors') || '').split(',').filter(Boolean), craft = [];
+types.forEach((t, i) => {
+  const m = makeCraftModel(t, colors[i] ? parseInt(colors[i], 16) : undefined), u = m.userData;
+  m.position.set(0, !sea && u.craft === 'boat' ? .5 : 0, (i - (types.length - 1) / 2) * +(q.get('gap') || 9)); scene.add(m); craft.push(m);
+  if (q.has('rider') && u.seat) {
+    const c = makeCharacter(q.get('rider') || 'raccoon'), s = u.seat, cu = c.userData; u.chassis.add(c); c.position.set(s.x, s.y, s.z); c.rotation.y = Math.PI / 2;
+    if (s.pose === 'sit') { cu.legs.forEach((l, k) => l.rotation.set(-1.5, 0, k ? .1 : -.1)); cu.arms.forEach(a => { a.rotation.x = -1.15; }); }
+    else if (s.pose === 'stand') cu.arms.forEach(a => { a.rotation.x = -1.1; });
+    else { cu.body.rotation.x = .3; cu.legs.forEach((l, k) => l.rotation.set(-.95, 0, k ? .28 : -.28)); cu.arms.forEach(a => { a.rotation.x = -1.2; }); }
+  }
+});
+for (const m of litMaterials) m.envMapIntensity = .7;
+const lab = window.lab = {
+  THREE, scene, camera, renderer, mats, craft, ready: true,
+  view(az = 35, el = 18, dist = 14, tx = 0, ty = 1.2, tz = 0) {
+    const a = az * Math.PI / 180, e = el * Math.PI / 180;
+    camera.position.set(tx + Math.cos(a) * Math.cos(e) * dist, ty + Math.sin(e) * dist, tz + Math.sin(a) * Math.cos(e) * dist); camera.lookAt(tx, ty, tz);
+  },
+  grid(views, cols = 2) {
+    const rows = Math.ceil(views.length / cols), w = W / cols, h = H / rows; renderer.setScissorTest(true);
+    views.forEach((vw, i) => { const x = (i % cols) * w, y = H - (Math.floor(i / cols) + 1) * h; renderer.setViewport(x, y, w, h); renderer.setScissor(x, y, w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); lab.view(...vw); renderer.render(scene, camera); });
+    renderer.setScissorTest(false); lab.held = true;
+  },
+  // rotors: 0 = stopped, 1 = full speed (the blurred disc)
+  spin(k = 1, angle = .6) {
+    for (const m of craft) { const u = m.userData; if (!u.rotor) continue; u.blades.rotation.y = angle; u.blades.visible = k < .6; u.disc.visible = k > .25; u.disc.material.opacity = k * .5; u.tailBlades.visible = k < .4; u.tailDisc.visible = k > .2; u.tailDisc.material.opacity = k * .45; }
+  },
+  render() { if (!lab.held) renderer.render(scene, camera); },
+  night(on) { mats.head.emissiveIntensity = on ? 6 : .4; sun.intensity = on ? .12 : 2.6; },
+};
+lab.view(); lab.render();
+if (q.has('live')) (function loop() { requestAnimationFrame(loop); lab.render(); })();
+</script>
