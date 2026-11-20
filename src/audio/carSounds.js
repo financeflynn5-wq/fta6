@@ -169,7 +169,7 @@ export function createCarSounds(ctx, bus) {
     if (best && sirenPan.pan) { const dx = best.x - lx, dz = best.z - lz, d = Math.max(1, Math.hypot(dx, dz)); set(sirenPan.pan, clamp((dx * rx + dz * rz) / d, -1, 1) * .8, .1); }
   }
 
-  const HORNS = { truck: [[155, 185, 233], .6, 1300, 1.2], bike: [[640, 806], .2, 3200, .7], van: [[370, 466], .34, 2200, 1], limo: [[330, 415], .4, 2000, 1], police: [[440, 554], .3, 2600, 1] };
+  const HORNS = { truck: [[155, 185, 233], .6, 1300, 1.2], mbtruck: [[147, 185, 220], .7, 1300, 1.25], bike: [[640, 806], .2, 3200, .7], van: [[370, 466], .34, 2200, 1], limo: [[330, 415], .4, 2000, 1], police: [[440, 554], .3, 2600, 1] };
   const ears = { x: 0, z: 0, rx: 1, rz: 0 };
 
   return {

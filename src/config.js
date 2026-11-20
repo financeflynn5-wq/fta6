@@ -26,6 +26,8 @@ export const CAR = {
     sport:  { name: 'FLAMINGO GT', mass: 1050, maxSpeed: 47, accel: 21, health: 85, halfWid: .98, grip: 31, gripHandbrake: 12, brake: 36, steerInFast: 5, lean: .6, pitch: 1.3 },
     van:    { name: 'VAN',         mass: 1900, maxSpeed: 30, accel: 11, health: 150, halfLen: 2.6, halfWid: 1.03, wheelbase: 3.2, grip: 21, steerLock: .64, lean: 1.7, leanMax: .11, pitch: .85, cam: 1.15, cruise: .95 },
     truck:  { name: 'BOX TRUCK',   mass: 4200, maxSpeed: 26, accel: 8, health: 260, halfLen: 3.7, halfWid: 1.25, wheelbase: 4.9, grip: 18, gripHandbrake: 10, brake: 22, steerLock: .8, steerIn: 5, steerInFast: 3, lean: 1.4, leanMax: .09, pitch: .6, cam: 1.55, cruise: .85 },
+    // Mouse Bear Trucking's box truck: the same truck in the company's colours, with the mascot's ears on the cab (vehicles/vehicleModels.js)
+    mbtruck: { name: 'MOUSE BEAR TRUCK', mass: 4200, maxSpeed: 26, accel: 8, health: 260, halfLen: 3.7, halfWid: 1.25, wheelbase: 4.9, grip: 18, gripHandbrake: 10, brake: 22, steerLock: .8, steerIn: 5, steerInFast: 3, lean: 1.4, leanMax: .09, pitch: .6, cam: 1.55, cruise: .85 },
     limo:   { name: 'STRETCH',     mass: 1800, maxSpeed: 34, accel: 12, health: 130, halfLen: 3.1, wheelbase: 4.4, grip: 23, steerLock: .75, lean: 1.2, pitch: .9, cam: 1.2, cruise: .95 },
     // Boats and helicopters (craft: which). They take maxSpeed, accel, health and size from here; how they float and fly is in BOAT and HELI below.
     //   draft: how deep the hull sits (m)   turn: helm rate (rad/s)   tail: a helicopter's boom, as a second box [x, half length, half width]
@@ -126,7 +128,7 @@ export const FX = {
 export const SOUND = {
   master: .5,
   // which engine each vehicle has, and how high it is pitched. Anything not listed sounds like the sedan.
-  engine: { car: ['i4', 1], taxi: ['i4', .95], police: ['v8', 1.04], sport: ['v8', 1.2], van: ['diesel', 1.12], truck: ['diesel', .84], limo: ['v8', .88], bike: ['bike', 1],
+  engine: { car: ['i4', 1], taxi: ['i4', .95], police: ['v8', 1.04], sport: ['v8', 1.2], van: ['diesel', 1.12], truck: ['diesel', .84], mbtruck: ['diesel', .84], limo: ['v8', .88], bike: ['bike', 1],
     speedboat: ['v8', .78], policeboat: ['v8', .72], jetski: ['bike', .8] },      // helicopters have their own sound (audio/craftSounds.js)
   rotorVol: 1, washVol: 1,             // rotor chop and turbine whine; water rushing past a boat
   engineVol: 1, trafficVol: 1, tyreVol: 1, windVol: 1, sirenVol: 1,      // turn any layer up or down (1 = as mixed)
@@ -158,9 +160,16 @@ export const TRAFFIC = {
   count: 30, cruise: 11.5, pedCountNear: 5, pedCountFar: 2,
   near: 260,                 // traffic lives within this distance of you
   // how often each vehicle turns up: [driving around, parked]
-  mix: { car: [48, 54], taxi: [14, 8], van: [12, 12], bike: [10, 9], truck: [6, 4], sport: [6, 8], limo: [4, 5] },
+  mix: { car: [48, 54], taxi: [14, 8], van: [12, 12], bike: [10, 9], truck: [6, 4], sport: [6, 8], limo: [4, 5], mbtruck: [6, 0] },
   // the Sunset Loop and Highway 6: how many cars keep to the highway, how often street traffic takes a ramp up, and what drives there
-  highway: { count: 12, rampChance: .3, mix: { car: 44, sport: 14, taxi: 10, van: 10, truck: 10, limo: 6, bike: 6 } },
+  highway: { count: 12, rampChance: .3, mix: { car: 44, sport: 14, taxi: 10, van: 10, truck: 10, limo: 6, bike: 6, mbtruck: 7 } },
+};
+
+// Mouse Bear Trucking: the depot north of Port Sunset (world/mousebear.js) and its trucks (vehicles/mousebearFleet.js).
+export const MOUSEBEAR = {
+  onRoad: 3,                 // at least this many company trucks are always driving somewhere near you (the traffic mix adds more)
+  respawn: 45, far: 150,     // a truck taken from the yard is put back after this many seconds, once you are this far away
+  headSpin: .35,             // how fast the mascot on the sign turns (rad/s)
 };
 
 // How cars meet the land (world/ride.js). Flat downtown is unaffected.
@@ -243,7 +252,7 @@ export const JOBS = {
     first: 14, gap: 16, life: 360,                 // seconds: before the first order, between orders, until an ignored order is swapped
     // a delivered order, in mint condition (plus a little for distance); any other stolen vehicle is still worth scrap
     pay:   { car: 500, taxi: 650, van: 600, bike: 450, truck: 900, limo: 1400, sport: 1700, police: 2200 },
-    scrap: { car: 90, taxi: 110, van: 120, bike: 60, truck: 200, limo: 280, sport: 340, police: 450, speedboat: 400, jetski: 150, policeboat: 600, heli: 900, policeheli: 1500, armyheli: 2000 },
+    scrap: { car: 90, taxi: 110, van: 120, bike: 60, truck: 200, mbtruck: 240, limo: 280, sport: 340, police: 450, speedboat: 400, jetski: 150, policeboat: 600, heli: 900, policeheli: 1500, armyheli: 2000 },
     want:  { car: 4, taxi: 2, van: 2, bike: 2, truck: 1, limo: 1, sport: 2 },   // how often Scrap asks for each
     rare: ['sport', 'limo'],
     minDist: 90,                                   // order cars are parked at least this far from you

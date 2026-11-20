@@ -2,7 +2,8 @@
 // Drawn with north (the valley, then the hills) at the top and the beach at the bottom. The game keeps running underneath.
 const PLACES = [['VISTA HEIGHTS', 0, 300], ['PORT SUNSET', 300, -20], ['THE DUSTLANDS', -250, 40], ['SUNSET BEACH', 0, -268], ['DOWNTOWN', 0, 0], ['HIGH MEADOWS', -262, 292], ['LIGHTHOUSE BLUFFS', 300, 262], ['PALM PROMENADE', 0, -193],
   ['PALMVIEW', -243, 594], ['FLAMINGO PARK', -81, 600], ['CORAL PLAZA', 81, 560], ['MARLIN BAY', 292, 600], ['GOLDEN ACRES', -160, 770], ['FORT PELICAN', 190, 800]];
-const KEY = [['#3de0ff', 'R', 'Race'], ['#ff8a3d', 'J', 'Stunt jump'], ['#ff6b3d', 'P', 'Pizza run'], ['#ffffff', 'S', 'Speed camera'], ['#ff4d6d', 'B', 'Car bowling'], ['#7fb0ff', 'W', 'Bounty hunt'], ['#b980ff', 'D', 'Derby'], ['#b4f03c', 'M', 'Smash spree'], ['#ffe14d', 'T', 'Gun range'], ['#3df0b0', 'C', 'Spray shop'], ['#6dff8a', 'S', 'Story job'], ['#ff4fd8', '', 'Scrap\'s chop shop'], ['#ffd34d', '', 'Golden tin (when close)'], ['#ffffff', '', 'Open door: shop, diner or lobby'], ['#ff8a3d', 'G', 'Gun shop'], ['#19b6a4', 'H', 'Helicopter'], ['#35c7e0', '⚓', 'Boat']];
+const KEY = [['#3de0ff', 'R', 'Race'], ['#ff8a3d', 'J', 'Stunt jump'], ['#ff6b3d', 'P', 'Pizza run'], ['#ffffff', 'S', 'Speed camera'], ['#ff4d6d', 'B', 'Car bowling'], ['#7fb0ff', 'W', 'Bounty hunt'], ['#b980ff', 'D', 'Derby'], ['#b4f03c', 'M', 'Smash spree'], ['#ffe14d', 'T', 'Gun range'], ['#3df0b0', 'C', 'Spray shop'], ['#6dff8a', 'S', 'Story job'], ['#ff4fd8', '', 'Scrap\'s chop shop'], ['#ffd34d', '', 'Golden tin (when close)'], ['#ffffff', '', 'Open door: shop, diner or lobby'], ['#ff8a3d', 'G', 'Gun shop'], ['#19b6a4', 'H', 'Helicopter'], ['#35c7e0', '⚓', 'Boat'],
+  ['#fff3dc', '<img src="assets/mousebear/logo.png" alt="" style="width:18px;height:18px;border-radius:50%">', 'Mouse Bear Trucking']];
 
 export function createBigMap(A) {
   const { game } = A, p = game.player, mini = game.minimap;
@@ -14,10 +15,11 @@ export function createBigMap(A) {
   const sx = (wx) => c - wx * k, sy = (wz) => n - wz * k;        // north is up, so the map is turned half round
   let shown = false, wait = 0, doneHtml = '';
 
-  function disc(wx, wz, r, fill, glyph, ink = '#111') {
+  function disc(wx, wz, r, fill, glyph, ink = '#111', img = null) {
     const X = sx(wx), Y = sy(wz);
     x.fillStyle = fill; x.strokeStyle = '#111'; x.lineWidth = 2; x.beginPath(); x.arc(X, Y, r, 0, 7); x.stroke(); x.fill();
-    if (glyph) { x.fillStyle = ink; x.font = `900 ${Math.round(r * 1.45)}px "Archivo Black",Impact,sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(glyph, X, Y + .5); }
+    if (img?.complete && img.naturalWidth) x.drawImage(img, X - r, Y - r, r * 2, r * 2);
+    else if (glyph) { x.fillStyle = ink; x.font = `900 ${Math.round(r * 1.45)}px "Archivo Black",Impact,sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(glyph, X, Y + .5); }
   }
   function draw(t) {
     x.clearRect(0, 0, W, H);
@@ -28,7 +30,7 @@ export function createBigMap(A) {
     // hospital and police station
     for (const key in game.landmarks) { const m = game.landmarks[key], hosp = key === 'hospital'; disc(m.x, m.z, 8, hosp ? '#ffffff' : '#2d55c8', hosp ? '+' : '★', hosp ? '#e8203a' : '#ffd34d'); }
     // everything on the radar
-    for (const m of game.markers) if (!m.visible || m.visible()) disc(m.x, m.z, (m.size || 7) * 1.15 + (m.hot ? Math.sin(t * 6) * 1.5 : 0), m.color, m.glyph, m.ink);
+    for (const m of game.markers) if (!m.visible || m.visible()) disc(m.x, m.z, (m.size || 7) * 1.15 + (m.hot ? Math.sin(t * 6) * 1.5 : 0), m.color, m.glyph, m.ink, m.img);
     for (const b of game.jobs.blips()) {
       const X = sx(b.x), Y = sy(b.z), s = 8 + (b.hot ? Math.sin(t * 6) * 1.5 : 0);
       x.fillStyle = b.kind === 'chop' || b.kind === 'car' ? '#ff4fd8' : '#ffd34d'; x.strokeStyle = '#111'; x.lineWidth = 2; x.beginPath();

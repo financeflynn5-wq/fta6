@@ -74,7 +74,8 @@ export function createMinimap(game) {
         if (d > max) { if (!m.pin) continue; sx *= max / d; sy *= max / d; }
         const cx = R + sx, cy = R + sy, s = (m.size || 7) * (d > max ? .8 : 1) + (m.hot ? Math.sin(t * 6) * 1.2 : 0);
         x.fillStyle = m.color; x.strokeStyle = '#111'; x.lineWidth = 2; x.beginPath(); x.arc(cx, cy, s, 0, 7); x.stroke(); x.fill();
-        if (m.glyph) { x.fillStyle = m.ink || '#111'; x.font = `900 ${Math.round(s * 1.45)}px "Archivo Black",Impact,sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(m.glyph, cx, cy + .5); }
+        if (m.img?.complete && m.img.naturalWidth) x.drawImage(m.img, cx - s, cy - s, s * 2, s * 2);       // a picture instead of a letter (Mouse Bear's roundel)
+        else if (m.glyph) { x.fillStyle = m.ink || '#111'; x.font = `900 ${Math.round(s * 1.45)}px "Archivo Black",Impact,sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(m.glyph, cx, cy + .5); }
       }
       // the player: always centre, always pointing the way they face
       const heading = p.vehicle ? p.vehicle.h : Math.PI / 2 - p.face;

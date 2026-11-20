@@ -11,15 +11,37 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { loadEmbeddedGltf } from '../core/embeddedGltf.js';
 import { mats, std, paint } from '../world/materials.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // game type -> model file and wheel kind. Wheel radius per kind (m): the spin rate follows it.
 const MODELS = {
   car: ['sedan', 'std'], taxi: ['taxi', 'std'], police: ['police', 'std'], limo: ['limo', 'std'],
   sport: ['sport', 'sport'], van: ['van', 'std'], truck: ['truck', 'truck'], bike: ['bike', 'bike'],
+  mbtruck: ['truck', 'truck'],          // Mouse Bear Trucking: the box truck, repainted (see VARIANT below)
 };
 const WHEEL_R = { std: .4, sport: .4, truck: .52, bike: .36 };
 const BIKE_SEAT = { x: -.3, y: .27, z: 0 };        // character root on the saddle (seat top .98, hips .71 above the root)
 const SECOND_PAINT = 0xf4f4f4;
+
+// ---------- Mouse Bear Trucking's truck ----------
+// The same model as the box truck. Its "details" (the box sides, the rear door, the grille badge) are drawn from the
+// company's own copy of the atlas, and the mascot's two ears stand on the cab roof.
+const MB = { fur: 0x7b4a2d, pink: 0xf8a9b9 };
+let mbMats = null, mbBase = 'assets/vehicles/';
+function mouseBearMaterials() {
+  if (mbMats) return mbMats;
+  const map = new THREE.TextureLoader().load(mbBase + 'atlas_mousebear.png'); map.flipY = false; map.anisotropy = 8; map.colorSpace = THREE.SRGBColorSpace;
+  const d = details.clone(); d.map = map; d.name = 'mb_details';
+  Object.defineProperty(d, 'emissiveIntensity', { get: () => mats.head.emissiveIntensity * 1.5, set() {} });
+  return mbMats = { mb_details: d, mb_fur: std({ color: MB.fur, roughness: .75 }), mb_pink: std({ color: MB.pink, roughness: .7 }) };
+}
+function mouseBearTruck(model) {
+  const disc = (r, t, x, y, z) => { const g = new THREE.CylinderGeometry(r, r, t, 28); g.rotateZ(Math.PI / 2); g.translate(x, y, z); return g; };
+  const ears = [], inner = [];
+  for (const z of [-.7, .7]) { ears.push(disc(.46, .16, 2.62, 3.02, z)); inner.push(disc(.29, .2, 2.62, 3.03, z)); }
+  return { ...model, parts: [...model.parts.map(([g, name]) => [g, name === 'details' ? 'mb_details' : name]), [mergeGeometries(ears), 'mb_fur'], [mergeGeometries(inner), 'mb_pink']] };
+}
+const VARIANT = { mbtruck: mouseBearTruck };
 
 const real = {};          // type -> { parts: [[geometry, material name]], wheels: [{ x, y, z, front }], fork }
 const wheelGeos = {};     // wheel kind -> geometry (one mesh, the "details" material)
@@ -39,7 +61,7 @@ function detailsMaterial(base) {
 
 export function loadVehicleModels(base = 'assets/vehicles/') {
   const loader = new GLTFLoader();
-  detailsMaterial(base);
+  detailsMaterial(base); mbBase = base;
   const files = {};
   for (const [type, [file]] of Object.entries(MODELS)) (files[file] ||= []).push(type);
   const jobs = Object.entries(files).map(([file, types]) => loadEmbeddedGltf(base + file + '.gltf.json', loader).then(gltf => {
@@ -59,7 +81,7 @@ export function loadVehicleModels(base = 'assets/vehicles/') {
     if (!body || !wheels.length) return;
     const model = { parts: meshParts(body), wheels, kind };
     if (fork) model.fork = { parts: meshParts(fork), head: fork.getWorldPosition(new THREE.Vector3()) };
-    for (const t of types) real[t] = model;
+    for (const t of types) real[t] = VARIANT[t] ? VARIANT[t](model) : model;
     for (let i = waiting.length - 1; i >= 0; i--) if (real[waiting[i].userData.type]) upgrade(waiting.splice(i, 1)[0]);
   }).catch((e) => { console.warn('FTA 6: could not load the ' + file + ' vehicle model, showing a stand-in.', e); }));
   return Promise.all(jobs);
@@ -102,6 +124,7 @@ function upgrade(g) {
       case 'light_tail': return u.tail;
       case 'light_red': return red || u.tail;
       case 'light_blue': return blue || details;
+      case 'mb_details': case 'mb_fur': case 'mb_pink': return mouseBearMaterials()[name];
       default: return details;
     }
   };

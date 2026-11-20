@@ -10,7 +10,8 @@ import { plainGeometry } from './batching.js';
 import { groundY, landY, addFeature, addDeck, surfaceAt, nearRibbon } from './terrain.js';
 import { STEP, NX, NZ, WATER, CITY, hasRoad, nodeX, cellType } from './map.js';
 import { makeProps, roofGeo } from './props.js';
-import { buildNorth, shapeNorth } from './north.js';
+import { buildNorth, shapeNorth, northKit } from './north.js';
+import { buildMouseBear } from './mousebear.js';
 
 const PI = Math.PI;
 export const RACEWAY = { x: -243, z: -108, rx: 55, rz: 80 };      // the dirt oval in the Dustlands
@@ -281,6 +282,9 @@ export function buildDistricts(api) {
   // THE VALLEY beyond the ridge: Palmview, Flamingo Park, Coral Plaza, Marlin Bay, Golden Acres, Fort Pelican
   // =====================================================================================
   buildNorth({ api, scene, realScene, solids, out, P, M, G2, R, rr, one, box, solid, post, deck, house, scatter, clear, keepOut });
+
+  // Mouse Bear Trucking's depot, north of the port (its own dice, so nothing else moves)
+  buildMouseBear(northKit({ api, scene, realScene, solids, out, P, M, G2, R: seeded(5150), box, solid, post, deck, keepOut }));
 
   // ---------- street lamps along every road outside downtown ----------
   const inCity = (i) => i >= CITY.i0 && i <= CITY.i1;

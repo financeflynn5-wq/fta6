@@ -144,6 +144,8 @@ const SHAPES = {
     colors: [0xe8455b, 0x23272e, 0x2bb3c0, 0xffd60a, 0x34e06b, 0xf4f1ea],
   }),
 };
+// Mouse Bear Trucking's truck: the box truck in the company's teal (the real one is dressed in vehicleModels.js)
+SHAPES.mbtruck = () => ({ ...SHAPES.truck(), colors: [0x0f9692] });
 const built = {};
 const shapeOf = (type) => built[type] || (built[type] = SHAPES[type]());
 

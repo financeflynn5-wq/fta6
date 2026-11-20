@@ -49,6 +49,13 @@ There is no build step.
 - **Weapons.** Guns lie on the sidewalks, and in a few places in the valley, (yellow dots on the radar), with body armor (blue) and first-aid kits (green). They come back a minute after you take them. Knocked-out cops drop ammo.
 - **Fighting.** Hitting or shooting people raises your stars if a cop sees it; hurting a cop always does. From two stars, officers on foot draw pistols and shoot back. Armor soaks damage before health.
 - **Vehicles.** Sedans, taxis, vans, box trucks, stretch limos, the Flamingo GT sports car and motorbikes all drive differently: trucks are slow and heavy and shove traffic aside, the sports car and the bike are quick, and a hard crash throws you off the bike. A bike and a sports car are parked next to where you start.
+- **Mouse Bear Trucking.** The company's depot is the fenced yard just north of Port Sunset, where the port road meets the
+  coast road (the bear in a cap on the radar and the map): a warehouse with loading docks and a billboard on the roof, trailers,
+  a fuel island, the logo painted on the tarmac, and the Mouse Bear's head turning on a pole at the corner. Both gates stand open.
+  Its teal box trucks, with the mascot on the sides and its ears on the cab, are always out in traffic (at least three near you,
+  `MOUSEBEAR.onRoad` in `src/config.js`), and four wait in the yard to be taken; a truck you take comes back to its bay once you
+  are far away. They drive like the box truck. The artwork is drawn by `dev/mousebear-art.py` into `assets/mousebear/` and
+  `assets/vehicles/atlas_mousebear.png`.
 - **Crash damage.** Every knock leaves its mark where it landed, on your car and on whatever you hit: the body is pressed in (deeper and wider the harder the hit), paint is scraped dull and then down to bare metal, glass cracks and then falls out, lamps go dark (smashed headlights light the road less), a battered nose loses its bumper and the radiator starts to steam. Traffic, parked cars and cruisers dent the same way. Tune it in `DAMAGE` in `src/config.js`.
 - **Chop-shop orders.** Scrap pages you with a car he wants and it shows up pink on the radar with an arrow over it. Steal it, lose any stars, and park it on the pink marker outside Scrap's Chop Shop. Less damage means more cash. Rare cars (the sports car and the limo) pay the most, and every third order is a police cruiser. Any other stolen car parked there is sold for scrap.
 - **Taxi fares.** Sit in a taxi and someone hails you (gold on the radar). Stop next to them, then stop on the gold marker at their destination. A quick, smooth ride earns a tip; fares in a row pay more. Passengers bail if you pick up stars.
