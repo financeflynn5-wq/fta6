@@ -4,11 +4,11 @@ import { cash, fmtTime } from './kit.js';
 import { districtAt } from '../world/map.js';
 import { choose, clamp } from '../core/utils.js';
 
-// kerbside spots all over the map (every one is on or right beside a road, except the lighthouse)
+// kerbside spots all over the map (every one is on or right beside a road)
 const DOORS = [
   [-135, -49], [81, 59], [130, -103], [-49, 135], [49, -130],                     // downtown
   [-113, 265], [5, 300], [103, 245], [-157, 310],                                 // Vista Heights
-  [265, -60], [319, 100], [140, -211], [330, 284],                                // the port, the coast road, the lighthouse
+  [265, -60], [319, 100], [140, -211], [276, 262],                                // the port, the coast road, the zoo gate
   [-200, 5], [-319, -100], [-250, -211], [-319, 150],                             // the Dustlands
 ];
 

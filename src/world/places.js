@@ -3,6 +3,8 @@
 //     hay bales, crates, cones, the barrier at the base gate. Each is solid until something hits it hard
 //     enough, then it bursts and you drive on through. Glass that is `through` needs real speed; shop
 //     windows only shatter (the wall behind stops you). Bullets and fists break glass too.
+//     Sunset Zoo's fences are here too: wooden rails, steel pipes, tall iron bars (you look and shoot
+//     between them, and it takes a real run-up to burst through) and the keepers' yellow gates.
 //     Everything is put back once you are far away.
 //   - the camera stays under the mall's roof
 //   - Fort Pelican is a restricted area: hang around inside the fence and you are wanted
@@ -20,7 +22,15 @@ const BOX = new THREE.BoxGeometry(1, 1, 1), CYL = new THREE.CylinderGeometry(1, 
 // one fence panel 2.6 m long, standing on y = 0, centred on x
 function panelGeo(kind) {
   const parts = [], bx = (w, h, d, x, y, z = 0) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y, z); parts.push(g); };
-  if (kind === 'picket') { bx(2.6, .07, .04, 0, .34, 0); bx(2.6, .07, .04, 0, .78, 0); for (let i = 0; i < 10; i++) bx(.11, 1, .03, -1.17 + i * .26, .5, .03); for (const s of [-1.3, 1.3]) bx(.1, 1.14, .1, s, .57, 0); }
+  if (kind === 'bars') { for (const s of [-1.3, 1.3]) bx(.14, 2.7, .14, s, 1.35, 0); for (const y of [.2, 2.4]) bx(2.6, .08, .07, 0, y, 0); for (let i = 0; i < 11; i++) bx(.045, 2.56, .045, -1.083 + i * .2167, 1.3, 0); }
+  else if (kind === 'stout') { for (const s of [-1.3, 1.3]) bx(.26, 1.5, .26, s, .75, 0); for (const y of [.55, 1.15]) bx(2.6, .15, .15, 0, y, 0); }
+  else if (kind === 'gateTall' || kind === 'gateLow') {          // a keeper's gate: a frame, bars, a cross brace and a plate with the latch
+    const h = kind === 'gateTall' ? 2.6 : 1.4; for (const s of [-1.24, 1.24]) bx(.12, h, .12, s, h / 2, 0); for (const y of [.14, h - .06]) bx(2.5, .1, .1, 0, y, 0);
+    for (let i = 0; i < 7; i++) bx(.05, h - .2, .05, -.93 + i * .31, h / 2, 0);
+    const d = new THREE.BoxGeometry(Math.hypot(2.4, h - .3), .08, .06); d.rotateZ(Math.atan2(h - .3, 2.4)); d.translate(0, h / 2, 0); parts.push(d);
+    bx(.7, .42, .12, 0, Math.min(1.15, h - .5), 0);
+  }
+  else if (kind === 'picket') { bx(2.6, .07, .04, 0, .34, 0); bx(2.6, .07, .04, 0, .78, 0); for (let i = 0; i < 10; i++) bx(.11, 1, .03, -1.17 + i * .26, .5, .03); for (const s of [-1.3, 1.3]) bx(.1, 1.14, .1, s, .57, 0); }
   else { for (const s of [-1.3, 1.3]) bx(.15, 1.3, .15, s, .65, 0); for (const y of [.36, .72, 1.08]) bx(2.6, .1, .05, 0, y, 0); }
   return mergeGeometries(parts);
 }
@@ -65,6 +75,11 @@ export function createPlaces(game) {
     glass: { geo: BOX, mat: std({ color: 0xbfe6f0, roughness: .04, metalness: .35, transparent: true, opacity: .32, depthWrite: false }), shard: 0xd8f1f6, size: .2, sound: 'glass', cast: false },
     picket: { geo: panelGeo('picket'), mat: std({ color: 0xf6f3ec, roughness: .6 }), shard: 0xf6f3ec, size: .22, sound: 'wood', cast: true, tall: 1.1 },
     rail: { geo: panelGeo('rail'), mat: std({ color: 0x9a744c, roughness: .9 }), shard: 0x9a744c, size: .26, sound: 'wood', cast: true, tall: 1.3 },
+    // the zoo: see = how high the part you can't look or shoot through stands; need = m/s straight at it to burst through; keep, cost = what that leaves of your speed, and takes off the car
+    bars: { geo: panelGeo('bars'), mat: std({ color: 0x2c5446, roughness: .45, metalness: .55 }), shard: 0x2c5446, size: .22, sound: 'wood', cast: true, tall: 2.7, see: .5, hard: true, low: true, need: 8, keep: .55, cost: 9 },
+    stout: { geo: panelGeo('stout'), mat: std({ color: 0x9aa3a8, roughness: .5, metalness: .5 }), shard: 0x9aa3a8, size: .26, sound: 'wood', cast: true, tall: 1.5, see: .5, hard: true, low: true, need: 6, keep: .6, cost: 7 },
+    gateTall: { geo: panelGeo('gateTall'), mat: std({ color: 0xf2c230, roughness: .5, metalness: .3 }), shard: 0xf2c230, size: .22, sound: 'wood', cast: true, tall: 2.6, see: .5, hard: true, low: true, need: 8, keep: .55, cost: 9 },
+    gateLow: { geo: panelGeo('gateLow'), mat: std({ color: 0xf2c230, roughness: .5, metalness: .3 }), shard: 0xf2c230, size: .22, sound: 'wood', cast: true, tall: 1.4, see: .5, hard: true, low: true, need: 5, keep: .7, cost: 5 },
     boom: { geo: BOX, mat: std({ map: boomTex, roughness: .5 }), shard: 0xe8203a, size: .24, sound: 'wood', cast: true, hard: true },
     table: { foot: [1.15, .5], tall: 1, shard: 0xf6f3ec, size: .2 }, kiosk: { foot: [1.35, .95], tall: 2.7, shard: 0xf2937a, size: .32 },
     rack: { foot: [1.05, .3], tall: 1.6, shard: 0xff4d6d, size: .22 }, planter: { foot: [.78, .78], tall: 1.6, shard: 0x5fa64a, size: .3 },
@@ -83,7 +98,7 @@ export function createPlaces(game) {
   const wall = (b) => {
     const k = KINDS[b.kind]; if (!b.solid) return;
     b.col = k.prop ? ph.addWall(b.x, b.z, k.foot[0], k.foot[1], b.rot, k.tall > 1.7 ? 'solid' : 'low', b.y + k.tall)
-      : ph.addWall(b.x, b.z, b.w / 2, .09, b.rot, b.hard ? 'solid' : 'low', b.y + (k.tall || b.h));
+      : ph.addWall(b.x, b.z, b.w / 2, .09, b.rot, b.hard && !k.low ? 'solid' : 'low', b.y + (k.see ?? k.tall ?? b.h));
   };
   for (const k in KINDS) {
     const mine = list.filter(b => b.kind === k), K = KINDS[k]; if (!mine.length) continue;
@@ -97,11 +112,13 @@ export function createPlaces(game) {
   }
   let broken = [];
 
-  function smash(b, dx, dz, vx = 0, vz = 0, power = 1) {
+  // quiet = taken away without a crash (a gate someone opened)
+  function smash(b, dx, dz, vx = 0, vz = 0, power = 1, quiet = false) {
     if (!b.alive) return;
     const K = KINDS[b.kind]; b.alive = false; K.im.setMatrixAt(b.i, hidden); K.im.instanceMatrix.needsUpdate = true; broken.push(b);
-    game.onSmash?.(b);                           // the smash spree counts these
     if (b.col) { ph.world.removeCollider(b.col, true); b.col = null; }
+    if (quiet) return;
+    game.onSmash?.(b);                           // the smash spree counts these
     const far = Math.hypot(b.x - p.x, b.z - p.z); if (far > 90) return;
     const n = b.kind === 'glass' ? Math.round(6 + b.w * b.h * 1.6) : K.prop ? 12 : 9, h = b.kind === 'glass' ? b.h : K.tall || 1;
     for (const t of [-.3, 0, .3]) game.debris.burst(b.x + b.cos * b.w * t, b.y + h * (.35 + Math.random() * .4), b.z + b.sin * b.w * t, dx, dz, Math.ceil(n / 3), K.shard, K.size, 3 + power * 4, vx, vz);
@@ -125,12 +142,13 @@ export function createPlaces(game) {
         }
         if (!hit) continue;
         const closing = Math.abs(-v.vx * b.sin + v.vz * b.cos);        // speed straight at the panel
-        if (b.hard ? closing < SMASH.through : v.speed < SMASH.touch && !(shove && nose)) continue;
+        const K = KINDS[b.kind];
+        if (b.hard ? closing < (K.need ?? SMASH.through) : v.speed < SMASH.touch && !(shove && nose)) continue;
         const sp = v.speed || 1; smash(b, v.vx / sp, v.vz / sp, v.vx, v.vz, clamp(v.speed / 20, .3, 1.5));
         if (v.driver === 'player') game.match?.smashed(b);
         if (b.hard || KINDS[b.kind].prop && !KINDS[b.kind].soft) {       // bursting through costs a little speed and paint
-          const keep = b.hard ? SMASH.keep : SMASH.keepProp, lv = v.body.linvel(); v.body.setLinvel({ x: lv.x * keep, y: lv.y * keep }, true); v._set.x *= keep; v._set.y *= keep;
-          v.damage(b.hard ? SMASH.damage : SMASH.damage * .4); if (v.driver === 'player') game.cam.shake(b.hard ? .3 : .15);
+          const keep = b.hard ? K.keep ?? SMASH.keep : SMASH.keepProp, lv = v.body.linvel(); v.body.setLinvel({ x: lv.x * keep, y: lv.y * keep }, true); v._set.x *= keep; v._set.y *= keep;
+          v.damage(b.hard ? K.cost ?? SMASH.damage : SMASH.damage * .4); if (v.driver === 'player') game.cam.shake(b.hard ? .3 : .15);
         }
       }
     }
@@ -138,7 +156,7 @@ export function createPlaces(game) {
 
   let tidy = 0, inBase = 0, warned = false, pinged = 0;
   const places = {
-    list, zones,
+    list, zones, smash,
     // A bullet or a fist landed here: break the glass it hit.
     shot(x, y, z, dx = 0, dz = 0) {
       const cx = Math.floor(x / CELL), cz = Math.floor(z / CELL);
@@ -155,9 +173,10 @@ export function createPlaces(game) {
     // Put everything broken inside a box back at once (the smash spree starts with a whole mall).
     mend(x0, x1, z0, z1) { broken = broken.filter(b => { if (b.x < x0 || b.x > x1 || b.z < z0 || b.z > z1) return true; b.alive = true; place(b); wall(b); return false; }); },
     update(dt, t) {
-      const north = p.z > 330;
+      const zoo = zones.zoo, north = p.z > 330 || !!zoo && p.x > zoo.x0 - 220 && p.z > zoo.z0 - 220;      // nothing breakable stands south of the zoo
+      const there = (v) => v.z > 400 || !!zoo && v.x > zoo.x0 - 14 && v.x < zoo.x1 + 14 && v.z > zoo.z0 - 14 && v.z < zoo.z1 + 14;
       for (const k in KINDS) if (KINDS[k].im) KINDS[k].im.visible = north;
-      if (north) for (const v of game.traffic.vehicles) if ((v.speed > 1.5 || v.driver === 'player') && v.z > 400 && Math.abs(v.x - p.x) < 160 && Math.abs(v.z - p.z) < 160) carCheck(v);
+      if (north) for (const v of game.traffic.vehicles) if ((v.speed > 1.5 || v.driver === 'player') && there(v) && Math.abs(v.x - p.x) < 160 && Math.abs(v.z - p.z) < 160) carCheck(v);
       // put things back once nobody is near enough to see it happen
       if (broken.length && (tidy -= dt) <= 0) {
         tidy = 3;

@@ -14,6 +14,7 @@ import { buildMall } from './mall.js';
 import { buildMarina } from './marina.js';
 import { buildFarm } from './farm.js';
 import { buildBase } from './base.js';
+import { buildZoo, shapeZoo } from './zoo.js';
 
 const PI = Math.PI;
 
@@ -26,6 +27,7 @@ export function shapeNorth(F) {
   F({ x: -126, z: 655, r: 20, h: 2.4 }); F({ x: -30, z: 527, r: 15, h: 1.5 }); F({ x: -128, z: 530, r: 16, h: 1.8 });
   // Golden Acres: rolling fields
   F({ x: -243, z: 862, r: 34, h: 4 }); F({ x: -110, z: 846, r: 28, h: 3 }); F({ x: 27, z: 850, r: 16, h: 1.6 });
+  shapeZoo(F);            // Sunset Zoo is south of the ridge, but it is built with the valley's tools (zoo.js)
 }
 
 // ---------- tools shared by the northern districts ----------
@@ -288,4 +290,5 @@ export function buildNorth(K) {
   // the bigger places
   K.home = home;
   buildPark(K); buildMall(K); buildMarina(K); buildFarm(K); buildBase(K);
+  buildZoo(K);
 }

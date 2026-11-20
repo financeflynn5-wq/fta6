@@ -54,6 +54,7 @@ export function createHits(game) {
       for (const o of game.police.officers) body(o.ped, 'officer', o);
       if (game.net?.active) for (const r of game.net.targets) body(r, 'rival', r);            // other players on foot
       for (const v of game.traffic.vehicles) if (v !== skipCar && Math.abs(v.x - ox) < range + 3 && Math.abs(v.z - oz) < range + 3) consider(carBox(ox, oy, oz, dx, dy, dz, v, tmin, best), 'car', v);
+      game.wildlife?.cast(ox, oy, oz, dx, dy, dz, tmin, range, consider);            // sharks and zoo animals
       // buildings, posts and trees
       const h = Math.hypot(dx, dz);
       if (h > 1e-4) {
@@ -108,6 +109,7 @@ export function createHits(game) {
         if (out) game.pickups?.drop(o.ped.x, o.ped.z);
         return out;
       }
+      if (h.kind === 'beast') return game.wildlife.hurt(h, damage, dx, dz, { byPlayer, melee, knock });
       if (h.kind === 'car') {
         const v = h.obj; if (near) { fx.spark(h.x, h.y, h.z, 5, .6); audio.ting(); }
         v.damage(damage * .55);

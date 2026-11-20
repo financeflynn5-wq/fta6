@@ -1,0 +1,57 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>FTA 6 zoo lab</title>
+<!-- A bench for the animals: a row of them on a plain floor, looked at from any side, in any pose.
+     Not part of the game. Open dev/zoo-lab.html?kinds=lion,bear,shark from a static server, then e.g.
+     lab.view(40, 15, 9); lab.play('idle', 0, 2) (pose, speed in m/s, seconds to run); lab.grid([[30, 15, 9], [150, 20, 9]]) -->
+<style>html, body { margin: 0; background: #9aa; overflow: hidden } canvas { display: block }</style>
+<script type="importmap">{"imports":{"three":"../vendor/three/build/three.module.js","three/addons/":"../vendor/three/addons/","rapier":"../vendor/rapier/rapier.mjs"}}</script>
+<canvas id="cv"></canvas>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { makeBeast, animateBeast, BEAST_KINDS } from '../src/wildlife/beasts.js';
+import { makeCharacter } from '../src/characters/models.js';
+import { litMaterials, std } from '../src/world/materials.js';
+
+const q = new URLSearchParams(location.search), kinds = (q.get('kinds') || BEAST_KINDS.join(',')).split(',');
+const W = +(q.get('w') || 1280), H = +(q.get('h') || 720);
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('cv'), antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H, false); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = .85;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xf3d9c0);
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(renderer), .04).texture;
+const camera = new THREE.PerspectiveCamera(42, W / H, .1, 300);
+scene.add(new THREE.HemisphereLight(0xcfe6ff, 0x8a7a66, .75));
+const sun = new THREE.DirectionalLight(0xffe2b8, 2.6); sun.position.set(-14, 22, 9); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -24, right: 24, top: 24, bottom: -24, near: 1, far: 80 }); sun.shadow.bias = -.0004; sun.shadow.normalBias = .04; scene.add(sun);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), std({ color: 0x8fae6a, roughness: .95 })); floor.rotation.x = -Math.PI / 2; floor.position.y = -.001; floor.receiveShadow = true; scene.add(floor);
+
+const gap = +(q.get('gap') || 3.2), beasts = [];
+kinds.forEach((k, i) => {
+  const m = makeBeast(k, { statue: q.has('gold') }); m.position.set((i - (kinds.length - 1) / 2) * gap, k === 'shark' ? 1 : 0, 0); scene.add(m); beasts.push(m);
+});
+if (q.has('who')) { const c = makeCharacter(q.get('who') || 'raccoon'); c.position.set((kinds.length / 2 + .2) * gap, 0, 0); scene.add(c); }
+for (const m of litMaterials) m.envMapIntensity = .7;
+let time = 0;
+const lab = window.lab = {
+  THREE, scene, camera, renderer, beasts, ready: true,
+  view(az = 35, el = 18, dist = 14, tx = 0, ty = 1.2, tz = 0) {
+    const a = az * Math.PI / 180, e = el * Math.PI / 180;
+    camera.position.set(tx + Math.cos(a) * Math.cos(e) * dist, ty + Math.sin(e) * dist, tz + Math.sin(a) * Math.cos(e) * dist); camera.lookAt(tx, ty, tz);
+  },
+  // run every animal in a pose for a while (pose may be a list, one per animal)
+  play(pose = 'idle', speed = 0, seconds = 1, look = 0) {
+    for (let s = 0; s < seconds; s += 1 / 60) { time += 1 / 60; beasts.forEach((m, i) => animateBeast(m, time, 1 / 60, Array.isArray(speed) ? speed[i] : speed, Array.isArray(pose) ? pose[i] : pose, look)); }
+  },
+  grid(views, cols = 2) {
+    const rows = Math.ceil(views.length / cols), w = W / cols, h = H / rows; renderer.setScissorTest(true);
+    views.forEach((vw, i) => { const x = (i % cols) * w, y = H - (Math.floor(i / cols) + 1) * h; renderer.setViewport(x, y, w, h); renderer.setScissor(x, y, w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); lab.view(...vw); renderer.render(scene, camera); });
+    renderer.setScissorTest(false); lab.held = true;
+  },
+  render() { if (!lab.held) renderer.render(scene, camera); },
+  info() { let tris = 0, meshes = 0; beasts[0].traverse(o => { if (o.isMesh) { meshes++; tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; } }); return { tris, meshes }; },
+};
+lab.play('idle', 0, .2); lab.view();
+(function loop() { requestAnimationFrame(loop); lab.render(); })();
+</script>

@@ -50,6 +50,7 @@ import { createFleet } from './vehicles/fleet.js';
 import { createMouseBearFleet } from './vehicles/mousebearFleet.js';
 import { createAirSea } from './police/airSea.js';
 import { createSkydive } from './player/skydive.js';
+import { createWildlife } from './wildlife/wildlife.js';
 import { createWake } from './fx/wake.js';
 import { createTrouble } from './missions/trouble.js';
 
@@ -104,6 +105,7 @@ async function boot() {
   game.mouseBear = createMouseBearFleet(game);  // Mouse Bear Trucking: trucks in the depot's bays and out on the roads
   for (const s of game.fleet.slots) if (s.type.endsWith('heli')) game.skydive.place(s.x + 3.4 * (s.x > 330 ? -1 : 1), s.z + 3.6, (s.y ?? 0) + 1);      // a parachute pack by every helipad
   game.peds.init();
+  game.wildlife = createWildlife(game);         // sharks in the sea, the animals at the zoo
   game.jobs = createJobs(game);
   game.outlaws = createOutlaws(game);           // crooks' cars: runaways to run down, derby rivals that come after you
   game.activities = createActivities(game);     // races, stunt jumps, collectibles and the rest
@@ -277,6 +279,7 @@ async function boot() {
     game.traffic.syncVisual(dt, t); game.wheels.commit();
     peds.update(dt, t);
     player.update(dt, t); game.skydive.update(dt, t); game.skydive.pickups(dt, t);
+    game.wildlife.update(dt, t);
     game.combat.update(dt, t);
     game.net.update(dt, t);
     game.match.update(dt, t);

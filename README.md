@@ -140,6 +140,39 @@ Both are ordinary vehicles: walk up, press E, and the same damage, theft and mul
   after you and bust you if you stop. Cruisers wait at the nearest street until you come ashore.
 - Each craft has a home slot (`src/vehicles/fleet.js`) and comes back there once it is stolen, wrecked or lost and you are far away.
 
+## Sharks
+
+Seven sharks patrol wherever the sea is deep enough to swim in, a fin and a line of foam above the water.
+
+- **Swimming**: one that comes within about 55 m of you notices (a red blip on the radar, a two-note warning), circles for a few
+  seconds, then charges. A bite costs 22 health and it takes a couple of seconds to come round again; up to three hunt at once.
+  Get out of the water, or into a boat. Falling in from a helicopter or a wrecked boat counts as swimming.
+- **Boats**: a moving boat is safe. Sit still for five seconds in deep water and one rams the hull; a jet ski may throw you off.
+  Run a shark down at speed and it is the shark that gets hurt.
+- **Fighting back**: they can be shot (150 health, $200 each) and a punch on the nose sends one away for a while.
+- Tuning is `SHARK` in `src/config.js`; the code is `src/wildlife/sharks.js`.
+
+## Sunset Zoo
+
+On the coast road beside the lighthouse (gold Z on the radar): a walled zoo you can walk or drive into, with a snack bar and a
+back gate to the lighthouse. Zebras, penguins, bears and lions live down the west side, giraffes, hippos, elephants and
+gorillas down the east.
+
+- **Fences break.** Wooden rails (zebras, giraffes) go down to any car; steel pipes (hippos, elephants) and iron bars (bears,
+  lions, gorillas) need a real run-up and cost the car; the penguins' glass can be shot out. You can shoot between bars.
+  Each enclosure also has a yellow keeper's gate: stand at it and press **E**.
+- **Letting animals out is a crime** (two stars for the dangerous ones) and everyone in the zoo runs.
+- **What they do once out**: lions, lionesses and bears hunt whoever is on foot, you included, and are faster than you can
+  sprint; in a car they claw at it if you dawdle. Gorillas beat their chests, then punch anyone who stays within a few metres.
+  Hippos bite anyone who comes close and head for the sea with the penguins. Elephants leave you alone unless you hurt one,
+  then they charge, on foot or in a car, and will push their own fence over to get at you. Zebras and giraffes just run.
+  Dangerous animals on the loose are red blips.
+- **Cars**: a car bowls the smaller animals over (and takes a dent); an elephant or a hippo is like hitting a rock.
+- **They can all be shot, punched or stabbed**, and whoever you hurt (and its pride) comes for you. Knocking out an animal that
+  was doing no harm is a one-star crime.
+- **Everything is put back** (animals, fences, gates) once you are about 240 m away.
+- Tuning is `ZOO` in `src/config.js`: one line per animal (health, speeds, temper, damage) and the rules below it.
+
 ## Playing together
 
 **Switched off for now** (`NET.enabled` in `src/config.js`): the menu is hidden and the game connects to nothing. It comes back
@@ -205,6 +238,7 @@ src/world/                  city (the downtown scene), materials, sky (day/night
                             north (the valley: its land, the shared building kit, and the order its districts are built in),
                             park, mall, marina, farm, base (one file per valley district; Palmview is in north),
                             places (things that break: glass, fences, props, gate booms; the base's alarm; roofs the camera stays under)
+                            zoo (Sunset Zoo's wall, gates, paths and enclosures; who lives in them is src/wildlife/)
                             forest (Whisper Woods: the pines over High Meadows, the trail, the clearing and everything in the camp)
 src/activities/             activities (start rings, one-at-a-time), kit (markers, panel, banner, save), races, stunts, tins,
                             pizza, traps (speed cameras), bowling, bounty, derby, spree (the mall), range, spray, bigmap (hold Tab)
@@ -240,10 +274,13 @@ src/net/                    net (my snapshots out, everyone else's in, shots and
                             direct, tabs: three ways to carry the same messages), remote (another player on this screen),
                             ghostCar (another player's car on this screen), match (Cops vs Robbers: the rules, the bar at the
                             top, the lobby on the pause menu, the final score)
+src/wildlife/               beasts (the animal models and how they move), sharks, zooLife (what each zoo animal does, at home
+                            and loose), calls (their noises), wildlife (ties them to the game and to shots), ray
 src/fx/                     effects (tyre marks, smoke, sparks), carLights, debris (shards and torn-off parts), wake (foam on the sea)
 dev/damage-lab.html         a bench for the crash damage: vehicles on a plain floor, dented from the console (not part of the game)
 dev/craft-lab.html          a bench for the boats and helicopters, e.g. ?types=heli,speedboat&sea&rider=raccoon
 dev/cast-lab.html           a bench for the characters: a line-up of any cast members, e.g. ?kinds=sal,dale,tiff,bighead*9
+dev/zoo-lab.html            a bench for the animals: any of them in a row, in any pose, e.g. ?kinds=lion,bear,shark&who=raccoon
 vendor/                     three.js r160, Rapier 2D and PeerJS 1.5.5, vendored so the game needs no build and no CDN
 ```
 

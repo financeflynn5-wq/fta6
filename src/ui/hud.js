@@ -44,6 +44,7 @@ export function createHud(game) {
         else if (p.sky === 'fall') prompt = (p.chutes > 0 ? '<kbd>Space</kbd> Open parachute' : 'No parachute!') + ' &nbsp;·&nbsp; ' + Math.max(0, Math.round(game.skydive.height() / 5) * 5) + ' m';
         else if (p.sky === 'chute') prompt = game.hints.chute-- > 0 ? '<kbd>A</kbd><kbd>D</kbd> Steer &nbsp; <kbd>S</kbd> Flare' : '';
         else if (p.nearCar) prompt = p.nearCar.stolen ? '<kbd>E</kbd> Get back in' : `<kbd>E</kbd> ${p.nearCar.driver ? 'Carjack' : 'Steal'} this ${p.nearCar.stats.name.toLowerCase()}`;
+        else if (game.wildlife?.zoo.prompt) prompt = game.wildlife.zoo.prompt;
       }
       if (prompt !== lastPrompt) { el.prompt.innerHTML = prompt; el.prompt.hidden = !prompt; lastPrompt = prompt; }
       // red/blue wash at the screen edges while the cops are on you

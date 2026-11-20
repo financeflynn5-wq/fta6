@@ -139,6 +139,7 @@ export function districtAt(x, z) {
     return x < 166 ? 'CORAL PLAZA' : 'MARLIN BAY';
   }
   if (z > 372) return x < -240 ? 'WEST PASS' : x < -50 ? 'COYOTE PASS' : x < 220 ? 'PELICAN PASS' : 'COAST ROAD';
+  if (x > 280 && x < 341 && z > 226 && z < 338) return 'SUNSET ZOO';                    // world/zoo.js
   if (x > 277 && x < 336 && z > 169 && z < 213) return 'MOUSE BEAR TRUCKING';      // the depot (world/mousebear.js)
   if (x > CITY_EDGE && z < 190) return 'PORT SUNSET';
   if (z > CITY_EDGE && x >= -CITY_EDGE) return x > 190 ? 'LIGHTHOUSE BLUFFS' : 'VISTA HEIGHTS';

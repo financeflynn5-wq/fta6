@@ -350,6 +350,51 @@ export const SKY = {
   price: 250, carry: 3, respawn: 45,     // a parachute at Bullseye Guns; how many you can carry; seconds before a pack by a helipad comes back
 };
 
+// ---------- sharks (wildlife/sharks.js) ----------
+export const SHARK = {
+  count: 7,                        // how many swim near you at once
+  near: 55, far: 140, gone: 210,   // they turn up between near and far (m) from you; one left further behind than gone is moved closer
+  depth: .95,                      // the shallowest water they will enter (m): keep to the shallows and they can't quite reach you
+  cruise: 2.6, stalk: 5.2, charge: 10.5, turn: 1.5,      // m/s patrolling, circling and attacking; how fast they turn (rad/s)
+  sense: 55,                       // a swimmer this close gets noticed (m)
+  hunters: 3,                      // how many come for you at once
+  circle: [3.5, 6.5],              // seconds one circles before its first charge (the ones that join in are quicker)
+  bite: 22, reach: 1.15, gap: 1.6, // damage per bite; how close its nose has to get (m); the least time between two bites, however many are after you
+  hp: 150, bounty: 200,            // how much shooting one takes; what a dead one pays
+  ramAfter: 5, ram: 7, tip: .45,   // seconds a boat may sit still before one rams it; what that costs the boat; chance a jet ski throws you
+  runOver: 5.5,                    // a boat faster than this (m/s) hurts a shark it hits
+  float: 12,                       // seconds a dead one floats before it sinks
+};
+
+// ---------- Sunset Zoo (world/zoo.js builds it, wildlife/zooLife.js runs the animals) ----------
+export const ZOO = {
+  // hp; walk and run (m/s; you sprint at 7.8); r = how much room it takes up (m); temper:
+  //   hunter = hunts you and anyone else on foot once it is out      guard = goes for whoever comes within `guard` metres
+  //   calm = leaves you alone until it is hurt                       shy = runs from anything within `shy` metres
+  // hit = what a bite, a punch or a tusk costs you; reach (m); knock = how hard it throws you (m/s); cool = seconds between attacks;
+  // heavy = a car stops dead against it, and it can push a fence over; swim = takes to water; verb = what the screen says it did to you
+  kinds: {
+    lion: { hp: 260, walk: 1.5, run: 9.6, turn: 3.4, r: .7, temper: 'hunter', hit: 24, reach: 1.7, knock: 6, cool: 1.6, call: 'roar', verb: 'MAULED BY A LION!' },
+    lioness: { hp: 220, walk: 1.6, run: 10.4, turn: 3.6, r: .65, temper: 'hunter', hit: 20, reach: 1.6, knock: 6, cool: 1.5, call: 'growl', verb: 'MAULED BY A LIONESS!' },
+    bear: { hp: 380, walk: 1.3, run: 8.3, turn: 3, r: .85, temper: 'hunter', hit: 28, reach: 1.7, knock: 8, cool: 1.8, call: 'growl', verb: 'MAULED BY A BEAR!' },
+    gorilla: { hp: 320, walk: 1.2, run: 7.4, turn: 3.2, r: .8, temper: 'guard', guard: 6.5, hit: 28, reach: 1.6, knock: 12, cool: 1.8, call: 'chest', verb: 'PUNCHED BY A GORILLA!' },
+    hippo: { hp: 600, walk: 1, run: 6.6, turn: 2.2, r: 1.15, temper: 'guard', guard: 5.5, hit: 36, reach: 2.3, knock: 7, cool: 2, call: 'grunt', verb: 'BITTEN BY A HIPPO!', heavy: true, swim: true },
+    elephant: { hp: 900, walk: 1.2, run: 7.2, turn: 1.8, r: 1.6, temper: 'calm', hit: 40, reach: 3.2, knock: 13, cool: 2.4, call: 'trumpet', verb: 'TRAMPLED BY AN ELEPHANT!', heavy: true },
+    giraffe: { hp: 300, walk: 1.4, run: 8, turn: 2.2, r: .8, temper: 'shy', shy: 5 },
+    zebra: { hp: 160, walk: 1.5, run: 10, turn: 3.2, r: .65, temper: 'shy', shy: 8, call: 'bray' },
+    penguin: { hp: 25, walk: .75, run: 2.1, turn: 5, r: .28, temper: 'shy', shy: 2.6, call: 'squawk', swim: true },
+  },
+  sense: 42, lose: 75,             // how far a loose hunter notices someone on foot; how far away you must get before it gives up (m)
+  grudge: 22,                      // seconds an animal you hurt stays after you
+  mercy: 1.2,                      // seconds after one of them gets you before another can
+  stars: 2, heat: 3,               // letting animals out: stars at least, and heat
+  cruelty: 1,                      // stars at least for knocking out one that was doing no harm (0 = nobody minds)
+  carKnock: 4.5,                   // a car faster than this (m/s) bowls an animal over...
+  carHurt: 7, carCost: .7,         // ...which costs the animal this much per m/s, and the car this much per m/s
+  claw: .3, ram: .6,               // share of its hit an animal takes off a car you are sitting in: the lighter kinds, the two heavy ones
+  leash: 200, reset: 240,          // how far from the zoo they stray (m); everyone is back home once you are this far away
+};
+
 // The law off the road: the police helicopter and the patrol boats (police/airSea.js).
 export const POLICE_CRAFT = {
   heliStars: 3,              // a helicopter joins the chase from this many stars...
