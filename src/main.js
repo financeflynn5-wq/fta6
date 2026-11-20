@@ -51,6 +51,7 @@ import { createMouseBearFleet } from './vehicles/mousebearFleet.js';
 import { createAirSea } from './police/airSea.js';
 import { createSkydive } from './player/skydive.js';
 import { createWake } from './fx/wake.js';
+import { createTrouble } from './missions/trouble.js';
 
 const STEP = 1 / 60;
 const $ = (id) => document.getElementById(id);
@@ -108,6 +109,7 @@ async function boot() {
   game.activities = createActivities(game);     // races, stunt jumps, collectibles and the rest
   game.indoors = createInteriors(game);         // shops and lobbies you can walk into
   game.places = createPlaces(game);             // the valley: glass and fences that break, the mall roof, the base
+  game.trouble = createTrouble(game);           // people who fight you on foot: the camp in the woods, the bar, the gangs (also sets game.brawlers)
   game.net = createNet(game);                   // other players, once a room is joined
   game.match = createMatch(game);               // cops vs robbers, played in a room
   game.env.touch();
@@ -292,7 +294,7 @@ async function boot() {
       titleYaw += dt * .05; engine.camera.position.set(Math.sin(titleYaw) * 150, 128, Math.cos(titleYaw) * 150); engine.camera.lookAt(0, 44, 0);     // clear of the towers
       cam.lookAt.set(0, 0, 0);
     } else cam.update(dt, t);
-    game.world.update(dt, t); game.activities.update(dt, t); game.highway.update(dt); game.indoors.update(dt, t); game.places.update(dt, t);
+    game.world.update(dt, t); game.activities.update(dt, t); game.highway.update(dt); game.indoors.update(dt, t); game.places.update(dt, t); game.trouble.update(dt, t);
     game.env.update(dt, engine.camera.position, cam.lookAt);
     game.carLights.update(t);
     hud.update(dt, t); game.weaponHud.update(dt, t); game.minimap.update(t);

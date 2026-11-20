@@ -12,6 +12,7 @@ import { STEP, NX, NZ, WATER, CITY, hasRoad, nodeX, cellType } from './map.js';
 import { makeProps, roofGeo } from './props.js';
 import { buildNorth, shapeNorth, northKit } from './north.js';
 import { buildMouseBear } from './mousebear.js';
+import { buildForest, outOfClearing } from './forest.js';
 
 const PI = Math.PI;
 export const RACEWAY = { x: -243, z: -108, rx: 55, rz: 80 };      // the dirt oval in the Dustlands
@@ -274,8 +275,8 @@ export function buildDistricts(api) {
     box(mats.trim, x, y - 1.5, z, 14.4, 4, 10.4);
   }
   { const x = -300, z = 296, y = groundY(x, z); box(mats.darkMetal, x, y + 16, z, .5, 32, .5); for (let k = 8; k <= 32; k += 8) box(M.red, x, y + k, z, .7, 1.2, .7, false); mesh(G2.blob, mats.lampHead, V(x, y + 32.5, z), V(.5, .5, .5), scene, false); post(x, z, .5); api.lampPts.push(V(x, y + 31, z)); out.spots.mast = { x, z }; }
-  scatter(90, -317, 223, -169, 330, (x, z) => P.tree(x, z, rr(.9, 1.6)));
-  scatter(20, -317, 223, -169, 330, (x, z) => P.bush(x, z, rr(.8, 1.5)));
+  scatter(90, -317, 223, -169, 330, (x, z) => { [x, z] = outOfClearing(x, z); P.tree(x, z, rr(.9, 1.6)); });       // (the camp's clearing stays open: forest.js)
+  scatter(20, -317, 223, -169, 330, (x, z) => { [x, z] = outOfClearing(x, z); P.bush(x, z, rr(.8, 1.5)); });
   scatter(14, -317, -205, -169, -172, (x, z) => P.palm(x, z, rr(.9, 1.15)));
 
   // =====================================================================================
@@ -285,6 +286,9 @@ export function buildDistricts(api) {
 
   // Mouse Bear Trucking's depot, north of the port (its own dice, so nothing else moves)
   buildMouseBear(northKit({ api, scene, realScene, solids, out, P, M, G2, R: seeded(5150), box, solid, post, deck, keepOut }));
+
+  // Whisper Woods: pines over High Meadows and the camp in the middle of them (its own dice)
+  buildForest({ scene, realScene, solids, out, signMats: api.signMats });
 
   // ---------- street lamps along every road outside downtown ----------
   const inCity = (i) => i >= CITY.i0 && i <= CITY.i1;

@@ -68,7 +68,7 @@ export function createGunmen(game) {
           if (ped.state === 'ko' && ped.timer < 1.2) drop(g);                    // before the street sweeper counts him as a missing citizen
           continue;
         }
-        if (ped.state === 'air' || ped.state === 'down' || ped.state === 'dive') { g.alert = true; continue; }
+        if (ped.state === 'air' || ped.state === 'down' || ped.state === 'up' || ped.state === 'reel' || ped.state === 'dive') { g.alert = true; continue; }
         if (ped.state !== 'goon') { ped.state = 'goon'; ped.panic = 0; }        // back on his feet
         ped.panic = 0;
         { const [R, L] = ped.model.userData.arms; R.rotation.z = -.12; L.rotation.z = .12; }      // arms down unless he is aiming

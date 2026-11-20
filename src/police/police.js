@@ -3,7 +3,7 @@
 import { POLICE, WORLD, CAR, COMBAT } from '../config.js';
 import { clamp, choose, damp, angleDiff } from '../core/utils.js';
 import { groundY } from '../world/city.js';
-import { animateCharacter, COPS } from '../characters/models.js';
+import { animateCharacter, reelCharacter, COPS } from '../characters/models.js';
 import { AIDriver, nearestNodeIndex } from '../vehicles/aiDriver.js';
 
 const N = WORLD.nodes;
@@ -65,7 +65,7 @@ export function createPolice(game) {
     knockOfficer(o, car) {
       if (car.speed < 4 || !officers.includes(o)) return;
       const ped = o.ped; retire(o, false);
-      ped.state = 'air'; ped.air = .01; ped.vy = 3.5 + car.speed * .2; ped.vx = car.vx * .8; ped.vz = car.vz * .8; game.peds.list.push(ped);
+      game.peds.list.push(ped); game.peds.launch(ped, car.vx * .8, car.vz * .8, 2 + car.speed * .34);
       game.onPedHit(ped, car);
     },
 
@@ -73,7 +73,7 @@ export function createPolice(game) {
     hurtOfficer(o, dmg, dx, dz, push = 1.5) {
       if (!officers.includes(o)) return false;
       o.hp = (o.hp ?? COMBAT.hp.officer) - dmg; o.grab = 0; o.stun = Math.max(o.stun || 0, .3 + push * .05);
-      o.body.setLinvel({ x: dx * push, y: dz * push }, true);
+      o.body.setLinvel({ x: dx * push, y: dz * push }, true); reelCharacter(o.ped.model, dx, dz, o.ped.face, push / 3);
       if (o.hp > 0) return false;
       const ped = o.ped; retire(o, false); game.peds.knockOut(ped, dx * 3, dz * 3); return true;
     },
@@ -219,7 +219,7 @@ export function createPolice(game) {
       if (o.stun > 0) {          // reeling from a punch or a bullet
         o.stun -= dt; vel.x = v.x * Math.max(0, 1 - 6 * dt); vel.y = v.y * Math.max(0, 1 - 6 * dt); o.body.setLinvel(vel, true);
         ped.y = damp(ped.y, groundY(ped.x, ped.z, ped.y), 16, dt); ped.model.position.set(ped.x, ped.y, ped.z);
-        animateCharacter(ped.model, t, dt, 0, 'flail', police.stars > 0); continue;
+        animateCharacter(ped.model, t, dt, 0, 'stand', police.stars > 0); continue;
       }
       let tx = p.x, tz = p.z, speed = POLICE.footSpeed + (police.stars >= 3 ? .5 : 0);
       if (police.stars === 0 || o.state === 'return') {

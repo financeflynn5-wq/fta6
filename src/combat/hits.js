@@ -70,7 +70,8 @@ export function createHits(game) {
     },
 
     // Deal damage from the player (byPlayer) or a cop. dx, dz: direction the hit travels.
-    apply(h, damage, dx, dz, { byPlayer = true, melee = false, knock = 0 } = {}) {
+    // melee: a fist or a blade. floor: it takes them off their feet (a haymaker); otherwise a melee blow staggers them.
+    apply(h, damage, dx, dz, { byPlayer = true, melee = false, knock = 0, floor = false, blade = false } = {}) {
       const { fx, audio, peds, police } = game, p = game.player;
       const near = Math.hypot(h.x - p.x, h.z - p.z) < 60;
       if (h.kind === 'ped') {
@@ -78,10 +79,13 @@ export function createHits(game) {
         if (near) { if (bot) { fx.spark(h.x, h.y, h.z, 7, .7); audio.clank(); } else { fx.smoke(h.x, h.y, h.z, .95, .35, .45, dx * 2, dz * 2); audio.oof(); } }
         ped.hp = (ped.hp ?? maxHp(ped)) - damage * (h.head ? COMBAT.headshot : 1);
         const out = ped.hp <= 0;
-        if (out) peds.knockOut(ped, dx * (3 + knock * .4), dz * (3 + knock * .4));
+        if (out) peds.knockOut(ped, dx * (blade ? 1.2 : 3 + knock * .4), dz * (blade ? 1.2 : 3 + knock * .4));
         if (out && byPlayer && !ped.cop) game.match?.mugged(ped);
-        else if (melee) peds.knockDown(ped, dx * knock, dz * knock);
+        else if (out) { /* down for good */ }
+        else if (melee && floor) peds.knockDown(ped, dx * knock, dz * knock);
+        else if (melee) peds.stagger(ped, dx * knock * .7, dz * knock * .7);
         else ped.panic = 9;
+        if (melee && byPlayer) game.brawlers?.struck(ped);        // a fighter is rocked; a citizen may square up
         peds.scare(ped.x, ped.z, 25);
         if (byPlayer) {
           if (ped.outlaw) { /* a gunman from a mission: nobody calls the cops for him */ }

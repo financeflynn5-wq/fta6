@@ -1,7 +1,7 @@
-// Rocco's side of a fight: which weapons he carries, punching, aiming, shooting and reloading,
-// and how he holds each gun. Damage rules live in hits.js; cops shooting back in copGuns.js.
+// Rocco's side of a fight: which weapons he carries, punching (jab, cross, haymaker), the knife, blocking,
+// aiming, shooting and reloading, and how he holds each weapon. Damage rules live in hits.js; cops shooting back in copGuns.js.
 import * as THREE from 'three';
-import { WEAPONS, COMBAT, AIM } from '../config.js';
+import { WEAPONS, COMBAT, AIM, MELEE } from '../config.js';
 import { damp, angleDiff, clamp, lerp, TAU } from '../core/utils.js';
 import { makeWeapon } from './weaponModels.js';
 import { createHits } from './hits.js';
@@ -21,18 +21,22 @@ export function createCombat(game) {
   const combat = {
     hits, gfx, view, guns, weapon: 'fists', owned: new Set(['fists']), clip: {}, ammo: {},
     aiming: false, aimT: 0, aimBlend: 0, aimPitch: 0, scopeStep: 0, spread: 0, onTarget: false, ready: false, cool: 0, reloading: 0, burstLeft: 0, burstT: 0,
-    swingT: 0, swingSide: 0, lastShot: -9, lastSwing: -9, hitT: 0, killHit: false, bloom: 0, kick: 0,
+    swingT: 0, swingDur: .3, swingKind: 'jab', swingSide: 0, lastShot: -9, lastSwing: -9, hitT: 0, killHit: false, bloom: 0, kick: 0,
+    guard: false, combo: 0, heavy: false, swingFace: null, landT: 0, lungeT: 0,        // fists and knife: blocking, punches landed in a row, the blow on its way, the step in
     get def() { return WEAPONS[combat.weapon]; },
 
     // Pick up a gun, or more rounds for one we already have.
     give(id, rounds = WEAPONS[id].give) {
       const w = WEAPONS[id];
-      if (w.melee) return;
+      if (id === 'fists') return;
       if (!combat.owned.has(id)) {
-        combat.owned.add(id); combat.clip[id] = Math.min(w.mag, rounds); combat.ammo[id] = rounds - combat.clip[id];
-        if (!guns[id]) { const g = makeWeapon(id); g.position.set(0, -.5, .02); g.rotation.set(HALF_PI, 0, 0); g.visible = false; arms[0].add(g); guns[id] = g; }
+        combat.owned.add(id); if (!w.melee) { combat.clip[id] = Math.min(w.mag, rounds); combat.ammo[id] = rounds - combat.clip[id]; }
+        if (!guns[id]) {
+          const g = makeWeapon(id); g.visible = false; arms[0].add(g); guns[id] = g;
+          if (w.blade) { g.position.set(0, -.47, .04); g.rotation.set(Math.PI / 4, 0, 0); } else { g.position.set(0, -.5, .02); g.rotation.set(HALF_PI, 0, 0); }
+        }
         if (combat.weapon === 'fists' || WEAPONS[combat.weapon].slot < w.slot) combat.select(id);
-      } else combat.ammo[id] += rounds;
+      } else if (!w.melee) combat.ammo[id] += rounds;
     },
     select(id) {
       if (!combat.owned.has(id) || combat.weapon === id) return;
@@ -41,7 +45,7 @@ export function createCombat(game) {
     },
     // Nabbed: the cops keep your guns. Wasted: you keep them.
     reset(confiscate) {
-      combat.aiming = false; combat.reloading = 0; combat.burstLeft = 0; combat.lastShot = -9;
+      combat.aiming = false; combat.reloading = 0; combat.burstLeft = 0; combat.lastShot = -9; combat.guard = false; combat.combo = 0; combat.landT = 0;
       if (confiscate) { combat.owned = new Set(['fists']); combat.clip = {}; combat.ammo = {}; combat.weapon = 'fists'; }
     },
     // The player turned into someone else: move the guns to the new right hand, and repaint the hands in the sight view.
@@ -51,31 +55,50 @@ export function createCombat(game) {
     },
     totalAmmo(id = combat.weapon) { return (combat.clip[id] || 0) + (combat.ammo[id] || 0); },
     hitMarker(kill) { combat.hitT = .28; combat.killHit = kill; game.audio.hitmark(); },
+    // Somebody's fist or knife reaches you (combat/brawlers.js). (dx, dz): the way the blow travels. heavy: a haymaker, which floors you.
+    // With your guard up and the blow coming from in front, most of it is soaked. Returns true when it got through.
+    takeBlow(damage, dx, dz, { blade = false, heavy = false } = {}) {
+      const p = player; if (p.mode !== 'foot' || game.over || p.sky) return false;
+      const front = -(dx * Math.sin(p.face) + dz * Math.cos(p.face)) > .15;
+      if (combat.guard && front) {
+        p.hurt(damage * (blade ? MELEE.guardKnife : MELEE.guard)); game.audio.block(); game.cam.shake(.09); combat.kick = .5;
+        if (heavy) p.reel(dx, dz, 3);                      // a haymaker still pushes you back
+        game.brawlers?.blocked(); return false;
+      }
+      p.hurt(damage); blade ? game.audio.stab() : game.audio.punch(); game.cam.shake(heavy ? .45 : .22); combat.combo = 0;
+      if (heavy) p.floor(dx, dz, 4.6, 1.5); else p.reel(dx, dz);
+      return true;
+    },
 
     // ---------- input, at the fixed physics rate ----------
     preStep(dt) {
       const input = game.input, p = player, w = combat.def;
       combat.cool -= dt; reportT -= dt; combat.bloom = Math.max(0, combat.bloom - dt * AIM.bloomMax * 2);
       if (game.state !== 'playing') return;
-      for (const id of WEAPON_ORDER) if (input.hit('Digit' + WEAPONS[id].slot)) combat.select(id);
+      if (input.hit('Digit1')) combat.select(combat.weapon === 'fists' && combat.owned.has('knife') ? 'knife' : 'fists');      // 1 swaps fists and knife
+      for (const id of WEAPON_ORDER) if (WEAPONS[id].slot >= 2 && input.hit('Digit' + WEAPONS[id].slot)) combat.select(id);
       // the wheel changes weapon; while looking through a scope it changes the magnification instead
       const wh = input.takeWheel();
       if (wh && p.mode === 'foot') { if (combat.aiming && w.scope) combat.scopeStep = clamp(combat.scopeStep - wh, 0, AIM.scopeZoom.length - 1); else cycle(wh); }
       const free = !p.frozen && p.mode === 'foot' && p.tumble <= 0 && !p.sky && !game.over;
-      if (!free) { combat.aiming = false; combat.burstLeft = 0; combat.ready = false; p.aiming = false; return; }
+      if (!free) { combat.aiming = false; combat.guard = false; combat.landT = 0; combat.burstLeft = 0; combat.ready = false; p.aiming = false; return; }
 
       const was = combat.aiming;
       combat.aiming = !w.melee && input.down('Mouse2');
       if (combat.aiming && !was) game.cam.beginAim(snapTarget(w));
       if (combat.reloading > 0 && (combat.reloading -= dt) <= 0) finishReload();
       if (input.hit('KeyR')) reload();
-      if (w.melee) { if (input.down('Mouse0') && combat.cool <= 0) swing(); }
+      // fists and knife: right mouse is the guard, left swings; the blow itself lands a moment into the swing
+      combat.guard = !!w.melee && input.down('Mouse2') && combat.swingT <= 0;
+      if (combat.lungeT > 0) { combat.lungeT -= dt; p.body.setLinvel({ x: lunge.x * MELEE.lunge, y: lunge.z * MELEE.lunge }, true); }
+      if (combat.landT > 0 && (combat.landT -= dt) <= 0) land();
+      if (w.melee) { if (input.down('Mouse0') && combat.cool <= 0 && !combat.guard) swing(); }
       else if (combat.burstLeft > 0) { if ((combat.burstT -= dt) <= 0) shoot(); }
       else if ((w.auto ? input.down('Mouse0') : input.hit('Mouse0')) && combat.cool <= 0 && combat.reloading <= 0) {
         if (w.burst) combat.burstLeft = w.burst;
         shoot();
       }
-      combat.ready = combat.aiming || game.time - combat.lastShot < .8 || combat.burstLeft > 0 || game.time - combat.lastSwing < .6;
+      combat.ready = combat.aiming || combat.guard || game.time - combat.lastShot < .8 || combat.burstLeft > 0 || game.time - combat.lastSwing < (w.melee ? 1.6 : .6);
       p.aiming = combat.ready;
     },
 
@@ -98,7 +121,8 @@ export function createCombat(game) {
         const h = hits.cast(cam.origin.x, cam.origin.y, cam.origin.z, cam.dir.x, cam.dir.y, cam.dir.z, w.range, pastRocco(cam.origin, cam.dir), COMBAT.aimAssist * .35);
         combat.onTarget = h.kind === 'ped' || h.kind === 'officer' || h.kind === 'rival';
       }
-      if (combat.ready) p.face += angleDiff(faceYaw(), p.face) * Math.min(1, dt * 22);
+      if (combat.ready && !(w.melee && combat.swingT > 0 && combat.swingFace !== null)) p.face += angleDiff(faceYaw(), p.face) * Math.min(1, dt * 22);
+      else if (combat.ready) p.face += angleDiff(combat.swingFace, p.face) * Math.min(1, dt * 26);      // mid-swing: keep facing whoever it is aimed at
       pose(w, t);
     },
   };
@@ -202,26 +226,50 @@ export function createCombat(game) {
     return best;
   }
 
-  // ---------- punching ----------
-  function swing() {
-    const w = combat.def, p = player;
-    combat.cool = 1 / w.rate; combat.swingT = .3; combat.swingSide ^= 1; combat.lastSwing = game.time; game.audio.whoosh();
-    const yaw = game.cam.yaw, fx = Math.cos(yaw), fz = Math.sin(yaw);
-    let best = null, bd = w.range + .4;
+  // ---------- punching and stabbing ----------
+  // A swing picks whoever is in front, steps toward them, and lands a moment later (land). Fists build a combination:
+  // every MELEE.finisher-th punch in a row is a haymaker that floors them. Miss, get hit or dawdle and the count starts again.
+  const lunge = { x: 0, z: 0 };
+  function inFront(range, cone) {
+    const p = player, yaw = game.cam.yaw, fx = Math.cos(yaw), fz = Math.sin(yaw);
+    let best = null, bd = range;
     const check = (q, kind, obj) => {
       const dx = q.x - p.x, dz = q.z - p.z, dist = Math.hypot(dx, dz);
-      if (dist < bd && (dx * fx + dz * fz) / (dist || 1) > .35 && q.state !== 'ko') { bd = dist; best = { kind, obj, q }; }
+      if (dist < bd && (dx * fx + dz * fz) / (dist || 1) > cone && q.state !== 'ko' && q.state !== 'down' && q.state !== 'air' && Math.abs((q.y ?? p.y) - p.y) < 2) { bd = dist; best = { kind, obj, q, dist }; }
     };
     for (const q of game.peds.list) check(q, 'ped', q);
     for (const o of game.police.officers) check(o.ped, 'officer', o);
     if (game.net?.active) for (const r of game.net.targets) check(r, 'rival', r);
+    return best;
+  }
+  function swing() {
+    const w = combat.def, p = player, blade = !!w.blade;
+    const chain = game.time - combat.lastSwing < MELEE.combo ? combat.combo : 0;
+    const heavy = !blade && chain >= MELEE.finisher - 1;
+    combat.combo = chain; combat.heavy = heavy;
+    combat.cool = 1 / w.rate * (heavy ? 1.3 : 1); combat.swingDur = combat.swingT = heavy ? .44 : blade ? .34 : .3; combat.swingKind = blade ? 'slash' : heavy ? 'hay' : 'jab';
+    combat.swingSide ^= 1; combat.lastSwing = game.time; combat.landT = heavy ? .2 : .11;
+    blade ? game.audio.slash() : game.audio.whoosh();
     game.net?.swing();
-    if (!best) { p.face = faceYaw(); return; }
-    const q = best.q, dx = (q.x - p.x) / (bd || 1), dz = (q.z - p.z) / (bd || 1);
+    // step in on whoever it is meant for
+    const t = inFront(MELEE.lungeRange, .45);
+    if (t) {
+      const dx = (t.q.x - p.x) / (t.dist || 1), dz = (t.q.z - p.z) / (t.dist || 1);
+      combat.swingFace = p.face = Math.atan2(dx, dz);
+      if (t.dist > w.range * .75) { lunge.x = dx; lunge.z = dz; combat.lungeT = .1; }
+    } else { combat.swingFace = null; p.face = faceYaw(); }
+  }
+  function land() {
+    const w = combat.def, p = player; if (!w.melee) return;
+    const best = inFront(w.range + .45, .3);
+    if (!best) { combat.combo = 0; return; }
+    const q = best.q, dx = (q.x - p.x) / (best.dist || 1), dz = (q.z - p.z) / (best.dist || 1), heavy = combat.heavy;
     p.face = Math.atan2(dx, dz);
     const h = { kind: best.kind, obj: best.obj, x: q.x - dx * .3, y: q.y + 1.3, z: q.z - dz * .3, head: false };
-    game.audio.punch(); game.cam.shake(.14);
-    hits.apply(h, w.damage, dx, dz, { melee: true, knock: w.knock });
+    w.blade ? game.audio.stab() : game.audio.punch(); game.cam.shake(heavy ? .3 : .14);
+    hits.apply(h, w.damage * (heavy ? MELEE.finisherDamage : 1), dx, dz, { melee: true, knock: heavy ? MELEE.finisherKnock : w.knock, floor: heavy, blade: !!w.blade });
+    combat.combo = heavy ? 0 : combat.combo + 1;
+    if (heavy) game.hud.toast('HAYMAKER!', 'good');
   }
 
   // how Rocco holds things (runs after the walk cycle has posed his arms)
@@ -237,12 +285,30 @@ export function holdPose(arms, w, c, t, ready) {
   const [R, L] = arms, pitch = c.aimPitch;
   R.rotation.y = L.rotation.y = 0; R.rotation.z = -.12; L.rotation.z = .12;   // the rig's resting shoulder angles
   if (w.melee) {
+    const blade = !!w.blade;
     if (c.swingT > 0) {
-      const k = 1 - c.swingT / .3, ext = Math.sin(Math.min(1, k * 1.6) * Math.PI);
-      const jab = c.swingSide ? L : R, guard = c.swingSide ? R : L;
-      jab.rotation.x = -.9 - ext * .75; jab.rotation.z = (jab === R ? .25 : -.25) * (1 - ext * .5);
-      guard.rotation.x = -1.25; guard.rotation.z = guard === R ? .5 : -.5;
-    } else if (ready) { R.rotation.x = L.rotation.x = -1.25 + Math.sin(t * 6) * .05; R.rotation.z = .5; L.rotation.z = -.5; }
+      const k = 1 - c.swingT / (c.swingDur || .3);
+      if (c.swingKind === 'slash') {
+        // forehand down across the body, then a backhand the other way
+        const a = Math.sin(Math.min(1, k * 1.5) * HALF_PI);
+        if (c.swingSide) { R.rotation.x = -2.6 + a * 1.9; R.rotation.z = -.35 + a * .95; } else { R.rotation.x = -1.5 - Math.sin(k * Math.PI) * .35; R.rotation.z = .75 - a * 1.25; }
+        L.rotation.x = -1.05; L.rotation.z = -.45;
+      } else if (c.swingKind === 'hay') {
+        // wound right back, then all the way through
+        const wind = Math.min(1, k / .4), go = Math.min(1, Math.max(0, (k - .4) / .35)), ext = Math.sin(go * HALF_PI), back = 1 - Math.max(0, (k - .8) / .2);
+        R.rotation.x = (.75 * wind * (1 - ext) - ext * 1.85) * back - 1.25 * (1 - back); R.rotation.z = .1 + .35 * ext;
+        L.rotation.x = -1.3; L.rotation.z = -.55;
+      } else {
+        const ext = Math.sin(Math.min(1, k * 1.6) * Math.PI);
+        const jab = c.swingSide ? L : R, guard = c.swingSide ? R : L;
+        jab.rotation.x = -.9 - ext * .75; jab.rotation.z = (jab === R ? .25 : -.25) * (1 - ext * .5);
+        guard.rotation.x = -1.25; guard.rotation.z = guard === R ? .5 : -.5;
+      }
+    } else if (c.guard) { R.rotation.x = L.rotation.x = -1.95 - (c.kick || 0) * .25; R.rotation.z = .68; L.rotation.z = -.68; }      // forearms up in front of the face
+    else if (ready) {
+      R.rotation.x = L.rotation.x = -1.25 + Math.sin(t * 6) * .05; R.rotation.z = .5; L.rotation.z = -.5;
+      if (blade) { R.rotation.x = -1.0 - Math.sin(t * 6) * .05; R.rotation.z = .22; }
+    }
     return;
   }
   if (c.reloading > 0) {

@@ -142,6 +142,6 @@ export function districtAt(x, z) {
   if (x > 277 && x < 336 && z > 169 && z < 213) return 'MOUSE BEAR TRUCKING';      // the depot (world/mousebear.js)
   if (x > CITY_EDGE && z < 190) return 'PORT SUNSET';
   if (z > CITY_EDGE && x >= -CITY_EDGE) return x > 190 ? 'LIGHTHOUSE BLUFFS' : 'VISTA HEIGHTS';
-  if (x < -CITY_EDGE) return z > 190 ? 'HIGH MEADOWS' : 'THE DUSTLANDS';
+  if (x < -CITY_EDGE) return z > 222 && z < 332 && x > -318 ? 'WHISPER WOODS' : z > 190 ? 'HIGH MEADOWS' : 'THE DUSTLANDS';
   return 'SUNSET BEACH';
 }

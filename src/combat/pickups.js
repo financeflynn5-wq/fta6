@@ -12,6 +12,7 @@ const SPOTS = [
   ['armor', 8.6, 31], ['armor', -99.4, 76], ['armor', 62.6, -81],
   ['health', -27, -8.6], ['health', 31, 45.4], ['health', -62.6, 85],
   // the valley: the base's firing range and hangars, the park bandstand, the marina quay, the farm's hay barn
+  ['knife', -8.6, -35],
   ['burst', 90, 809], ['sniper', 245, 812], ['armor', 285, 816], ['health', -108, 594], ['armor', 292, 652], ['shotgun', -268, 750], ['health', 88, 606],
 ];
 const COLORS = { weapon: 0xffc94d, armor: 0x4da6ff, health: 0x5dff8a, ammo: 0xffc94d };
@@ -22,7 +23,7 @@ const crateMat = std({ color: 0x4d5a36, roughness: .7 }), brassMat = std({ color
 
 function model(kind, id) {
   const g = new THREE.Group(), add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
-  if (kind === 'weapon') { const w = makeWeapon(id); w.scale.setScalar(1.5 + .6 / WEAPONS[id].length); w.rotation.y = Math.PI / 2; g.add(w); }
+  if (kind === 'weapon') { const w = makeWeapon(id); w.scale.setScalar(Math.min(2.9, 1.5 + .6 / WEAPONS[id].length)); w.rotation.y = Math.PI / 2; g.add(w); }
   else if (kind === 'armor') { add(rbox(.5, .58, .22, .08), vestMat, 0, 0, 0); add(rbox(.12, .2, .24), strapMat, -.15, .3, 0); add(rbox(.12, .2, .24), strapMat, .15, .3, 0); add(rbox(.52, .08, .24), strapMat, 0, -.12, 0); }
   else if (kind === 'health') { add(rbox(.5, .38, .3, .06), kitMat, 0, 0, 0); add(new THREE.BoxGeometry(.3, .09, .02), crossMat, 0, 0, .16); add(new THREE.BoxGeometry(.09, .3, .02), crossMat, 0, 0, .16); }
   else { add(rbox(.42, .26, .3, .05), crateMat, 0, 0, 0); for (let i = 0; i < 4; i++) add(new THREE.CylinderGeometry(.025, .025, .14, 8), brassMat, -.12 + i * .08, .2, 0); }
@@ -52,7 +53,7 @@ export function createPickups(game) {
     const p = game.player, c = game.combat, hud = game.hud;
     if (it.kind === 'armor') { if (p.armor >= COMBAT.armor) return false; p.armor = COMBAT.armor; hud.toast('BODY ARMOR', 'good'); }
     else if (it.kind === 'health') { if (p.health >= PLAYER.health) return false; p.health = PLAYER.health; hud.toast('PATCHED UP', 'good'); }
-    else if (it.kind === 'weapon') { const had = c.owned.has(it.id); c.give(it.id); if (had) hud.toast(`+${WEAPONS[it.id].give} ${WEAPONS[it.id].name} AMMO`, 'good'); }
+    else if (it.kind === 'weapon') { const had = c.owned.has(it.id); if (had && WEAPONS[it.id].melee) return false; c.give(it.id); if (had) hud.toast(`+${WEAPONS[it.id].give} ${WEAPONS[it.id].name} AMMO`, 'good'); }
     else { const id = c.owned.has(c.weapon) && !WEAPONS[c.weapon].melee ? c.weapon : 'pistol'; c.give(id, Math.ceil(WEAPONS[id].give / 2)); hud.toast(`${WEAPONS[id].name} AMMO`, 'good'); }
     game.audio.pickup(); return true;
   }
@@ -61,6 +62,9 @@ export function createPickups(game) {
     list,
     // a knocked-out cop drops some rounds
     drop(x, z) { place('ammo', null, x, z, true); },
+    // something a fighter was carrying (a knife); gone again in half a minute
+    dropWeapon(id, x, z) { if (!game.combat.owned.has(id)) place('weapon', id, x, z, true); },
+    place,
     update(dt, t) {
       const p = game.player, reach = p.mode === 'car' ? 2.6 : 1.3;
       for (let i = list.length - 1; i >= 0; i--) {

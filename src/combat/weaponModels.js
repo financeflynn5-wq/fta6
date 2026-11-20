@@ -13,6 +13,15 @@ const GRIP = { pistol: [-.22, -.22], smg: [-.18, -.02], shotgun: [-.12, -.12], b
 const real = {};          // id -> { scene, grip: Vector3, muzzle: Vector3 } once loaded
 const holders = [];       // every gun handed out, so it can be upgraded when its model arrives
 const standInMat = std({ color: 0x1d1f24, roughness: .45, metalness: .7 });
+// The knife is built here rather than loaded: a clipped blade, a brass guard and a wrapped grip. +Z is toward the point.
+const bladeMat = std({ color: 0xdfe4ea, roughness: .2, metalness: .95 }), guardMat = std({ color: 0xb58a3a, roughness: .35, metalness: .9 }), gripMat = std({ color: 0x2a211c, roughness: .75 });
+let knifeGeo = null;
+function knifeParts() {
+  if (knifeGeo) return knifeGeo;
+  const sh = new THREE.Shape(); sh.moveTo(0, -.034); sh.lineTo(.2, -.034); sh.quadraticCurveTo(.28, -.03, .31, .03); sh.lineTo(.22, .036); sh.lineTo(.2, .03); sh.lineTo(0, .03); sh.closePath();
+  const blade = new THREE.ExtrudeGeometry(sh, { depth: .014, bevelEnabled: true, bevelThickness: .004, bevelSize: .006, bevelSegments: 1 }); blade.translate(0, 0, -.007); blade.rotateY(-Math.PI / 2); blade.translate(0, 0, .085);
+  return (knifeGeo = { blade, guard: new THREE.BoxGeometry(.03, .11, .022), grip: new THREE.CapsuleGeometry(.024, .1, 3, 8).rotateX(Math.PI / 2), pommel: new THREE.SphereGeometry(.03, 8, 6) });
+}
 
 export function loadWeaponModels(base = 'assets/weapons/') {
   const loader = new GLTFLoader();
@@ -36,7 +45,11 @@ export function loadWeaponModels(base = 'assets/weapons/') {
 function fill(holder) {
   const id = holder.userData.id, r = real[id];
   holder.clear();
-  if (r) {
+  if (WEAPONS[id].blade) {
+    const g = knifeParts(), add = (geo, m, z) => { const o = new THREE.Mesh(geo, m); o.position.z = z; o.castShadow = true; holder.add(o); };
+    add(g.blade, bladeMat, 0); add(g.guard, guardMat, .075); add(g.grip, gripMat, 0); add(g.pommel, guardMat, -.08);
+    holder.userData.muzzle.set(0, 0, .39);
+  } else if (r) {
     const m = r.scene.clone(); m.position.sub(r.grip); holder.add(m); holder.userData.muzzle.copy(r.muzzle);
   } else {
     const L = WEAPONS[id].length, body = new THREE.Mesh(new THREE.BoxGeometry(.07, .11, L), standInMat);

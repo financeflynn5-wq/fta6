@@ -192,6 +192,7 @@ export const TIME = { day: 210, dusk: 26, night: 130, dawn: 26 };
 // model: how a weapon sits in the hand when a .glb from assets/weapons/ replaces the stand-in.
 export const WEAPONS = {
   fists:   { name: 'FISTS',    slot: 1, melee: true, damage: 12, range: 1.7, rate: 2.8, knock: 4 },
+  knife:   { name: 'KNIFE',    slot: 1.5, melee: true, blade: true, damage: 30, range: 1.75, rate: 2.3, knock: 1.6, length: .34 },     // key 1 swaps fists and knife
   pistol:  { name: 'PISTOL',   slot: 2, damage: 26, rate: 4.5, mag: 12, reload: 1.15, spread: .01,  range: 90,  pellets: 1, auto: false, kick: .05, length: .5, give: 36, loud: 1, zoom: 1.3, ads: .16 },
   smg:     { name: 'SMG',      slot: 3, damage: 13, rate: 12,  mag: 30, reload: 1.6,  spread: .03,  range: 70,  pellets: 1, auto: true,  kick: .025, length: .82, give: 90, twoHand: true, loud: .8, zoom: 1.3, ads: .18 },
   shotgun: { name: 'SHOTGUN',  slot: 4, damage: 11, rate: 1.25, mag: 6, reload: 2.1,  spread: .075, range: 32,  pellets: 8, auto: false, kick: .14, length: 1.3, give: 18, twoHand: true, loud: 1.5, zoom: 1.2, ads: .2, adsSpread: .75, hipSpread: 1.2 },
@@ -400,4 +401,52 @@ export const MATCH = {
   copRange: 160,                                 // a cop closer than this shows on a robber's radar
   alarmTime: 20,                                 // seconds a store alarm stays on the cops' radar
   shield: 5,                                     // seconds nobody can hurt you after coming back
+};
+
+// ---------- fist fights and knives (combat/combat.js, combat/brawlers.js) ----------
+export const MELEE = {
+  combo: 1.1,                                   // seconds you have to land the next punch for it to count as the same combination
+  finisher: 3, finisherDamage: 2, finisherKnock: 6,    // every third punch in a row is a haymaker: this much more damage, and it floors them
+  lunge: 3.2, lungeRange: 3,                    // a swing steps you toward whoever it is aimed at: m/s, and from how far away
+  guard: .22, guardKnife: .5,                   // holding right mouse with fists or a knife up: the share of a punch (of a blade) that still gets through
+  fightBack: { critter: .3, bighead: .35, bot: .45 },   // chance a citizen you punch squares up instead of running
+  knifePrice: 150,                              // at Bullseye Guns
+};
+// People who fight you on foot. Every group below starts from `base` and overrides what it needs.
+// hp, damage per hit, seconds between swings, reach (m), the wind-up before a swing lands (s), walking speed, how far they chase from home (m),
+// how many may be on you at once (the rest circle), cash each one drops
+export const BRAWL = {
+  base: { hp: 95, damage: 7, rate: 1.25, reach: 1.55, wind: .4, speed: 3.9, leash: 70, crowd: 2, cash: [20, 60] },
+  knife: { damage: 1.9, rate: 1.05, wind: .32 },             // what a blade changes
+  pistol: { damage: 6, accuracy: .36, rate: 1.2, range: 30, hold: 9 },
+  floorAt: 3,                                   // their punches floor you once this many have landed in a row without one of yours landing
+  calm: 9,                                      // seconds with you out of reach and out of sight before they give up and go home
+};
+// The woods in High Meadows, and the camp in the clearing in the middle of them.
+export const CAMP = {
+  name: 'WHISPER WOODS', x: -208, z: 274, clear: 15,          // the clearing: centre and radius
+  wake: 19,                                     // step this close (m) and they come for you
+  crew: 7, knives: 2,                           // how many live there, and how many of them carry a blade
+  fighter: { hp: 85, damage: 7, speed: 4.1, leash: 85, crowd: 2, cash: [5, 35] },
+  reward: 500, back: 150,                       // cash for fighting them all off; they are back once you have been this many seconds away
+};
+// The bar downtown: bump into a drinker and he takes it personally.
+export const BAR = {
+  name: 'THE TIPSY POSSUM', drinkers: 6, drink: 20, tipsy: 22,      // a drink costs this, heals 25 and leaves you swaying this many seconds
+  bump: .78,                                    // closer than this (m) to a drinker while you are moving counts as a bump
+  join: .5,                                     // chance each of the others piles in when a fight starts
+  fighter: { hp: 70, damage: 6, speed: 3.1, rate: 1.5, wind: .5, leash: 34, crowd: 2, cash: [10, 45] },
+  back: 90,
+};
+// Gangs with a corner of their own. Hang about on it and they tell you once; stay, or touch one, and it is a fight.
+// who: the cast family. armed: how many of each crew carry a knife / a pistol. turf: [x, z, name] of each corner.
+export const GANGS = {
+  warn: 9, warnTime: 4.5, close: 3.2,           // inside `warn` m they tell you to move on; still there after warnTime, or inside `close`, and they attack
+  crew: 4, reward: 350, back: 120,
+  fighter: { hp: 110, damage: 9, speed: 4.2, leash: 75, crowd: 2, cash: [40, 120] },
+  gangs: {
+    vipers: { name: 'NEON VIPERS', who: 'bighead', color: 0x9b3dff, ink: '#c58bff', glyph: 'V', knives: 1, pistols: 1, turf: [[27, -72, 'SUNSET STRIP'], [-186, 30, 'THE GAS STOP']] },
+    kings: { name: 'SCRAP KINGS', who: 'scrap', color: 0xff7a1a, ink: '#ffa85c', glyph: 'K', knives: 2, pistols: 0, turf: [[200, 100, 'PORT SUNSET'], [222, -40, 'THE CONTAINER YARD']] },
+    posse: { name: 'POSSUM POSSE', who: 'possum', color: 0x35c46a, ink: '#7be3a0', glyph: 'P', knives: 1, pistols: 2, turf: [[150, 660, 'BEHIND CORAL PLAZA'], [-112, -188, 'PALM PROMENADE']] },
+  },
 };

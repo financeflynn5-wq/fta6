@@ -90,6 +90,12 @@ export function createAudio() {
       if (loud > 1.4) tone('sine', 70, 30, .35, .35 * v);                  // big ones boom
     },
     punch() { tone('sine', 170, 55, .11, .5); burst(.06, .45, 1100); },
+    thud(vol = 1) { if (vol < .05) return; tone('sine', 120, 42, .14, .5 * vol, 0, world); burst(.07, .3 * vol, 500, 'lowpass', 1, world); },      // a body landing
+    slash() { burst(.09, .2, 3800, 'bandpass', 2.5); tone('triangle', 1900, 700, .07, .05); },                                                  // a blade through the air
+    stab() { burst(.05, .4, 1800, 'bandpass', 1.4); tone('sine', 210, 70, .09, .35); },
+    block() { tone('sine', 240, 120, .07, .3); burst(.04, .3, 700, 'lowpass'); },                                                               // a punch caught on the forearms
+    bottle() { for (let i = 0; i < 3; i++) tone('triangle', 2200 + Math.random() * 2600, 1500, .05 + Math.random() * .06, .05, i * .03, world); burst(.1, .15, 4800, 'highpass', 1, world); },
+    grunt(vol = 1) { if (vol < .05) return; tone('sawtooth', 150 + Math.random() * 60, 90, .16, .1 * vol, 0, world); },
     whoosh() { burst(.13, .12, 1600, 'bandpass', 1.2); },
     oof() { tone('triangle', 330 + Math.random() * 90, 140, .16, .22); },
     ting() { tone('triangle', 2400 + Math.random() * 800, 1700, .12, .06); burst(.04, .2, 5000, 'highpass'); },

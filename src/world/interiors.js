@@ -6,7 +6,7 @@
 //   createInteriors()  what you can do in them: the E key, the people, hold-ups, the lift (main.js)
 import * as THREE from 'three';
 import { V, seeded, angleDiff } from '../core/utils.js';
-import { RESPAWN, INDOORS, COMBAT, WEAPONS, SKY } from '../config.js';
+import { RESPAWN, INDOORS, COMBAT, WEAPONS, SKY, MELEE, BAR } from '../config.js';
 import { mats, std, G, mesh, rbox, ctex } from './materials.js';
 import { bakeStatic, plainGeometry } from './batching.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -35,6 +35,7 @@ const SHOPS = [
   { id: 'guns', name: 'BULLSEYE GUNS', kind: 'guns', block: [-2, -1], corner: [1, -1], face: [1, 0], who: 'scrap', sign: '#ff8a3d' },
   { id: 'gunsNorth', name: 'BULLSEYE GUNS', kind: 'guns', at: [58, 678], size: [15, 13, 7.6], face: [0, -1], who: 'dale', sign: '#ff8a3d' },
   { id: 'valleyDiner', name: 'VALLEY DINER', kind: 'diner', at: [100, 678], size: [14, 13, 7.6], face: [0, -1], who: 'possum', tint: 0x2f9c8f, sign: '#3de0ff' },
+  { id: 'bar', name: BAR.name, kind: 'bar', block: [-1, -2], corner: [-1, 1], face: [-1, 0], who: 'raccoon', sign: '#ff4d8d' },      // a block south of the start, on the same street
 ];
 const T = .3, H = 4.6, DOOR = 2.6, CEIL = 4.0;      // wall thickness, ground-floor height, doorway width, ceiling height
 
@@ -60,10 +61,10 @@ function materials() {
     gold: std({ color: 0xe2b860, roughness: .3, metalness: .8, emissive: 0xe2b860, emissiveIntensity: .12 }), plant: lit(0x3f9a4a), pot: lit(0xc9703f),
     floors: {
       mart: floor(tiles('#eef0ee', '#cfd8d6')), diner: floor(tiles('#f3ede2', '#2b2f38')), lobby: floor(tiles('#f1e7d2', '#d9c49a', 4)), pawn: floor(planks('#8a5f3c', '#5e3f2a')),
-      arcade: floor(tiles('#2a2147', '#3a2d63', 10)), motel: floor(planks('#b08a5c', '#7d5f3c')), laundry: floor(tiles('#dfeaf0', '#9fc3d6')), clinic: floor(tiles('#f2f6f5', '#d5e6e2')), police: floor(tiles('#dfe3ea', '#aab4c6')), guns: floor(planks('#6b6f66', '#3f433c')),
+      arcade: floor(tiles('#2a2147', '#3a2d63', 10)), motel: floor(planks('#b08a5c', '#7d5f3c')), laundry: floor(tiles('#dfeaf0', '#9fc3d6')), clinic: floor(tiles('#f2f6f5', '#d5e6e2')), police: floor(tiles('#dfe3ea', '#aab4c6')), guns: floor(planks('#6b6f66', '#3f433c')), bar: floor(planks('#6a4630', '#3d281c')),
     },
-    walls: { mart: lit(0xe8f1ee), diner: lit(0xf6ead6), lobby: lit(0xf3e9d8), pawn: lit(0xd9c7a6), arcade: lit(0x1d1a33), motel: lit(0xf0d9b8), laundry: lit(0xdcecf4), clinic: lit(0xeef6f3), police: lit(0xdde3ee), guns: lit(0xd8d2c0) },
-    accent: { mart: lit(0x2f8f83), lobby: lit(0xc9a45a), pawn: lit(0x7a4a2a), arcade: lit(0xff4d8d), motel: lit(0xe8455b), laundry: lit(0x3e8fd6), clinic: lit(0xe8455b), police: lit(0x24408f), guns: lit(0xc7622a) },
+    walls: { mart: lit(0xe8f1ee), diner: lit(0xf6ead6), lobby: lit(0xf3e9d8), pawn: lit(0xd9c7a6), arcade: lit(0x1d1a33), motel: lit(0xf0d9b8), laundry: lit(0xdcecf4), clinic: lit(0xeef6f3), police: lit(0xdde3ee), guns: lit(0xd8d2c0), bar: lit(0x4a2f3a) },
+    accent: { mart: lit(0x2f8f83), lobby: lit(0xc9a45a), pawn: lit(0x7a4a2a), arcade: lit(0xff4d8d), motel: lit(0xe8455b), laundry: lit(0x3e8fd6), clinic: lit(0xe8455b), police: lit(0x24408f), guns: lit(0xc7622a), bar: lit(0x8a2f4a) },
     goods: [0xff4d6d, 0xffd34d, 0x3de0ff, 0x7dff8a, 0xff8a3d, 0xc77dff, 0xffffff, 0x4d7dff].map(c => lit(c)),
     screens: [0x3de0ff, 0xff4d8d, 0x7dff8a, 0xffd34d, 0xc77dff, 0xff8a3d].map(c => glowing(c, 1.8)),
     cool: glowing(0xcdefff, 1.1), red: glowing(0xff3b4f, 1.6), green: glowing(0x5dff8a, 1.6), tints: new Map(),
@@ -275,7 +276,36 @@ export function buildInteriors(api) {
       // a parachute pack on a stand, across from the vest
       put(tinted(0xff7a3d), hw - 1.1, 1.62, 6.9, .44, .5, .24); put(tinted(0x23262e), hw - 1.1, 1.72, 6.9, .34, .1, .26); put(m.steel, hw - 1.1, .68, 6.9, .08, 1.36, .08, false, G.cyl); solid(hw - 1.1, 6.9, .6, .5, 1.4); spot(hw - 2.1, 6.9, 'chute', 1.1);
       for (const [k, c] of [[.62, m.white], [.46, m.red], [.3, m.white], [.14, m.red]]) put(c, hw - .08, 2.5, 7.8, .03, k, k, false, G.sph);
+      // a knife on a block on the first counter
+      { const w = makeWeapon('knife'), at = P(-hw + 1.1, 1.32, 2.7).add(g.position); w.position.copy(at); w.rotation.set(0, Math.atan2(rx, rz), .5); w.scale.setScalar(1.7); realScene.add(w); extra.push(w);
+        put(m.dark, -hw + 1.1, 1.17, 2.7, .5, .12, .9); spot(-hw + 2.3, 2.7, 'knife', 1); }
       plant(hw - .6, .9);
+    } else if (shop.kind === 'bar') {
+      // the bar runs down the left wall with bottles glowing behind it; booths on the right, a pool table and a jukebox at the back
+      const len = D - 5.2, mid = 2.6 + len / 2;
+      counter(-hw + 1.75, mid, .8, len, m.darkWood, ac); clerkAt(-hw + .7, mid, 1, 0); spot(-hw + 2.95, mid, 'bar', 1.6);
+      put(m.gold, -hw + 1.75, 1.12, mid, .5, .03, len - .3);                                                  // the brass rail
+      for (let b = 3.3; b < 2.6 + len - .5; b += 1.25) if (Math.abs(b - mid) > .7) stool(-hw + 2.75, b, ac);
+      for (let k = 0; k < 3; k++) { put(m.darkWood, -hw + .12, 1.7 + k * .55, mid, .26, .05, len); for (let b = 2.9; b < 2.6 + len - .2; b += .34) put(m.screens[Math.floor(r() * 6)], -hw + .14, 1.9 + k * .55, b, .1, .3, .1, false, G.cyl); }
+      put(m.screens[1], -hw + .05, 3.5, mid, .04, .12, len - 1); put(m.dark, -hw + 1.75, 1.18, 2.6 + len - .9, .4, .3, .4); put(m.gold, -hw + 1.75, 1.42, 2.6 + len - .9, .06, .2, .06, false, G.cyl);      // a strip of neon, the beer taps
+      for (let b = 2.4; b < D - 6.4; b += 3.3) {                                                                // booths
+        block(m.darkWood, hw - 1.25, 0, b + 1.05, 1.5, .78, .9, .8);
+        for (const e of [0, 2.1]) { put(ac, hw - 1.25, .3, b + e, 1.7, .6, .55); put(ac, hw - 1.25, .85, b + e + (e ? .22 : -.22), 1.7, .7, .12); solid(hw - 1.25, b + e, 1.7, .55, .9); }
+        put(m.screens[3], hw - 1.25, .86, b + 1.05, .16, .16, .16, false, G.cyl);                              // a candle
+      }
+      // pool table
+      block(tinted(0x2f8f5a), .9, .0, D - 3.6, 1.5, .86, 2.7, .9); put(m.darkWood, .9, .88, D - 3.6, 1.72, .08, 2.92); put(tinted(0x2f8f5a), .9, .93, D - 3.6, 1.44, .03, 2.64);
+      for (const [a, b, c] of [[.5, -.6, 0], [1.2, .4, 1], [.8, .9, 6], [1.1, -.3, 2]]) put(m.goods[c], a, .99, D - 3.6 + b, .1, .1, .1, false, G.sph);
+      put(m.panel, .9, CEIL - .5, D - 3.6, .9, .12, 1.8); put(mats.darkMetal, .9, CEIL - .22, D - 3.6, .04, .5, .04);
+      // jukebox, a dart board, two tall tables to lean on
+      block(m.dark, -1.9, 0, D - T - .5, 1.1, 1.75, .7, 1.7); put(m.screens[1], -1.9, 1.25, D - T - .87, .9, .5, .04); put(m.screens[3], -1.9, .6, D - T - .87, .9, .5, .04); put(m.screens[0], -1.9, 1.78, D - T - .5, 1.14, .06, .74);
+      for (const [k, c] of [[.6, m.dark], [.46, m.red], [.3, m.white], [.12, m.red]]) put(c, hw - .08, 2.1, D - 2.2, .03, k, k, false, G.sph);
+      for (const [a, b] of [[1.4, 2.8], [-.4, 5.6]]) { put(m.steel, a, .55, b, .08, 1.1, .08, false, G.cyl); put(m.darkWood, a, 1.12, b, .46, .06, .46, false, G.cyl); put(m.screens[5], a + .15, 1.24, b, .06, .18, .06, false, G.cyl); solid(a, b, .5, .5, 1.15); }
+      plant(hw - .6, .9);
+      // where the drinkers start, and the floor they shuffle about on
+      const c0 = world(-hw + 3.4, 1.4), c1 = world(hw - 2.6, D - 5.6);
+      room.bar = { rect: { x0: Math.min(c0.x, c1.x), x1: Math.max(c0.x, c1.x), z0: Math.min(c0.z, c1.z), z1: Math.max(c0.z, c1.z) }, face: Math.atan2(-rx, -rz),
+        spots: [[-hw + 3.05, 3.9, 'prop'], [-hw + 3.05, mid + 1.6, 'prop'], [0, 3.6], [2.2, 5.4], [-1.2, 7.2], [1.9, 8.2], [.3, 5.2], [-2, 4.4]].map(([a, b, how]) => ({ ...world(a, b), how })) };
     } else if (shop.kind === 'police') {
       // the front desk behind glass, a bench for the public, a holding cell in the back corner
       counter(0, D - 4.2, L - T * 2 - 5, .9, m.steel, ac); clerkAt(-1, D - 3.1, 0, -1); spot(-1, D - 5.4, 'police', 1.7);
@@ -324,6 +354,7 @@ export function createInteriors(game) {
   const light = new THREE.PointLight(0xffe6c4, 0, 22, 1.3); game.scene.add(light);
   for (const q of rooms) if (q.clerk) { const c = q.clerk; c.model = makeCharacter(c.kind); c.model.position.set(c.x, q.y, c.z); c.model.rotation.y = c.face; c.model.visible = false; game.scene.add(c.model); }
   for (const q of rooms) game.markers.push({ x: q.door.x, z: q.door.z, color: q.kind === 'guns' ? '#ff8a3d' : '#ffffff', glyph: q.kind === 'clinic' ? '+' : q.kind === 'lobby' ? '▲' : q.kind === 'guns' ? 'G' : '', size: q.kind === 'lobby' || q.kind === 'clinic' || q.kind === 'guns' ? 6 : 3.2 });
+  { const q = rooms.find(o => o.kind === 'bar'); if (q) { const mk = game.markers.find(o => o.x === q.door.x && o.z === q.door.z); if (mk) { mk.color = '#ff4d8d'; mk.glyph = 'Y'; mk.ink = '#ffffff'; mk.size = 6; } } }
 
   const pay = (n) => { if (game.money < n) { hud.toast('NOT ENOUGH CASH', 'bad'); return false; } game.money -= n; audio.cash(); return true; };
   const heal = (n) => { p.health = Math.min(100, p.health + n); };
@@ -341,7 +372,7 @@ export function createInteriors(game) {
     mart: () => [`Snack  ${cash(C.snack)}`, () => { if (p.health >= 100) hud.toast('NOT HUNGRY', 'info'); else if (pay(C.snack)) { heal(35); hud.toast('SNACK  +35 HEALTH', 'good'); } }],
     diner: () => [`Eat  ${cash(C.meal)}`, () => { if (p.health >= 100) hud.toast('STUFFED ALREADY', 'info'); else if (pay(C.meal)) { heal(100); hud.toast('FULL HEALTH', 'good'); } }],
     pawn: () => p.armor < COMBAT.armor ? [`Body armor  ${cash(C.armor)}`, () => { if (pay(C.armor)) { p.armor = COMBAT.armor; hud.toast('BODY ARMOR', 'good'); } }]
-      : game.combat.weapon !== 'fists' ? [`Ammo  ${cash(C.ammo)}`, () => { if (pay(C.ammo)) { game.combat.give(game.combat.weapon); hud.toast('AMMO', 'good'); } }] : ['Nothing you need', () => { }],
+      : !WEAPONS[game.combat.weapon].melee ? [`Ammo  ${cash(C.ammo)}`, () => { if (pay(C.ammo)) { game.combat.give(game.combat.weapon); hud.toast('AMMO', 'good'); } }] : ['Nothing you need', () => { }],
     arcade: () => [`Play  ${cash(C.play)}`, () => { if (!pay(C.play)) return; const roll = Math.random(); if (roll < .04) { game.addMoney(C.jackpot); hud.toast(`JACKPOT!  +${cash(C.jackpot)}`, 'good'); } else if (roll < .4) { const w = 15 + Math.floor(Math.random() * 8) * 5; game.addMoney(w); hud.toast(`HIGH SCORE  +${cash(w)}`, 'good'); } else hud.toast('GAME OVER', 'bad'); }],
     motel: () => wanted() ? ['No rooms for wanted guests', () => { }] : [`Sleep  ${cash(C.room)}`, () => { if (pay(C.room)) { fade.style.opacity = 1; setTimeout(() => { game.env.skip(); heal(100); fade.style.opacity = 0; hud.toast('RESTED', 'good'); }, 400); } }],
     laundry: () => !wanted() ? ['Nothing to wash off', () => { }] : [`Fresh clothes  ${cash(C.clothes)}`, () => { if (game.police.seen) hud.toast('NOT WHILE THEY CAN SEE YOU', 'bad'); else if (pay(C.clothes)) { game.police.clear(false); hud.toast('NEW LOOK: COPS LOST', 'good'); } }],
@@ -350,6 +381,8 @@ export function createInteriors(game) {
     liftUp: () => !roof ? null : wanted() ? ['Lift locked: lose the cops first', () => { }] : ['Lift to the roof', () => ride(roof.x, roof.z, roof.y, 0, 'SUNSET TOWER ROOF')],
     liftDown: () => ['Lift to the lobby', () => { const s = spots.find(o => o.what === 'liftUp'); ride(s.x, s.z, s.room.y, Math.atan2(-s.room.face[1], -s.room.face[0]), null); }],
   };
+  offers.bar = () => [`Drink  ${cash(BAR.drink)}`, () => { if (pay(BAR.drink)) { heal(25); game.trouble?.drink(); hud.toast(game.trouble?.tipsy > BAR.tipsy * 1.5 ? 'ONE TOO MANY' : 'CHEERS  +25 HEALTH', 'good'); } }];
+  offers.knife = () => game.combat.owned.has('knife') ? ['Knife: you have one', () => { }] : [`Buy KNIFE  ${cash(MELEE.knifePrice)}`, () => { if (pay(MELEE.knifePrice)) { game.combat.give('knife'); hud.toast('KNIFE BOUGHT: 1 SWAPS FISTS AND KNIFE', 'good'); } }];
   offers.vest = () => p.armor < COMBAT.armor ? [`Body armor  ${cash(C.armor)}`, () => { if (pay(C.armor)) { p.armor = COMBAT.armor; hud.toast('BODY ARMOR', 'good'); } }] : ['Armor is good', () => { }];
   offers.chute = () => p.chutes < SKY.carry ? [`Parachute  ${cash(SKY.price)}`, () => { if (pay(SKY.price)) { game.skydive.give(); hud.toast('PARACHUTE: SPACE OPENS IT IN THE AIR', 'good'); } }] : ['Parachutes: you have plenty', () => { }];
   // Bullseye Guns: a gun you don't have is sold whole; one you have is topped up

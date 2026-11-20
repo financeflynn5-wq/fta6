@@ -2,9 +2,10 @@
 import { PLAYER } from '../config.js';
 import { clamp, damp, lerp, angleDiff } from '../core/utils.js';
 import { groundY } from '../world/city.js';
-import { makeCharacter, animateCharacter, CIVILIANS, PLAYABLE } from '../characters/models.js';
+import { makeCharacter, animateCharacter, reelCharacter, tumblePlan, tumbleEase, standCharacter, CIVILIANS, PLAYABLE } from '../characters/models.js';
 import { AIDriver } from '../vehicles/aiDriver.js';
 
+const GET_UP = .75;        // the last part of a tumble is spent getting back up
 const pickCivilian = () => CIVILIANS[Math.floor(Math.random() * CIVILIANS.length)];
 
 export function createPlayer(game) {
@@ -14,6 +15,7 @@ export function createPlayer(game) {
   let model = makeCharacter(who, { props: false, look }); game.scene.add(model);
   const body = game.physics.addPerson(null, PLAYER.spawn.x, PLAYER.spawn.z, PLAYER.radius); game.physics.freeOfEdge(body);
   const vel = { x: 0, y: 0 };
+  const fall = { on: false, t: 0, to: 0, fly: .42 };      // being knocked off your feet: thrown, lying there, getting up
 
   const player = {
     isPlayer: true, model, who, body, mode: 'foot', vehicle: null, nearCar: null,
@@ -47,7 +49,8 @@ export function createPlayer(game) {
       const wantSprint = input.down('ShiftLeft', 'ShiftRight') && moving && !player.winded;
       player.stamina = clamp(player.stamina + (wantSprint ? -dt : dt * PLAYER.staminaRegen * (moving ? 1 : 2)), 0, PLAYER.stamina);
       if (player.stamina <= 0) player.winded = true; else if (player.stamina > PLAYER.stamina * .35) player.winded = false;
-      const top = player.aiming ? PLAYER.walk * (game.combat?.aiming ? .55 : .8) : wantSprint ? PLAYER.sprint : PLAYER.walk;
+      if (player.slow > 0) player.slow -= dt;
+      const top = (player.aiming ? PLAYER.walk * (game.combat?.aiming ? .55 : game.combat?.guard ? .5 : .8) : wantSprint ? PLAYER.sprint : PLAYER.walk) * (player.slow > 0 ? .35 : 1);
       const v = body.linvel();
       vel.x = damp(v.x, moving ? mx * top : 0, PLAYER.accel, dt); vel.y = damp(v.y, moving ? mz * top : 0, PLAYER.accel, dt);
       body.setLinvel(vel, true);
@@ -137,6 +140,17 @@ export function createPlayer(game) {
       player.exit(); body.setLinvel({ x: vx * .6, y: vz * .6 }, true);
       player.tumble = Math.max(player.tumble, 1.5); player.hurt(impact * 1.5); game.cam.shake(.5); game.hud.toast('WIPEOUT!', 'bad');
     },
+    // A blow that lands but does not floor you: a shove and a stagger. (dx, dz) is the way it travels.
+    reel(dx, dz, push = 2.2) {
+      if (player.mode !== 'foot' || player.tumble > 0) return;
+      const v = body.linvel(); body.setLinvel({ x: v.x * .4 + dx * push, y: v.y * .4 + dz * push }, true);
+      reelCharacter(model, dx, dz, player.face, 1); player.slow = .28;
+    },
+    // Knocked flat by something that is not a car (a haymaker, a bat).
+    floor(dx, dz, push = 5, time = 1.5) {
+      if (player.mode !== 'foot' || player.tumble > .5 || game.over) return;
+      body.setLinvel({ x: dx * push, y: dz * push }, true); player.vx = dx * push; player.vz = dz * push; player.speed = push; player.tumble = time; game.cam.shake(.4);
+    },
     // Armor soaks damage first.
     hurt(d) {
       if (game.over) return;
@@ -148,7 +162,7 @@ export function createPlayer(game) {
     respawn(spot = { x: PLAYER.spawn.x, z: PLAYER.spawn.z, face: Math.PI }) {
       if (player.mode === 'car') { const car = player.vehicle; if (car.rider === model) { car.unseat(); game.scene.add(model); } car.driver = null; player.vehicle = null; player.mode = 'foot'; model.visible = true; body.setEnabled(true); }
       body.setTranslation({ x: spot.x, y: spot.z }, true); body.setLinvel({ x: 0, y: 0 }, true);
-      player.x = player.px = spot.x; player.z = player.pz = spot.z; player.health = PLAYER.health; player.armor = 0; player.stamina = PLAYER.stamina; player.tumble = 0; player.face = spot.face; game.skydive?.reset();
+      player.x = player.px = spot.x; player.z = player.pz = spot.z; player.health = PLAYER.health; player.armor = 0; player.stamina = PLAYER.stamina; player.tumble = 0; player.face = spot.face; game.skydive?.reset(); fall.on = false; standCharacter(model);
     },
 
     update(dt, t) {
@@ -162,9 +176,21 @@ export function createPlayer(game) {
       }
       player.y = damp(player.y, player.high ? game.skydive.roofY(player.ix, player.iz, player.y) : groundY(player.ix, player.iz, player.y), 16, dt);
       model.position.set(player.ix, player.y, player.iz);
-      if (player.tumble > 0) player.face += dt * 10;
+      // knocked off your feet: over you go the way the blow sent you, a moment on the ground, then up again
+      let pose = player.speed > .4 ? 'move' : 'stand';
+      if (player.tumble > 0) {
+        const u = model.userData;
+        if (!fall.on) {
+          const plan = tumblePlan(player.face, player.vx, player.vz, player.speed > 11 ? 1 : 0);
+          fall.on = true; fall.t = 0; fall.to = plan.to; fall.fly = player.speed > 11 ? .6 : .42; player.face = plan.face; u.prone = plan.prone;
+        }
+        fall.t += dt;
+        if (fall.t < fall.fly) { pose = 'fly'; u.flip = fall.to * tumbleEase(fall.t / fall.fly); model.position.y += Math.sin(Math.PI * fall.t / fall.fly) * (fall.fly > .5 ? 1.1 : .45); }
+        else if (player.tumble > GET_UP || game.over) { pose = 'down'; u.flip = fall.to; }
+        else { pose = 'up'; u.rise = 1 - player.tumble / GET_UP; }
+      } else fall.on = false;
       model.rotation.y = player.face;
-      animateCharacter(model, t, dt, player.speed, player.tumble > 0 ? 'down' : player.speed > .4 ? 'move' : 'stand');
+      animateCharacter(model, t, dt, player.speed, pose);
       if (player.speed > 1 && player.tumble <= 0 && (player.stepT -= dt * player.speed) <= 0) { player.stepT = 1.9; game.audio.step(); }
     },
   };

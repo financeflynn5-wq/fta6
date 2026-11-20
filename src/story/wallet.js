@@ -11,7 +11,7 @@ export function createWallet(game) {
     const d = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (d) {
       saved = true; game.money = Math.max(0, d.money | 0); p.armor = d.armor || 0; p.chutes = Math.min(SKY.carry, d.chutes | 0);
-      for (const id in d.guns || {}) if (WEAPONS[id] && !WEAPONS[id].melee) { c.give(id, 1); c.clip[id] = d.guns[id][0] | 0; c.ammo[id] = d.guns[id][1] | 0; }
+      for (const id in d.guns || {}) if (WEAPONS[id] && id !== 'fists') { c.give(id, 1); if (!WEAPONS[id].melee) { c.clip[id] = d.guns[id][0] | 0; c.ammo[id] = d.guns[id][1] | 0; } }
       if (d.weapon && c.owned.has(d.weapon)) c.select(d.weapon);
     }
   } catch (e) { /* nothing saved, or storage is blocked: start with empty pockets */ }

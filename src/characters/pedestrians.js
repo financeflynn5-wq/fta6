@@ -1,12 +1,13 @@
-// Citizens on the sidewalks. They stroll around their block, dive out of the way of
-// cars, panic, and go flying (harmlessly) when a car does hit them.
+// Citizens on the sidewalks. They stroll around their block, dive out of the way of cars, panic, stagger when
+// punched, go head over heels when a car hits them, lie where they land and pick themselves up again.
 import { WORLD, TRAFFIC, COMBAT } from '../config.js';
 import { choose, clamp, rnd } from '../core/utils.js';
 import { groundY } from '../world/city.js';
-import { makeCharacter, animateCharacter, setCharacterShadow, CIVILIANS, COPS } from './models.js';
+import { makeCharacter, animateCharacter, setCharacterShadow, reelCharacter, tumblePlan, tumbleEase, CIVILIANS, COPS } from './models.js';
 import { maxHp } from '../combat/hits.js';
 
 const { PITCH } = WORLD;
+const GET_UP = .95;       // seconds to get back on their feet
 
 // Position on the rectangular path a citizen walks (half-sizes hx, hz around a centre): s is distance walked along it.
 function rectPoint(hx, hz, s) {
@@ -30,8 +31,8 @@ export function createPedestrians(game) {
   const refill = [];      // citizens knocked out for good: replacements walk in somewhere out of sight
   let refillT = 0;
 
-  function add(kind, x, z, cop = false) {
-    const model = makeCharacter(kind); game.scene.add(model);
+  function add(kind, x, z, cop = false, look) {
+    const model = makeCharacter(kind, look); game.scene.add(model);
     const ped = {
       isPed: true, kind, cop, model, x, z, y: groundY(x, z), vx: 0, vz: 0, vy: 0, air: 0,
       cx: blockCentre(x), cz: blockCentre(z), lane: rnd(17.6, 19), laneZ: 0, s: 0, pace: rnd(1.1, 1.7) * (Math.random() < .5 ? 1 : -1),
@@ -64,9 +65,10 @@ export function createPedestrians(game) {
       }
     },
     // A driver thrown out of their car, or anyone else who needs to rejoin the sidewalk.
-    spawn(kind, x, z, throwX = 0, throwZ = 0, cop = false) {
-      const p = add(kind, x, z, cop);
-      if (throwX || throwZ) { p.state = 'air'; p.vx = throwX; p.vz = throwZ; p.vy = 3.2; p.air = .01; }
+    // look: options for the character builder (a gang's colours, a camper's beanie).
+    spawn(kind, x, z, throwX = 0, throwZ = 0, cop = false, look) {
+      const p = add(kind, x, z, cop, look);
+      if (throwX || throwZ) { p.face = Math.atan2(-throwX, -throwZ); peds.launch(p, throwX, throwZ, 3.2); }
       else p.state = 'return';
       p.panic = 8; game.env.touch(); return p;
     },
@@ -82,10 +84,26 @@ export function createPedestrians(game) {
     // Shot or punched hard enough: they go down and stay down, then get carted off.
     knockOut(p, vx = 0, vz = 0) {
       if (!list.includes(p)) { list.push(p); p.cx = blockCentre(p.x); p.cz = blockCentre(p.z); }
-      p.ko = true; p.hp = 0; p.state = 'air'; p.air = Math.max(p.air, .01); p.vy = 2.6; p.vx = vx; p.vz = vz;
+      p.ko = true; p.hp = 0; if (p.state === 'down' || p.state === 'ko') { p.state = 'ko'; p.timer = COMBAT.koTime; return; }      // already on the floor: they stay there
+      peds.launch(p, vx, vz, 2.6);
     },
-    // Punched: knocked off their feet, then up again and running.
-    knockDown(p, vx, vz) { if (p.state === 'air' || p.state === 'ko') return; p.state = 'air'; p.air = .01; p.vy = 2.2; p.vx = vx; p.vz = vz; },
+    // Hit hard enough to take them off their feet: they land on their back (or their front), lie there a moment and get up.
+    knockDown(p, vx, vz) { if (p.state === 'air' || p.state === 'ko' || p.state === 'down') return; peds.launch(p, vx, vz, 2.2); },
+    // Sent flying along (vx, vz), going up at vy: they go over the way the blow takes them instead of spinning on the spot.
+    // A hard launch (a fast car) turns them right over once in the air.
+    launch(p, vx, vz, vy = 3.2) {
+      const plan = tumblePlan(p.face, vx, vz, vy > 5.6 ? 1 : 0);
+      p.state = 'air'; p.air = Math.max(p.air || 0, .01); p.vy = vy; p.vx = vx; p.vz = vz;
+      p.face = plan.face; p.prone = plan.prone; p.flipTo = plan.to; p.flipT = 0; p.flipDur = Math.max(.3, vy / 11 * .92);
+      p.model.userData.prone = plan.prone;
+    },
+    // A blow that does not floor them: they stumble back a step or two, arms out.
+    stagger(p, vx, vz, time = .5) {
+      if (p.state === 'air' || p.state === 'ko' || p.state === 'down') return;
+      reelCharacter(p.model, vx, vz, p.face, 1);
+      if (p.state === 'goon') { p.reelT = time; p.vx = vx; p.vz = vz; return; }          // fighters keep their own state and take the shove
+      p.state = 'reel'; p.timer = time; p.vx = vx; p.vz = vz;
+    },
 
     scare(x, z, radius, time = 6) { for (const p of list) if (!p.cop && Math.hypot(p.x - x, p.z - z) < radius) p.panic = Math.max(p.panic, time); },
 
@@ -108,11 +126,21 @@ export function createPedestrians(game) {
           p.x += p.vx * dt; p.z += p.vz * dt; p.speed = 6; pose = 'flail';
           if ((p.timer -= dt) <= 0) { p.state = 'return'; p.panic = 4; }
         } else if (p.state === 'air') {
-          p.x += p.vx * dt; p.z += p.vz * dt; p.air += p.vy * dt; p.vy -= 22 * dt; p.face += 9 * dt; pose = 'down';
-          if (p.air <= 0) { p.air = 0; p.state = p.ko ? 'ko' : 'down'; p.timer = p.ko ? COMBAT.koTime : rnd(2.4, 4); if (p.model.userData.bot) game.audio.clank(); }
+          p.x += p.vx * dt; p.z += p.vz * dt; p.air += p.vy * dt; p.vy -= 22 * dt; pose = 'fly';
+          p.flipT += dt; p.model.userData.flip = (p.flipTo || 0) * tumbleEase(Math.min(1, p.flipT / (p.flipDur || .4)));
+          if (p.air <= 0) {
+            p.air = 0; p.state = p.ko ? 'ko' : 'down'; p.timer = p.ko ? COMBAT.koTime : rnd(1.5, 2.8); p.model.userData.flip = p.flipTo || 0;
+            if (far < 40) { if (p.model.userData.bot) game.audio.clank(); else game.audio.thud?.(1 - far / 40); }
+          }
         } else if (p.state === 'down') {
           p.vx *= Math.max(0, 1 - 5 * dt); p.vz *= Math.max(0, 1 - 5 * dt); p.x += p.vx * dt; p.z += p.vz * dt; pose = 'down'; p.speed = 0;
-          if ((p.timer -= dt) <= 0) { p.state = 'return'; p.panic = 7; }
+          if ((p.timer -= dt) <= 0) { p.state = 'up'; p.timer = GET_UP; }
+        } else if (p.state === 'up') {             // picking themselves up
+          pose = 'up'; p.speed = 0; p.model.userData.rise = 1 - (p.timer -= dt) / GET_UP;
+          if (p.timer <= 0) { p.state = 'return'; p.panic = 7; }
+        } else if (p.state === 'reel') {           // stumbling back from a punch
+          p.vx *= Math.max(0, 1 - 6 * dt); p.vz *= Math.max(0, 1 - 6 * dt); p.x += p.vx * dt; p.z += p.vz * dt; pose = 'stand'; p.speed = 0;
+          if ((p.timer -= dt) <= 0) { p.state = 'return'; p.panic = 8; }
         } else if (p.state === 'ko') {
           p.vx *= Math.max(0, 1 - 5 * dt); p.vz *= Math.max(0, 1 - 5 * dt); p.x += p.vx * dt; p.z += p.vz * dt; pose = 'down'; p.speed = 0; p.panic = 0;
           if ((p.timer -= dt) <= 0 || far > 140) { gone.push(p); continue; }
@@ -126,15 +154,15 @@ export function createPedestrians(game) {
         }
         const L = WORLD.LIMIT - 1; p.x = clamp(p.x, -L, L); p.z = clamp(p.z, -L, WORLD.LIMIT_N - 1);
 
-        if (visible && p.state !== 'air' && p.state !== 'down' && p.state !== 'ko') {
+        if (visible && p.state !== 'air' && p.state !== 'down' && p.state !== 'ko' && !(p.state === 'up' && p.timer > .4)) {
           for (const v of vehicles) {
             if (v.speed < 2.4 || v.y - p.y > 3) continue;                 // cars on a bridge overhead can't hit anyone down here
             const ddx = p.x - v.x, ddz = p.z - v.z; if (Math.abs(ddx) > 16 || Math.abs(ddz) > 16) continue;
             const lx = ddx * v.fx + ddz * v.fz, lz = ddx * v.rx + ddz * v.rz;
             if (Math.abs(lx) < v.halfLen + .25 && Math.abs(lz) < v.halfWid + .3) {            // bonk
-              p.state = 'air'; p.air = .01; p.vy = 3.5 + v.speed * .2;
-              const side = (lz >= 0 ? 1 : -1) * rnd(1, 3);
-              p.vx = v.vx * .8 + v.rx * side; p.vz = v.vz * .8 + v.rz * side;
+              // a nudge sits them down; a real hit throws them up the road and over
+              const side = (lz >= 0 ? 1 : -1) * rnd(.6, 2.2);
+              peds.launch(p, v.vx * .8 + v.rx * side, v.vz * .8 + v.rz * side, 2 + v.speed * .34);
               p.hp = (p.hp ?? maxHp(p)) - v.speed * 2.6; if (p.hp <= 0) p.ko = true;
               game.onPedHit(p, v); break;
             }
