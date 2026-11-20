@@ -82,6 +82,10 @@ export function createCamera(game) {
         if (idle && p.speed > 1 && !p.aiming) cam.yaw += angleDiff(Math.atan2(p.vz, p.vx), cam.yaw) * Math.min(1, dt * 1.1);
         const tall = p.model.userData.big ? clamp((p.model.userData.big.top - 2.1) / .33, 0, 1) : 0;          // a Big Head is followed from a little higher and further back, to see over it
         wantDist = 6.6 + tall * .7; tx = p.ix; tz = p.iz; ty = p.y + 1.55 + tall * .35;
+        if (p.sky) {                                  // falling: from further back and above, looking down past him at the ground coming up
+          const chute = p.sky === 'chute'; wantDist = chute ? 13 : 10; ty = game.skydive.drawY() + (chute ? 3.2 : .6); cam.ty = damp(cam.ty, ty, 40, dt);
+          if (idle) cam.pitch = damp(cam.pitch, chute ? .42 : .8, 1.5, dt);
+        }
       }
       cam.tx = damp(cam.tx, tx, 14, dt); cam.tz = damp(cam.tz, tz, 14, dt); cam.ty = damp(cam.ty, ty, 10, dt);
       if (Math.hypot(cam.tx - tx, cam.tz - tz) > 30) { cam.tx = tx; cam.tz = tz; }

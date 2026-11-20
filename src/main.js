@@ -48,6 +48,7 @@ import { createBoats } from './vehicles/boats.js';
 import { createHelis } from './vehicles/helis.js';
 import { createFleet } from './vehicles/fleet.js';
 import { createAirSea } from './police/airSea.js';
+import { createSkydive } from './player/skydive.js';
 import { createWake } from './fx/wake.js';
 
 const STEP = 1 / 60;
@@ -58,7 +59,7 @@ async function boot() {
   const engine = createEngine(canvas);
   const game = {
     engine, scene: engine.scene, camera: engine.camera, state: 'title', over: false, money: 0, time: 0,
-    hints: { exit: 900, fly: 1500 }, firstTheft: false,
+    hints: { exit: 900, fly: 1500, chute: 1500 }, firstTheft: false,
   };
   window.__fta = game;
   game.physics = await createPhysics();
@@ -78,6 +79,7 @@ async function boot() {
   game.traffic = createTraffic(game);
   game.peds = createPedestrians(game);
   game.player = createPlayer(game);
+  game.skydive = createSkydive(game);           // falling out of the sky, with or without a parachute
   game.cam = createCamera(game);
   game.police = createPolice(game);
   game.hud = createHud(game);
@@ -97,6 +99,7 @@ async function boot() {
   game.highway = createHighwayTraffic(game); game.traffic.init(); game.highway.init();
   game.fleet = createFleet(game);               // boats at the docks, helicopters on the pads
   game.airSea = createAirSea(game);             // the police helicopter and patrol boats
+  for (const s of game.fleet.slots) if (s.type.endsWith('heli')) game.skydive.place(s.x + 3.4 * (s.x > 330 ? -1 : 1), s.z + 3.6, (s.y ?? 0) + 1);      // a parachute pack by every helipad
   game.peds.init();
   game.jobs = createJobs(game);
   game.outlaws = createOutlaws(game);           // crooks' cars: runaways to run down, derby rivals that come after you
@@ -269,7 +272,7 @@ async function boot() {
     const t = game.time;
     game.traffic.syncVisual(dt, t); game.wheels.commit();
     peds.update(dt, t);
-    player.update(dt, t);
+    player.update(dt, t); game.skydive.update(dt, t); game.skydive.pickups(dt, t);
     game.combat.update(dt, t);
     game.net.update(dt, t);
     game.match.update(dt, t);

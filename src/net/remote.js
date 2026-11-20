@@ -8,6 +8,7 @@ import { makeCharacter, animateCharacter, PLAYABLE } from '../characters/models.
 import { makeWeapon, dropWeapon } from '../combat/weaponModels.js';
 import { holdPose } from '../combat/combat.js';
 import { GhostVehicle } from './ghostCar.js';
+import { makeCanopy, setCanopy, headRoom } from '../player/skydive.js';
 
 const COLORS = ['#4de3ff', '#ff8ae6', '#9dff6a', '#ffb347', '#c9a2ff', '#ff6b6b', '#6bffd9', '#ffe66b'];
 const HALF_PI = Math.PI / 2;
@@ -27,7 +28,7 @@ export function createRemote(game, id, index) {
   const body = game.physics.addPerson(null, PLAYER.spawn.x, PLAYER.spawn.z, PLAYER.radius);
   body.setBodyType(game.physics.RAPIER.RigidBodyType.KinematicPositionBased, true);
   const to = { x: 0, y: 0 }, guns = {};
-  let model = null, tag = null, shownName = null, lookKey = null, riding = null, bodyOn = true;
+  let model = null, tag = null, shownName = null, lookKey = null, riding = null, bodyOn = true, canopy = null, canopyOpen = 0;
 
   const r = {
     id, color, name: 'Player', who: null, model: null, x: PLAYER.spawn.x, y: 0, z: PLAYER.spawn.z, face: 0, speed: 0,
@@ -67,7 +68,7 @@ export function createRemote(game, id, index) {
       const b = r.buf, last = b[b.length - 1];
       if (last && at <= last.at) b.length = 0;
       b.push({ at, x: s.x, y: s.y, z: s.z, f: s.f }); if (b.length > 12) b.shift();
-      r.inCar = s.m === 1; r.speed = s.sp; r.state = s.st === 2 ? 'down' : s.st === 1 ? 'move' : 'stand';
+      r.inCar = s.m === 1; r.speed = s.sp; r.state = s.st === 5 ? 'chute' : s.st === 4 ? 'dive' : s.st === 3 ? 'sky' : s.st === 2 ? 'down' : s.st === 1 ? 'move' : 'stand';
       r.weapon = WEAPONS[s.w] ? s.w : 'fists'; r.ready = !!s.r; r.aimPitch = s.ap || 0; r.reloading = s.rl ? 1 : 0; r.hp = s.hp; r.away = !!s.aw;
       if (!!s.up !== r.up) { r.up = !!s.up; game.physics.setPersonUp(body, r.up); }
       r.carId = s.m === 1 && s.c?.length ? s.c[0].id : null;
@@ -106,8 +107,14 @@ export function createRemote(game, id, index) {
         const w = WEAPONS[r.weapon];
         if (!w.melee && !guns[r.weapon]) { const g = makeWeapon(r.weapon); g.position.set(0, -.5, .02); g.rotation.set(HALF_PI, 0, 0); model.userData.arms[0].add(g); guns[r.weapon] = g; }
         for (const k in guns) guns[k].visible = k === r.weapon;
-        if (r.state !== 'down') holdPose(model.userData.arms, w, r, t, r.ready);
+        const air = r.state === 'sky' || r.state === 'dive' || r.state === 'chute';
+        if (air) for (const k in guns) guns[k].visible = false;
+        else if (r.state !== 'down') holdPose(model.userData.arms, w, r, t, r.ready);
       }
+      // their parachute
+      const hung = !car && !r.inCar && r.state === 'chute';
+      if (hung && !canopy) { canopy = makeCanopy(); game.scene.add(canopy); game.env?.touch(); }
+      if (canopy) { canopyOpen = hung ? Math.min(1, canopyOpen + dt / .8) : Math.max(0, canopyOpen - dt / .5); setCanopy(canopy, r.x, r.y + headRoom(model), r.z, r.face, canopyOpen, 0, t); }
       r.visible = !r.away && r.show; r.marker.x = tx; r.marker.z = tz;
       if (tag) {
         const d = Math.hypot(tx - camPos.x, ty - camPos.y, tz - camPos.z), k = Math.max(1, Math.min(7, d / 13));
@@ -129,6 +136,7 @@ export function createRemote(game, id, index) {
     },
 
     dispose() {
+      canopy?.removeFromParent();
       for (const idc of [...r.cars.keys()]) r.dropCar(idc);
       for (const g of Object.values(guns)) dropWeapon(g);
       if (model) { model.removeFromParent(); model.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); }

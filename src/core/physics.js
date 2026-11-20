@@ -50,6 +50,8 @@ export async function createPhysics() {
     setFlying(body, on) { physics.setCarMode(body, on ? 1 : 0); },
     // Someone on foot steps onto (or off) the upper level.
     setPersonUp(body, up) { body.collider(0).setCollisionGroups(up ? groups(GROUP.UP_PED, UP) : groups(GROUP.PED, edgeFree.has(body.handle) ? ALL ^ GROUP.EDGE : ALL)); },
+    // In the air (falling, under a parachute, up on a roof) a person touches nothing: player/skydive.js looks after them.
+    setPersonAir(body, on, up = false) { if (on) body.collider(0).setCollisionGroups(groups(GROUP.PED, 0)); else physics.setPersonUp(body, up); },
     // The edge walls stop holding this person in (world.js turns them back gently instead).
     freeOfEdge(body) { edgeFree.add(body.handle); physics.setPersonUp(body, false); },
     addStaticPost(x, z, r, h = 7) {

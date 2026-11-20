@@ -77,7 +77,7 @@ export const HELI = {
   flare: 2.2,                          // ...but close to the ground it only sinks this fast
   back: 14, brake: .7, slide: 1.4,     // top speed backwards; with the stick let go it slows at this share of its acceleration; how fast sideways drift dies (per second)
   yaw: 1.5, yawFast: .9, yawRate: 4,   // turn rate hovering / flat out (rad/s), and how quickly it answers
-  ceiling: 170,                        // metres above the sea
+  ceiling: 260,                        // metres above the sea
   tilt: .22, bank: .5,                 // nose-down flat out (rad), most bank in a turn (rad)
   hardLanding: 5.5, landingDamage: 9,  // touchdown speed (m/s) that starts to hurt, and damage per m/s beyond it
   wallDamage: 3.4,                       // damage per m/s of flying into the side of something
@@ -323,6 +323,23 @@ export const SMASH = {
   mend: 170,                                    // everything is put back once you are this far away (m)
 };
 // Fort Pelican is a restricted area.
+// Falling and parachutes (player/skydive.js).
+export const SKY = {
+  gravity: 18, terminal: 27, dive: 40,   // free fall: m/s² down, top speed spread flat, top speed tucked into a dive (W)
+  steer: 11, steerRate: 1.6,             // how fast you can slide across the sky in free fall, and how quickly
+  openAbove: 5,                          // a parachute will not open lower than this, m
+  openTime: .8, brake: 3.2,              // seconds for the canopy to fill; how hard it then slows you (per second)
+  sink: 5, glide: 8,                     // under the canopy: m/s down, m/s forward
+  fast: 12.5, fastSink: 7.5,             // ...holding W
+  flare: 4, flareSink: 2.6,              // ...holding S
+  turn: 1.5,                             // radians a second (A/D)
+  safe: 9, hurt: .75,                    // hitting the ground slower than `safe` m/s is free; over it costs (m/s over)² x hurt. Flat out is always fatal
+  waterSafe: 14, waterHurt: 3, waterMax: 60,      // the sea is kinder: it never kills
+  step: .5,                              // a drop bigger than this off a roof is a fall
+  vague: 16,                             // how tall a building of unknown height counts as (the same guess the helicopters make)
+  price: 250, carry: 3, respawn: 45,     // a parachute at Bullseye Guns; how many you can carry; seconds before a pack by a helipad comes back
+};
+
 // The law off the road: the police helicopter and the patrol boats (police/airSea.js).
 export const POLICE_CRAFT = {
   heliStars: 3,              // a helicopter joins the chase from this many stars...

@@ -1,6 +1,6 @@
 // Your cash, guns and armor are written to the browser's storage every few seconds, so they are still there
 // the next time you play (story or free roam: it is one wallet). "Start over" on the title screen wipes it.
-import { STORY, WEAPONS } from '../config.js';
+import { STORY, WEAPONS, SKY } from '../config.js';
 
 const KEY = 'fta6.wallet.v1';
 
@@ -10,13 +10,13 @@ export function createWallet(game) {
   try {
     const d = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (d) {
-      saved = true; game.money = Math.max(0, d.money | 0); p.armor = d.armor || 0;
+      saved = true; game.money = Math.max(0, d.money | 0); p.armor = d.armor || 0; p.chutes = Math.min(SKY.carry, d.chutes | 0);
       for (const id in d.guns || {}) if (WEAPONS[id] && !WEAPONS[id].melee) { c.give(id, 1); c.clip[id] = d.guns[id][0] | 0; c.ammo[id] = d.guns[id][1] | 0; }
       if (d.weapon && c.owned.has(d.weapon)) c.select(d.weapon);
     }
   } catch (e) { /* nothing saved, or storage is blocked: start with empty pockets */ }
   const snap = () => JSON.stringify({
-    money: Math.round(game.money), armor: Math.round(p.armor), weapon: c.weapon,
+    money: Math.round(game.money), armor: Math.round(p.armor), chutes: p.chutes || 0, weapon: c.weapon,
     guns: Object.fromEntries([...c.owned].filter(id => id !== 'fists').map(id => [id, [c.clip[id] || 0, c.ammo[id] || 0]])),
   });
   return {

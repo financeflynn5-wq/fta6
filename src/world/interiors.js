@@ -6,7 +6,7 @@
 //   createInteriors()  what you can do in them: the E key, the people, hold-ups, the lift (main.js)
 import * as THREE from 'three';
 import { V, seeded, angleDiff } from '../core/utils.js';
-import { RESPAWN, INDOORS, COMBAT, WEAPONS } from '../config.js';
+import { RESPAWN, INDOORS, COMBAT, WEAPONS, SKY } from '../config.js';
 import { mats, std, G, mesh, rbox, ctex } from './materials.js';
 import { bakeStatic, plainGeometry } from './batching.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -272,6 +272,8 @@ export function buildInteriors(api) {
         for (let k = 0; k < 3; k++) { put(m.darkWood, s * (hw - .2), 1.9 + k * .62, 4.3, .36, .05, 4.4); for (let b = 2.5; b < 6.4; b += .62) put(k === 1 ? m.dark : tinted(0x4d5a36), s * (hw - .24), 2.08 + k * .62, b, .3, .3, .44); }
       }
       put(tinted(0x2f5fb8), -hw + 1.1, 1.75, 7.6, .5, .62, .26); put(m.steel, -hw + 1.1, .7, 7.6, .08, 1.4, .08, false, G.cyl); solid(-hw + 1.1, 7.6, .6, .5, 1.4); spot(-hw + 2.1, 7.6, 'vest', 1.1);
+      // a parachute pack on a stand, across from the vest
+      put(tinted(0xff7a3d), hw - 1.1, 1.62, 6.9, .44, .5, .24); put(tinted(0x23262e), hw - 1.1, 1.72, 6.9, .34, .1, .26); put(m.steel, hw - 1.1, .68, 6.9, .08, 1.36, .08, false, G.cyl); solid(hw - 1.1, 6.9, .6, .5, 1.4); spot(hw - 2.1, 6.9, 'chute', 1.1);
       for (const [k, c] of [[.62, m.white], [.46, m.red], [.3, m.white], [.14, m.red]]) put(c, hw - .08, 2.5, 7.8, .03, k, k, false, G.sph);
       plant(hw - .6, .9);
     } else if (shop.kind === 'police') {
@@ -349,6 +351,7 @@ export function createInteriors(game) {
     liftDown: () => ['Lift to the lobby', () => { const s = spots.find(o => o.what === 'liftUp'); ride(s.x, s.z, s.room.y, Math.atan2(-s.room.face[1], -s.room.face[0]), null); }],
   };
   offers.vest = () => p.armor < COMBAT.armor ? [`Body armor  ${cash(C.armor)}`, () => { if (pay(C.armor)) { p.armor = COMBAT.armor; hud.toast('BODY ARMOR', 'good'); } }] : ['Armor is good', () => { }];
+  offers.chute = () => p.chutes < SKY.carry ? [`Parachute  ${cash(SKY.price)}`, () => { if (pay(SKY.price)) { game.skydive.give(); hud.toast('PARACHUTE: SPACE OPENS IT IN THE AIR', 'good'); } }] : ['Parachutes: you have plenty', () => { }];
   // Bullseye Guns: a gun you don't have is sold whole; one you have is topped up
   const gun = (id) => { const w = WEAPONS[id], c = game.combat;
     return c.owned.has(id) ? [`${w.name} ammo  ${cash(C.gunAmmo[id])}`, () => { if (pay(C.gunAmmo[id])) { c.give(id); hud.toast(`+${w.give} ${w.name} AMMO`, 'good'); } }]

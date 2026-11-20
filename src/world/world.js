@@ -21,7 +21,7 @@ export function createWorld(game) {
     // before the physics step
     preStep(dt) {
       const p = game.player;
-      if (p.mode !== 'foot') return;
+      if (p.mode !== 'foot' || p.sky) return;
       const depth = waterDepth(p.x, p.z);
       p.swimming = depth > RIDE.wadeDepth;
       if (p.swimming) { const v = p.body.linvel(), k = RIDE.wadeSpeed + (1 - RIDE.wadeSpeed) * Math.max(0, 1 - (depth - RIDE.wadeDepth) * 3); vel.x = v.x * k; vel.y = v.y * k; p.body.setLinvel(vel, true); }
@@ -40,7 +40,8 @@ export function createWorld(game) {
     postStep() {
       const p = game.player;
       // Passing your own height to groundY is what lets you stand on a bridge or a roof instead of under it.
-      if (p.mode === 'foot') {
+      if (p.sky || p.high) { /* in the air or up on a roof: player/skydive.js keeps his height */ }
+      else if (p.mode === 'foot') {
         const g = groundY(p.x, p.z, p.y); if (p.y < g - .12) p.y = g - .12; else if (p.y > g + .35) p.y = g + .35;
         if (layer.up !== !!p.up) { p.up = layer.up; game.physics.setPersonUp(p.body, p.up); }
       } else { p.y = p.vehicle.y; p.up = !!p.vehicle.up; }       // so he steps out at the car's height
@@ -63,7 +64,7 @@ export function createWorld(game) {
         if (cam.position.y > roof && !game.combat?.aiming) { cam.position.y = Math.max(roof, p.y + 1.2); cam.lookAt(game.cam.lookAt); }
       }
       // from a helicopter you see further: the haze thins as the camera climbs
-      if (game.scene.fog && game.env?.fogFar) { const up = Math.min(170, Math.max(0, cam.position.y - 14)), fog = game.scene.fog; fog.near = game.env.fogNear + up * 1.2; fog.far = game.env.fogFar + up * 3.2; }
+      if (game.scene.fog && game.env?.fogFar) { const up = Math.min(230, Math.max(0, cam.position.y - 14)), fog = game.scene.fog; fog.near = game.env.fogNear + up * 1.2; fog.far = game.env.fogFar + up * 3.2; }
       // scenery the haze has swallowed isn't drawn: nothing shows past the far edge of the fog
       if ((hazeT -= dt) <= 0 && game.scene.fog) {
         hazeT = .2; cam.getWorldDirection(fwd); const far = game.scene.fog.far + 6, c = cam.position;

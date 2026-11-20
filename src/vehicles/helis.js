@@ -94,7 +94,7 @@ export function createHelis(game) {
         w = damp(w, st * lerp(HELI.yaw, HELI.yawFast, sp), HELI.yawRate, dt);
       } else {
         // no power: it comes down, turning as it goes
-        v.vy = Math.max(-26, v.vy - HELI.fall * dt); vf *= 1 - .25 * dt; vl *= 1 - .4 * dt; w = damp(w, v.wrecked ? 2.2 : 0, 1.2, dt);
+        v.vy = Math.max(-26, v.vy - HELI.fall * (v.wrecked ? 1 : 1 - .75 * v.rotor) * dt);      // nobody at the stick: it sinks gently while the rotor still turns vf *= 1 - .25 * dt; vl *= 1 - .4 * dt; w = damp(w, v.wrecked ? 2.2 : 0, 1.2, dt);
       }
       const top = WATER + HELI.ceiling; if (v.y > top - 12 && v.vy > 0) v.vy *= clamp((top - v.y) / 12, 0, 1);
       let vx = fx * vf + rx * vl, vz = fz * vf + rz * vl;
@@ -126,7 +126,6 @@ export function createHelis(game) {
           if (!power && down > 9) explode(v);
           if (speed > 9) { v.damage((speed - 9) * 2); game.onCrash(v, speed * .6); }
           setMode(v, f.roof ? 3 : f.up ? 2 : 0);
-          if (v.driver === 'player' && f.roof && !v.wrecked) game.hud.toast('NO WAY DOWN FROM THIS ROOF', 'info');
         } else {                                         // skimming over rising ground
           ny = f.y + .02; v.vy = Math.max(v.vy, 0);
         }
@@ -186,12 +185,8 @@ export function createHelis(game) {
       v.rpm = r;
     },
 
-    // Getting out: on the ground, or a short jump. Not from a roof with no stairs, and not from the sky.
+    // Getting out: anywhere. In the air it is a jump (player/skydive.js: bring a parachute); on a roof you step out onto the roof.
     canExit(v) {
-      if (v.air > 0 && !v.ditched) {
-        const g = groundY(v.x, v.z, v.y + .6);
-        if (v.y - Math.max(g, WATER - 1.2) > HELI.jump) { game.hud.toast('TOO HIGH TO JUMP: LAND FIRST', 'info'); return false; }
-      } else if (v.roofed && !v.ditched) { game.hud.toast('NO WAY DOWN FROM HERE: TAKE OFF AGAIN', 'info'); return false; }
       return true;
     },
   };

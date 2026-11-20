@@ -130,7 +130,8 @@ export function makeCharacter(kind, opt) {
 // pose: 'move' (walk/run by speed), 'stand', 'flail' (panic run), 'down' (knocked over)
 export function animateCharacter(c, t, dt, speed, pose = 'move', alert = false) {
   const u = c.userData;
-  const moving = pose !== 'stand' && pose !== 'down' && speed > .3;
+  const air = pose === 'sky' || pose === 'dive' ? 1 : 0, hang = pose === 'chute';
+  const moving = pose !== 'stand' && pose !== 'down' && !air && !hang && speed > .3;
   if (moving) u.phase += dt * (3.2 + speed * 1.55);
   const ph = u.phase, stiff = u.bot ? .75 : 1;
   const amp = moving ? Math.min(1.05, .42 + speed * .085) * stiff : 0;
@@ -139,14 +140,24 @@ export function animateCharacter(c, t, dt, speed, pose = 'move', alert = false) 
   if (pose === 'flail') { u.arms[0].rotation.x = -2.7 + Math.sin(t * 17) * .4; u.arms[1].rotation.x = -2.7 + Math.cos(t * 15) * .4; }
   else if (pose === 'down') { u.arms[0].rotation.x = -2.2; u.arms[1].rotation.x = -1.2; u.legs[0].rotation.x = .5; u.legs[1].rotation.x = -.3; }
   else { u.arms[0].rotation.x = -Math.sin(ph) * amp * .8; u.arms[1].rotation.x = Math.sin(ph) * amp * .8; }
+  // falling: flat on the wind, arms and legs spread and fluttering ('dive': tucked in, head down); under a parachute: hanging from the lines
+  u.fall = (u.fall || 0) + (air - (u.fall || 0)) * Math.min(1, dt * (air ? 6 : 10)); const fall = u.fall, tuck = pose === 'dive' ? 1 : 0; u.tuck = (u.tuck || 0) + (tuck - (u.tuck || 0)) * Math.min(1, dt * 5);
+  if (air) {
+    const fl = Math.sin(t * 19) * .07, k = 1 - u.tuck;
+    u.arms[0].rotation.x = -3.5 * k + .35 * u.tuck + fl; u.arms[1].rotation.x = -3.5 * k + .35 * u.tuck - fl;
+    u.legs[0].rotation.x = .5 * k + Math.sin(t * 15) * .1; u.legs[1].rotation.x = .5 * k + Math.cos(t * 13) * .1;
+  } else if (hang) { u.arms[0].rotation.x = -2.95 + Math.sin(t * 2.1) * .05; u.arms[1].rotation.x = -2.95 + Math.cos(t * 1.7) * .05; u.legs[0].rotation.x = .18 + Math.sin(t * 1.6) * .12; u.legs[1].rotation.x = -.05 + Math.sin(t * 1.6 + 1) * .12; }
+  const spread = fall * (1 - u.tuck * .8);
+  u.legs[0].rotation.z = -spread * .38; u.legs[1].rotation.z = spread * .38;
+  if (!u.big) { u.arms[0].rotation.z = -.12 - spread * .75 - (hang ? .22 : 0); u.arms[1].rotation.z = .12 + spread * .75 + (hang ? .22 : 0); }
   // knocked flat on their back, or upright with a little bounce
-  u.body.rotation.x = -u.lie * Math.PI / 2;
-  u.body.position.y = u.lie * .28 + (1 - u.lie) * (moving ? Math.abs(Math.sin(ph)) * .07 * stiff : Math.sin(t * 2 + u.phase) * .015);
-  u.body.position.z = u.lie * .9;
-  u.body.rotation.z = moving && speed > 5 ? Math.sin(ph) * .05 : 0;
+  u.body.rotation.x = -u.lie * Math.PI / 2 + fall * (1.3 + u.tuck * .75 + Math.sin(t * 2.3) * .05);
+  u.body.position.y = u.lie * .28 + (1 - u.lie) * (moving ? Math.abs(Math.sin(ph)) * .07 * stiff : Math.sin(t * 2 + u.phase) * .015) + fall * .55;
+  u.body.position.z = u.lie * .9 - fall * 1.05;
+  u.body.rotation.z = moving && speed > 5 ? Math.sin(ph) * .05 : air ? Math.sin(t * 3.1) * .06 : hang ? Math.sin(t * 1.4) * .04 : 0;
   u.head.rotation.z = Math.sin(ph * .5) * .06;
   if (u.big) {                       // arms go round the giant head rather than through it
-    const out = pose === 'flail' ? .85 : .12; u.arms[0].rotation.z = -out; u.arms[1].rotation.z = out;
+    const out = pose === 'flail' ? .85 : hang ? .5 : .12 + spread * .8; u.arms[0].rotation.z = -out; u.arms[1].rotation.z = out;
     bobble(u, dt, pose, moving, 3.2 + speed * 1.55, ph, amp);
   }
   for (let i = 0; i < u.pupils.length; i++) {

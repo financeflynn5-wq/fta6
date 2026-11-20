@@ -24,6 +24,7 @@ export function createPlayer(game) {
     preStep(dt) {
       const input = game.input;
       player.px = player.x; player.pz = player.z;
+      if (player.sky) return game.skydive.preStep(dt);                 // falling, or under a parachute
       if (player.frozen || game.state !== 'playing') { if (player.mode === 'car') { const c = player.vehicle.controls; c.throttle = 0; c.steer = 0; c.handbrake = true; } else body.setLinvel({ x: 0, y: 0 }, true); return; }
       if (player.mode === 'car') {
         const v = player.vehicle, c = v.controls;
@@ -57,6 +58,7 @@ export function createPlayer(game) {
       for (const c of game.traffic.vehicles) { if (c.wrecked || c.ghost && c.driver || Math.abs(c.y - player.y) > 2.5) continue; const d = c.distanceTo(player.x, player.z); if (d < bd) { bd = d; best = c; } }
       player.nearCar = best;
       if (best && input.hit('KeyE', 'KeyF')) player.enter(best.ghost ? game.net.claim(best) : best);      // a car another player left behind becomes ours first
+      if (player.high) game.skydive.onRoof(dt);                         // up on a roof: walking off the edge is a fall
     },
 
     postStep() {
@@ -76,6 +78,7 @@ export function createPlayer(game) {
       }
       car.driver = 'player'; player.vehicle = car; player.mode = 'car'; player.nearCar = null;
       car.dropRider();                                   // whoever was riding is now that pedestrian
+      game.skydive.reset();
       body.setEnabled(false); if (!car.seat(model)) model.visible = false;      // on a bike you can see Rocco ride
       game.onCarTaken(car, old, speed);
     },
@@ -87,8 +90,11 @@ export function createPlayer(game) {
       const side = car.halfWid + .8, end = car.halfLen + .9;
       const spots = car.craft?.exitSpots?.(car) ?? [[-car.rx * side, -car.rz * side], [car.rx * side, car.rz * side], [-car.fx * end, -car.fz * end], [car.fx * end, car.fz * end]];
       let sx = car.x + spots[0][0], sz = car.z + spots[0][1];
+      const air = game.skydive.leaving(car);                 // out of a helicopter in the sky, or onto the roof it stands on
       for (const [ox, oz] of spots) {
         const x = car.x + ox, z = car.z + oz;
+        if (air === 'fall') break;                           // out of the door, whatever is below
+        if (air === 'roof') { const fl = game.skydive.floor(x, z, car.y); if (fl.wall || Math.abs(fl.y - car.y) > .6) continue; sx = x; sz = z; break; }      // somewhere the roof goes on
         if (ph.blocked(car.x, car.z, x + ox * .3, z + oz * .3) >= 0) continue;
         if (game.traffic.vehicles.some(o => o !== car && o.distanceTo(x, z) < .6)) continue;
         sx = x; sz = z; break;
@@ -97,7 +103,8 @@ export function createPlayer(game) {
       body.setEnabled(true); body.setTranslation({ x: sx, y: sz }, true);
       player.x = player.px = sx; player.z = player.pz = sz; player.face = -car.h + Math.PI / 2;
       car.driver = null; car.controls.throttle = 0; car.controls.lift = 0; player.vehicle = null; player.mode = 'foot'; model.visible = true;
-      if (car.speed > PLAYER.bailSpeed) {         // bailing out at speed hurts
+      if (air) game.skydive.begin(air, car.y, car.vx - car.rx * 5, car.vz - car.rz * 5, car.vy || 0);      // out of the left door
+      else if (car.speed > PLAYER.bailSpeed) {         // bailing out at speed hurts
         body.setLinvel({ x: car.vx * .7, y: car.vz * .7 }, true); player.tumble = 1.3; player.hurt(4 + (car.speed - PLAYER.bailSpeed) * 1.3);
       } else body.setLinvel({ x: 0, y: 0 }, true);
       game.audio.door(); game.onCarLeft(car);
@@ -141,7 +148,7 @@ export function createPlayer(game) {
     respawn(spot = { x: PLAYER.spawn.x, z: PLAYER.spawn.z, face: Math.PI }) {
       if (player.mode === 'car') { const car = player.vehicle; if (car.rider === model) { car.unseat(); game.scene.add(model); } car.driver = null; player.vehicle = null; player.mode = 'foot'; model.visible = true; body.setEnabled(true); }
       body.setTranslation({ x: spot.x, y: spot.z }, true); body.setLinvel({ x: 0, y: 0 }, true);
-      player.x = player.px = spot.x; player.z = player.pz = spot.z; player.health = PLAYER.health; player.armor = 0; player.stamina = PLAYER.stamina; player.tumble = 0; player.face = spot.face;
+      player.x = player.px = spot.x; player.z = player.pz = spot.z; player.health = PLAYER.health; player.armor = 0; player.stamina = PLAYER.stamina; player.tumble = 0; player.face = spot.face; game.skydive?.reset();
     },
 
     update(dt, t) {
@@ -149,7 +156,11 @@ export function createPlayer(game) {
       if (player.mode !== 'foot') { player.ix = player.vehicle.ix; player.iz = player.vehicle.iz; return; }
       const k = game.alpha ?? 1;     // draw between the last two physics steps, so walking is smooth at any frame rate
       player.ix = lerp(player.px, player.x, k); player.iz = lerp(player.pz, player.z, k);
-      player.y = damp(player.y, groundY(player.ix, player.iz, player.y), 16, dt);
+      if (player.sky) {                                               // in the air: skydive.js says how high
+        model.position.set(player.ix, game.skydive.drawY(), player.iz); model.rotation.y = player.face;
+        animateCharacter(model, t, dt, 0, game.skydive.pose()); return;
+      }
+      player.y = damp(player.y, player.high ? game.skydive.roofY(player.ix, player.iz, player.y) : groundY(player.ix, player.iz, player.y), 16, dt);
       model.position.set(player.ix, player.y, player.iz);
       if (player.tumble > 0) player.face += dt * 10;
       model.rotation.y = player.face;

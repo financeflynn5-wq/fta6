@@ -182,6 +182,7 @@ export function createCarSounds(ctx, bus) {
       const rl = Math.hypot(e[0], e[2]) || 1, rx = e[0] / rl, rz = e[2] / rl;
       ears.x = p.x; ears.z = p.z; ears.rx = rx; ears.rz = rz;
       drive(car, step, t);
+      if (!car) { const w = !live ? 0 : p.sky === 'fall' ? Math.min(1.2, -p.vy / 28) : p.sky ? .45 : 0; set(windG.gain, w * w * .5 * SOUND.windVol, .15); set(windF.frequency, 450 + w * 900, .15); }      // the air going past while you fall
       traffic(game, p.x, p.z, p.y ?? 0, p.vx ?? 0, p.vz ?? 0, rx, rz, t, car, live);
       siren(game, p.x, p.z, rx, rz, live);
       craft.update(game, car, p.x, p.z, p.y ?? 0, rx, rz, live);

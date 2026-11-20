@@ -4,10 +4,10 @@ import { PLAYER } from '../config.js';
 const $ = (id) => document.getElementById(id);
 
 export function createHud(game) {
-  const el = { hud: $('hud'), money: $('money'), stars: $('stars'), health: $('healthBar'), stamina: $('staminaBar'), speedo: $('speedo'), kmh: $('kmh'), carBar: $('carBar'), carName: $('carName'), prompt: $('prompt'), toasts: $('toasts'), siren: $('sirenFx'), hurt: $('hurtFx'), clock: $('clock'), job: $('job') };
+  const el = { hud: $('hud'), money: $('money'), stars: $('stars'), health: $('healthBar'), stamina: $('staminaBar'), speedo: $('speedo'), kmh: $('kmh'), carBar: $('carBar'), carName: $('carName'), prompt: $('prompt'), toasts: $('toasts'), siren: $('sirenFx'), hurt: $('hurtFx'), clock: $('clock'), job: $('job'), chute: $('chuteHud') };
   el.stars.innerHTML = '<span>★</span>'.repeat(5);
   const starEls = [...el.stars.children];
-  let lastName = '', shownMoney = 0, lastPrompt = '', hurtT = 0, lastKmh = -1, lastClock = '', lastJob = '', jobT = 0;
+  let lastName = '', shownMoney = 0, lastPrompt = '', hurtT = 0, lastKmh = -1, lastClock = '', lastJob = '', jobT = 0; let lastChutes = -1;
 
   const hud = {
     show(v) { el.hud.hidden = !v; },
@@ -36,10 +36,13 @@ export function createHud(game) {
         const alt = car.stats.craft === 'heli' && car.air > 0 ? '  ·  ' + Math.max(0, Math.round(car.y - Math.max(car.floorY ?? car.y, -1))) + ' M UP' : '';
         el.carBar.style.width = (car.health / car.stats.health * 100) + '%'; const name = car.wrecked ? 'TOTALED' : car.stats.name + alt; if (name !== lastName) el.carName.textContent = lastName = name;
       }
+      if (p.chutes !== lastChutes) { lastChutes = p.chutes; el.chute.hidden = !p.chutes; el.chute.textContent = p.chutes > 1 ? 'PARACHUTE ×' + p.chutes : 'PARACHUTE'; }
       let prompt = '';
       if (!game.over) {
-        if (car && car.stats.craft === 'heli' && !car.wrecked) prompt = car.air > 0 ? (game.hints.fly-- > 0 ? '<kbd>Space</kbd> Up &nbsp; <kbd>Shift</kbd> Down' : '') : car.rotor < .86 ? 'Rotor spinning up…' : '<kbd>Space</kbd> Take off &nbsp; <kbd>E</kbd> Get out';
+        if (car && car.stats.craft === 'heli' && !car.wrecked) prompt = car.air > 0 ? (game.hints.fly-- > 0 ? '<kbd>Space</kbd> Up &nbsp; <kbd>Shift</kbd> Down &nbsp; <kbd>E</kbd> Jump out' : '') : car.rotor < .86 ? 'Rotor spinning up…' : '<kbd>Space</kbd> Take off &nbsp; <kbd>E</kbd> Get out';
         else if (car) prompt = car.wrecked ? '<kbd>E</kbd> Bail out, it\'s dead' : (car.speed < 1 && police.stars === 0 && game.hints.exit-- > 0 ? '<kbd>E</kbd> Get out' : '');
+        else if (p.sky === 'fall') prompt = (p.chutes > 0 ? '<kbd>Space</kbd> Open parachute' : 'No parachute!') + ' &nbsp;·&nbsp; ' + Math.max(0, Math.round(game.skydive.height() / 5) * 5) + ' m';
+        else if (p.sky === 'chute') prompt = game.hints.chute-- > 0 ? '<kbd>A</kbd><kbd>D</kbd> Steer &nbsp; <kbd>S</kbd> Flare' : '';
         else if (p.nearCar) prompt = p.nearCar.stolen ? '<kbd>E</kbd> Get back in' : `<kbd>E</kbd> ${p.nearCar.driver ? 'Carjack' : 'Steal'} this ${p.nearCar.stats.name.toLowerCase()}`;
       }
       if (prompt !== lastPrompt) { el.prompt.innerHTML = prompt; el.prompt.hidden = !prompt; lastPrompt = prompt; }

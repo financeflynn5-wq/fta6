@@ -66,6 +66,7 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 .weapon b{font-weight:400;font-size:clamp(1.3rem,2.6vw,1.9rem);-webkit-text-stroke:1.5px #111;paint-order:stroke fill;text-shadow:0 3px 0 rgba(0,0,0,.4);font-variant-numeric:tabular-nums}
 .weapon b small{font-size:.55em;opacity:.75;margin-left:4px;-webkit-text-stroke:1px #111}
 .weapon.empty b{color:#ff6b86}
+.chute{margin-top:6px;text-align:right;font-size:.72rem;letter-spacing:.16em;color:#ff9a5c;text-shadow:0 2px 0 rgba(0,0,0,.5)}
 .bar.reload{width:90px;height:4px;margin-top:3px;border:0}.bar.reload i{background:var(--gold);transition:none}
 .crosshair,.hitmark{position:absolute;left:50%;top:50%;width:0;height:0;opacity:0;--gap:6px}
 .crosshair i,.hitmark i{position:absolute;background:#fff;box-shadow:0 0 0 1.5px rgba(0,0,0,.55);border-radius:2px}

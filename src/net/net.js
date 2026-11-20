@@ -137,7 +137,7 @@ export function createNet(game) {
     const p = game.player, c = game.combat, car = p.vehicle;
     const s = {
       t: Math.round(clock * 1000) / 1000, nm: net.name, who: p.who, m: car ? 1 : 0, x: r2(p.x), y: r2(p.y), z: r2(p.z), f: r2(p.face), sp: r1(p.speed),
-      st: game.over || p.tumble > 0 ? 2 : p.speed > .4 ? 1 : 0, w: c.weapon, r: c.ready ? 1 : 0, ap: r2(c.aimPitch), rl: c.reloading > 0 ? 1 : 0, hp: Math.round(p.health), up: p.up ? 1 : 0, c: [],
+      st: p.sky === 'chute' ? 5 : p.sky ? (p.diving ? 4 : 3) : game.over || p.tumble > 0 ? 2 : p.speed > .4 ? 1 : 0, w: c.weapon, r: c.ready ? 1 : 0, ap: r2(c.aimPitch), rl: c.reloading > 0 ? 1 : 0, hp: Math.round(p.health), up: p.up ? 1 : 0, c: [],
     };
     if (p.who === 'bighead') s.lk = p.model.userData.look;
     // my car first, then the last few I left standing

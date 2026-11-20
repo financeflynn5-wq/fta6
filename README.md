@@ -15,6 +15,7 @@ There is no build step.
 | E | Steal a car / get out; buy at a counter; call the lift |
 | Space | Handbrake (in a boat: hard astern) |
 | Space / Shift | In a helicopter: up / down (let go and it hovers; W S fly forward and back, A D turn) |
+| E, then Space | In a flying helicopter: jump out, then open your parachute (A D steer it, S flares for a soft landing; W dives while you fall) |
 | Shift | Sprint |
 | Left click | Punch / shoot (hold for the SMG) |
 | Right click (hold) | Aim down the gun's own sights; the sniper looks through its scope (mouse wheel: 4× / 8×) |
@@ -102,8 +103,13 @@ Both are ordinary vehicles: walk up, press E, and the same damage, theft and mul
   pier is a crash. A wrecked boat burns, then sinks. You can sail about 200 m past the edge of the map before the sea turns you back.
 - **Helicopters** (Dragonfly, police chopper, army Pelican) sit on the pads: Marlin Bay's bluff, Fort Pelican's two, and two
   painted on the port quay. The rotor takes three seconds to spin up; then Space lifts off. It hovers by itself, flares
-  before it touches down, and can land on any roof (you can't get out up there: no stairs). Flying into a building hurts;
-  ditching in the sea or losing the engine wrecks it.
+  before it touches down, and can land on any roof (step out and you are standing on the roof; walk off the edge and you fall).
+  Flying into a building hurts; ditching in the sea or losing the engine wrecks it.
+- **Skydiving**: E in a flying helicopter jumps out. You fall spread-eagle at about 27 m/s (hold W to dive faster, WASD to
+  drift), and the helicopter comes down on its own. With a parachute, Space opens it at 5 m or more above whatever is below:
+  A/D steer, W speeds up, S flares, and you can land on a roof. Without one you hit at full speed, which kills from any real
+  height; only the sea breaks a fall (it still hurts). Parachute packs lie beside every helipad, and Bullseye Guns sells them
+  for $250; you can carry three, each opens once, and they are saved with your cash. Tuning is `SKY` in `src/config.js`.
 - **The law**: stealing a police boat or chopper, or anything of the army's, puts stars on you at once. From three stars
   (two if you are afloat or in the air) a police helicopter circles over you; while it can see you the cops never lose you,
   so get under a bridge or indoors, or shoot it down. At night it carries a searchlight. On the water, patrol boats come
@@ -189,7 +195,8 @@ src/vehicles/               damage (dents, scuffs, cracked glass, dead lamps, to
 src/characters/             rig (the body everyone shares), models (Critters + Tin Bots, who walks the streets, the walk cycle),
                             bigheads (the Big Head builder: heads, hair, hats, faces, clothes), bigheadLooks (what a Big Head can
                             look like: the named three and the dice for everyone else), pedestrians
-src/player/                 player (on foot, in/out of cars), camera
+src/player/                 player (on foot, in/out of cars), camera, skydive (jumping out of a helicopter, free fall, the
+                            parachute and its packs, standing on roofs)
 src/police/                 police (stars, cruisers, officers on foot), airSea (the police helicopter, its searchlight, patrol boats)
 src/missions/               jobs (chop-shop orders, taxi fares, their markers and radar blips), outlaws (crooks' cars: runaways
                             you run down, rivals that come after you; used by the story, the bounty hunts and the derby)

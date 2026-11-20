@@ -61,7 +61,7 @@ export function createCombat(game) {
       // the wheel changes weapon; while looking through a scope it changes the magnification instead
       const wh = input.takeWheel();
       if (wh && p.mode === 'foot') { if (combat.aiming && w.scope) combat.scopeStep = clamp(combat.scopeStep - wh, 0, AIM.scopeZoom.length - 1); else cycle(wh); }
-      const free = !p.frozen && p.mode === 'foot' && p.tumble <= 0 && !game.over;
+      const free = !p.frozen && p.mode === 'foot' && p.tumble <= 0 && !p.sky && !game.over;
       if (!free) { combat.aiming = false; combat.burstLeft = 0; combat.ready = false; p.aiming = false; return; }
 
       const was = combat.aiming;
@@ -89,7 +89,7 @@ export function createCombat(game) {
       combat.spread = spreadNow(w);
       combat.hitT = Math.max(0, combat.hitT - dt); combat.swingT = Math.max(0, combat.swingT - dt); combat.kick = damp(combat.kick, 0, 14, dt);
       gfx.update(dt);
-      if (!onFoot || p.tumble > 0) return;
+      if (!onFoot || p.tumble > 0 || p.sky) return;
       const cam = game.cam;
       combat.aimPitch = Math.asin(clamp(cam.dir.y, -1, 1)) * combat.aimBlend;
       // is the crosshair on somebody? (the HUD turns it red)
