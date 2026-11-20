@@ -110,7 +110,8 @@ export function createSea(game) {
       let tx = p.x + p.vx * lead, tz = p.z + p.vz * lead;
       if (dist > 22) { const s = p.speed + 1; tx += -p.vz / s * r.flank; tz += p.vx / s * r.flank; }
       else if (dist < 14 && p.speed < 6) { r.orbit += dt * .9; tx = p.x + Math.cos(r.orbit) * 16; tz = p.z + Math.sin(r.orbit) * 16; }
-      sail(v, tx, tz, game.over ? 0 : dist > 55 ? 1 : C.raider.pace);          // flat out until they have caught you up, then they hold station and shoot
+      v.stats.maxSpeed = r.top * (dist > 55 ? C.raider.fast : C.raider.pace);      // quicker than you until they have caught you up, then they hold station and shoot
+      sail(v, tx, tz, game.over ? 0 : 1);
       // the one riding shotgun opens up
       if (dist < C.raider.range && !game.over && (r.fireT -= dt) <= 0) {
         r.fireT = C.raider.rate * rnd(.7, 1.3);
@@ -259,9 +260,10 @@ export function createSea(game) {
       if (r.done) { place++; sail(v, v.x + v.fx * 30, v.z + v.fz * 30, .3); continue; }
       const g = R.gates[r.i], nx = R.normals[r.i], tx = g[0] + nx[0] * r.lane, tz = g[1] + nx[1] * r.lane;
       r.x = v.x; r.z = v.z; const gap = progress(r, R.gates) - mine;
-      // they ease off when they are well ahead and dig in when they are behind, so it stays a race
-      const pace = clamp(r.skill - gap * K.band, K.slow, 1);
-      sail(v, tx, tz, pace);
+      // they ease off when they are ahead and dig in when they are behind, so it stays a race; a clean run still beats them
+      // (a boat's throttle hardly changes its top speed, so it is the top speed that is turned up and down)
+      v.stats.maxSpeed = r.top * clamp(r.skill - gap * K.band, K.slow, K.fast);
+      sail(v, tx, tz, 1);
       if (Math.hypot(g[0] - v.x, g[1] - v.z) < K.gate + 2) { if (++r.i >= R.gates.length) { r.done = true; R.beaten = true; } }
       if (gap > 0) place++;
     }
@@ -288,9 +290,9 @@ export function createSea(game) {
     // ----- crooks in boats. Returns the raider; sea.sunk counts the ones finished off since the last clear()
     raider(x, z, h, o = {}) {
       const v = traffic.add('speedboat', x, z, h, 0x23262e); v.temp = false; v.outlaw = true; v.stolen = true; v.health = C.raider.health;
-      v.stats = { ...v.stats, maxSpeed: v.stats.maxSpeed * C.raider.fast, accel: v.stats.accel * C.raider.fast };      // their boats are quicker than yours: you can't just run
+      v.stats = { ...v.stats, accel: v.stats.accel * C.raider.fast };      // a copy of the boat's numbers, so theirs can be quicker than yours: you can't just run
       const pilot = { raider: true }; v.driver = pilot; v.seat(makeCharacter('possum')); game.env?.touch();
-      const r = { v, pilot, out: false, fireT: rnd(1.5, 3), flank: o.flank ?? (raiders.length % 3 - 1) * 9, orbit: Math.random() * TAU, onSunk: o.onSunk };
+      const r = { v, pilot, top: v.stats.maxSpeed, out: false, fireT: rnd(1.5, 3), flank: o.flank ?? (raiders.length % 3 - 1) * 9, orbit: Math.random() * TAU, onSunk: o.onSunk };
       raiders.push(r); return r;
     },
     get sunk() { return sunk; }, afloat: () => raiders.filter(r => !r.out).length,
@@ -328,9 +330,11 @@ export function createSea(game) {
       R.start = () => { if (!R.hold) return; R.hold = false; aimGate(); kit.ui.banner('3', name, 'count', 1); audio.click(); };
       gates.forEach((g, i) => { for (const s of [-1, 1]) buoy(g[0] + normals[i][0] * s * (K.gate - 1.5), g[1] + normals[i][1] * s * (K.gate - 1.5)); });
       for (let k = 0; k < rivals; k++) {
-        const [x, z, h] = grid[k + 1], v = traffic.add('speedboat', x, z, h, [0xff2d55, 0x34e06b, 0xb980ff, 0xff7a00][k % 4]);
-        v.temp = false; v.outlaw = true; v.stolen = true; v.driver = { racer: true }; v.seat(makeCharacter(['possum', 'raccoon', 'scrap'][k % 3]));
-        R.rivals.push({ v, i: 0, x, z, done: false, skill: K.skill[k % K.skill.length], lane: (k - (rivals - 1) / 2) * 5 });
+        const [x, z, h] = grid[k + 1];
+        for (const o of traffic.vehicles.slice()) if (!o.driver && Math.hypot(o.x - x, o.z - z) < 6) traffic.remove(o);      // whatever was left on the line makes way
+        const v = traffic.add('speedboat', x, z, h, [0xff2d55, 0x34e06b, 0xb980ff, 0xff7a00][k % 4]);
+        v.temp = false; v.outlaw = true; v.stolen = true; v.driver = { racer: true }; v.stats = { ...v.stats }; v.seat(makeCharacter(['possum', 'raccoon', 'scrap'][k % 3]));
+        R.rivals.push({ v, top: v.stats.maxSpeed, i: 0, x, z, done: false, skill: K.skill[k % K.skill.length], lane: (k - (rivals - 1) / 2) * 5 });
       }
       R.blip = kit.blip({ x: 0, z: 0, color: '#ffd34d', glyph: '', pin: true, hot: true, size: 7, visible: () => !R.hold }); game.env?.touch();
       if (hold) { for (const m of R.marks) m.hide(); } else { aimGate(); kit.ui.banner('3', name, 'count', 1); audio.click(); }
@@ -340,7 +344,8 @@ export function createSea(game) {
     endRace() {
       if (!race) return;
       for (const m of race.marks) m.hide(); game.activities.kit.unblip(race.blip);
-      for (const r of race.rivals) { const v = r.v; if (v.gone) continue; v.outlaw = false; v.temp = true; v.driver = null; v.controls.throttle = 0; v.controls.steer = 0; }
+      // the others go home: out of the world if you are not close enough to watch, left drifting if you are
+      for (const r of race.rivals) { const v = r.v; if (v.gone) continue; v.dropRider(); if (Math.hypot(v.x - p.x, v.z - p.z) > 70 || race.hold) { traffic.remove(v); continue; } v.outlaw = false; v.temp = true; v.driver = null; v.controls.throttle = 0; v.controls.steer = 0; }
       for (const b of buoys) { b.used = false; b.g.visible = false; }
       if (!race.hold && race.count > 0 && race.count < 3.999 && !game.over) p.frozen = false;
       race = null;

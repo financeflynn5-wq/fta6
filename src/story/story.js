@@ -189,7 +189,7 @@ export function createStory(game) {
       exit() { run.count = ''; },
     },
     // a checkpoint: fail after this and "try again" starts here. cp: [x, z, face, y?] where you are put; again(run): put back what the steps ahead need
-    cp: { enter(s) { if (run.cp?.i !== run.i && run.from !== run.i) { hud.toast('CHECKPOINT', 'good'); audio.pickup(); } run.cp = { i: run.i, s }; }, update: () => true },
+    cp: { enter(s) { if (!s.quiet && run.cp?.i !== run.i && run.from !== run.i) { hud.toast('CHECKPOINT', 'good'); audio.pickup(); } run.cp = { i: run.i, s }; }, update: () => true },
     lose: { update: () => police.stars === 0 },
     until: { update: (s, st, dt, t) => !!s.until(run, dt, t) },
     run: { enter(s) { s.run(run); }, update: () => true },

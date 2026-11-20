@@ -503,17 +503,18 @@ export const STORY2 = {
   // the gun on the bow of your boat: shots a second, damage per hit, how far it reaches (m), how wide it looks for a target (radians)
   gun: { rate: 9, damage: 8, range: 120, cone: .22 },
   // crooks in boats: hull strength, seconds between their shots, damage per hit, chance to hit up close, range (m),
-  // how much faster than a stock speedboat theirs is, and how hard they push the throttle once they have caught you up
-  raider: { health: 150, rate: 1.1, damage: 3.5, accuracy: .42, range: 55, fast: 1.3, pace: .7 },
+  // their top speed as a share of a stock speedboat's: while they are catching you up, and once they have
+  raider: { health: 150, rate: 1.1, damage: 3.5, accuracy: .42, range: 55, fast: 1.3, pace: .96 },
   // fish: how many golden marlin and snapper swim in a school; a boat faster than `calm` m/s scares the ones within `scare` m,
   // and sends the ones within `dive` m under; cruising and bolting speeds (m/s); what a snapper is worth
   fish: { rare: 5, common: 10, calm: 9, scare: 15, dive: 6, speed: 2.6, flee: 7.5, pay: 20 },
   // spears: seconds between throws, reach (m), how wide the aim looks for a fish (radians), flight speed (m/s), how near the fish it must land (m)
   spear: { cool: .8, range: 36, cone: .24, speed: 36, hit: 1.9 },
-  // the boat race: how close you pass a buoy gate (m); rivals ease off or dig in by `band` per gate of lead, never below `slow`; each rival's top throttle
-  race: { gate: 15, band: .5, slow: .72, skill: [.96, .9, .85] },
+  // the boat race: how close you pass a buoy gate (m). Each rival's top speed is a share of yours (skill); it drops by `band` for every
+  // gate they are ahead and rises the same when they are behind, but never under `slow` or over `fast`
+  race: { gate: 15, band: .45, slow: .78, fast: .972, skill: [.95, .92, .88] },
   // cracking the safe: seconds on the clock, tumblers to set, seconds lost on a miss, how wide the sweet spot is (0..1 of the dial) and how fast the needle sweeps
-  safe: { time: 40, pins: 4, miss: 4, zone: .13, sweep: .95 },
+  safe: { time: 35, pins: 4, miss: 4, zone: .13, sweep: .95 },
   // the tower: guards that keep coming up the ramp once you are trapped on the roof (most at once, seconds between them)
   trap: { most: 5, every: 3.2 },
   // the treasure: seconds of digging at each spot, how many cars roll up for the shootout (three gunmen in each),

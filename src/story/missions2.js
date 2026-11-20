@@ -49,6 +49,7 @@ export function buildMissions2(game, tools) {
   // =====================================================================================
   const PIER = [7.1, -306, -HALF];               // a boat tied up at the end of the Sunset Beach pier (the water is deep enough there)
   const SHOAL = { x: -175, z: -430, r: 80 };      // where the marlin are running
+  const ON_PIER = [3.4, -300, Math.PI, 1.05];     // a second try at either boat job starts out here, on the pier beside the boat
   function fishing(run) {
     if (!run.fishDots) {
       run.fishDots = sea.fish.filter(f => f.rare).map(f => dot(f, '#ffd34d', 4.6, () => !f.out && f.under <= 0, { pin: false }));
@@ -66,6 +67,7 @@ export function buildMissions2(game, tools) {
     grid: [[46, -352, 0], [46, -362, 0], [46, -372, 0], [46, -382, 0]],
     gates: [[150, -372], [270, -400], [385, -345], [432, -225], [470, -100], [412, 20], [470, 140], [412, 260], [470, 380], [420, 500], [388, 600]],
   };
+  const lineUp = (run) => { run.race = sea.race({ name: CUP.name, gates: CUP.gates, grid: CUP.grid, rivals: 3, hold: true }); };
   function racing(run) {
     const R = run.race; if (!R) return false;
     run.count = R.count > 0 ? '' : `${nth(R.place)} · GATE ${Math.min(R.i + 1, R.gates.length)}/${R.gates.length}`;
@@ -94,6 +96,7 @@ export function buildMissions2(game, tools) {
     for (const s of [-.3, .3]) add(chestMat[1], .08, .7, .6, s, .5, 0); add(chestMat[1], .14, .16, .06, 0, .56, .3);
     g.position.set(x, groundY(x, z), z); g.rotation.y = rnd(0, 6); game.scene.add(g); return g;
   }
+  let found = [DIGS[2][0], DIGS[2][1], 0];                     // where the chest came out of the ground (a retry of the shootout starts there)
   function digging(run, dt, t) {
     if (!run.dig) {
       const D = run.dig = { left: DIGS.length, puff: 0, spots: DIGS.map(([x, z]) => ({ x, z, t: 0, done: false, mark: cross(x, z), ring: tools.ring(GOLD, 2.3, true).place(x, z) })) };
@@ -112,7 +115,7 @@ export function buildMissions2(game, tools) {
       if (d.t < C.dig) continue;
       d.done = true; d.ring.hide(); d.mark.visible = false; D.left--;
       if (D.left > 0) { hud.toast(choose(['NOTHING BUT WORMS', 'AN OLD BOOT', 'A RUSTY HORSESHOE', 'SOMEBODY\'S LUNCH, 1987']), 'info'); audio.bonk(); continue; }
-      D.chest = chest(d.x, d.z); run.spot = d; audio.pickup(); audio.evade(); hud.toast('DEAD POSSUM\'S CHEST!', 'good'); run.count = '';
+      D.chest = chest(d.x, d.z); found = [d.x + 1.6, d.z + 1.6, 0]; audio.pickup(); audio.evade(); hud.toast('DEAD POSSUM\'S CHEST!', 'good'); run.count = '';
       return true;
     }
     return false;
@@ -280,6 +283,7 @@ export function buildMissions2(game, tools) {
         ['sal', 'My boat is tied up at the pier. No nets, no rods: there are spears in the locker. Three marlin, kid. The gold ones, not the snapper.'],
       ],
       steps: [
+        { cp: ON_PIER, quiet: true },
         { car: 'speedboat', as: 'boat', own: true, at: PIER, color: 0xf2c230, text: 'Take Big Sal\'s boat from the end of the Sunset Beach pier, south of downtown' },
         { run: (run) => { run.caught = 0; sea.school(SHOAL.x, SHOAL.z, SHOAL.r, { onCatch: (n) => { run.caught = n; hud.toast(n <= 3 ? `GOLDEN MARLIN  ${n}/3` : 'ONE FOR THE FREEZER', 'good'); } }); } },
         { until: fishing, text: () => Math.hypot(p.x - SHOAL.x, p.z - SHOAL.z) > SHOAL.r + 30 ? 'Head out to the marlin, south-west of the pier (the gold dots on the radar)' : 'Spear three golden marlin: ease up close, look at one and left-click to throw' },
@@ -302,7 +306,8 @@ export function buildMissions2(game, tools) {
         ['tiff', 'The red boat at the Sunset Beach pier is ours. Start line is just off the beach. Through every pair of buoys, up the coast, first into Marlin Bay.'],
       ],
       steps: [
-        { run: (run) => { run.race = sea.race({ name: CUP.name, gates: CUP.gates, grid: CUP.grid, rivals: 3, hold: true }); } },
+        { run: lineUp },
+        { cp: ON_PIER, quiet: true, again: lineUp },
         { car: 'speedboat', as: 'boat', own: true, at: PIER, color: 0xe8455b, text: 'Take the red race boat from the end of the Sunset Beach pier, south of downtown' },
         { bring: 'boat', to: [CUP.grid[0][0], CUP.grid[0][1]], r: 7, y: WATER, text: 'Line up with the others on the start line, just off the beach' },
         { run: (run) => { run.cars.boat = run.refs.boat; run.race.start(); } },
@@ -326,6 +331,7 @@ export function buildMissions2(game, tools) {
       steps: [
         arm('smg', 'SMG, BODY ARMOR AND A SHOVEL'),
         { until: digging, text: 'Dig at the three X\'s on Golden Acres, in the far north-west: the scarecrow, the lone oak and the end of the airstrip' },
+        { cp: () => found, quiet: true, again: () => kitUp('smg') },
         { until: ambush, text: (run) => run.amb?.all ? 'Win the shootout' : 'The Posse is coming for the chest! Get ready' },
         { until: () => p.mode === 'car' && !p.vehicle.stats.craft, text: 'Grab a car and get out of here. One of theirs will do' },
         { until: chase, text: 'More of them! Lose them on the way to the quay at Marlin Bay, east along the valley' },
