@@ -45,9 +45,11 @@ export function createGunmen(game) {
   const gunmen = {
     list,
     // kind: a character kind ('possum'...). o: any of STORY.goon's numbers, face (which way they look), gun.
+    // y: he stands up on a deck at that height (and only notices you when you are on his level). box: [x0, x1, z0, z1] he keeps inside.
     add(kind, x, z, o = {}) {
       const ped = peds.spawn(kind, x, z);
       ped.state = 'goon'; ped.panic = 0; ped.outlaw = true; ped.speed = 0; ped.face = o.face ?? Math.random() * 6.28;
+      if (o.y != null) { ped.ref = o.y; ped.y = o.y; ped.model.position.y = o.y; }
       const g = { ped, gun: null, alert: false, fireT: rnd(.6, 1.5), stuck: 0, side: 0, sideT: 0, ...STORY.goon, ...o, out: false };
       ped.hp = g.hp; g.full = g.hp;
       g.gun = makeWeapon(o.gun || 'pistol'); g.gun.position.set(0, -.5, .02); g.gun.rotation.set(Math.PI / 2, 0, 0); ped.model.userData.arms[0].add(g.gun);
@@ -73,17 +75,19 @@ export function createGunmen(game) {
         ped.panic = 0;
         { const [R, L] = ped.model.userData.arms; R.rotation.z = -.12; L.rotation.z = .12; }      // arms down unless he is aiming
         const dx = p.x - ped.x, dz = p.z - ped.z, dist = Math.hypot(dx, dz) || 1;
-        const sees = live && dist < g.range + 10 && Math.abs(p.y - ped.y) < 6 && game.physics.canSee(ped.x, ped.z, p.x, p.z);
-        if (!g.alert && live && (ped.hp < g.full || (dist < g.wake && sees) || list.some(o => o.alert && Math.hypot(o.ped.x - ped.x, o.ped.z - ped.z) < 40))) g.alert = true;
-        if (!g.alert || !live) { ped.speed = 0; continue; }
+        const level = g.y != null, dy = Math.abs((p.mode === 'car' ? p.vehicle.y : p.y) - ped.y);
+        const sees = live && dist < g.range + 10 && dy < (level ? 3.4 : 6) && game.physics.canSee(ped.x, ped.z, p.x, p.z);
+        if (!g.alert && live && (ped.hp < g.full || (dist < g.wake && sees) || list.some(o => o.alert && Math.abs(o.ped.y - ped.y) < 3 && Math.hypot(o.ped.x - ped.x, o.ped.z - ped.z) < 40))) g.alert = true;
+        if (!g.alert || !live || (level && dy > 4.5)) { ped.speed = 0; continue; }      // guards on a deck wait for you to come up to them
 
         // close in until he has a clear shot from the distance he likes
         let moving = false;
         if (dist > g.hold || !sees) {
           let mx = dx / dist, mz = dz / dist;
           if ((g.sideT -= dt) > 0) { const sx = -mz * g.side, sz = mx * g.side; mx = mx * .2 + sx; mz = mz * .2 + sz; const l = Math.hypot(mx, mz); mx /= l; mz /= l; }
-          const nx = ped.x + mx * g.speed * dt, nz = ped.z + mz * g.speed * dt;
-          if (game.physics.blocked(ped.x, ped.z, ped.x + mx * .8, ped.z + mz * .8) < 0) { ped.x = nx; ped.z = nz; moving = true; g.stuck = 0; }
+          let nx = ped.x + mx * g.speed * dt, nz = ped.z + mz * g.speed * dt;
+          if (g.box) { nx = clamp(nx, g.box[0], g.box[1]); nz = clamp(nz, g.box[2], g.box[3]); }
+          if (game.physics.blocked(ped.x, ped.z, ped.x + mx * .8, ped.z + mz * .8) < 0 && (nx !== ped.x || nz !== ped.z)) { ped.x = nx; ped.z = nz; moving = true; g.stuck = 0; }
           else if ((g.stuck += dt) > .25 && g.sideT <= 0) { g.side = Math.random() < .5 ? 1 : -1; g.sideT = 1.1; g.stuck = 0; }       // walk round whatever is in the way
           if (moving) ped.face += angleDiff(Math.atan2(mx, mz), ped.face) * Math.min(1, dt * 10);
         }

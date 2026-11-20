@@ -2,11 +2,13 @@
 // Big Sal, Scrap, Tiff and Officer Dale on top. Free roam is the game without them.
 //   - whoever has the next job waits at a green ring (a green letter on the radar); step into it on foot
 //   - they talk (dialogue.js), then the mission's steps run one after another (missions.js says what they are)
-//   - wasted, nabbed, out of time or a wrecked car fails it; hold Y to try again from the start, hold X to quit
-//   - progress is kept in the browser, so the story carries on next time
+//   - wasted, nabbed, out of time or a wrecked car fails it; hold Y to try again (from the last checkpoint, in the
+//     long ones), hold X to quit
+//   - progress is kept in the browser, so the story carries on next time; the pause menu lists every mission, and any
+//     of them can be played (or played again) from there
 // While a mission runs it counts as the one activity in progress, so races and the rest wait their turn.
 import * as THREE from 'three';
-import { STORY } from '../config.js';
+import { STORY, STORY2 } from '../config.js';
 import { clamp, angleDiff } from '../core/utils.js';
 import { fmtTime, cash } from '../activities/kit.js';
 import { makeCharacter, animateCharacter, setCharacterShadow } from '../characters/models.js';
@@ -14,6 +16,7 @@ import { groundY } from '../world/terrain.js';
 import { createDialogue, CAST } from './dialogue.js';
 import { createGunmen } from './gunmen.js';
 import { buildMissions } from './missions.js';
+import { buildMissions2 } from './missions2.js';
 
 const GREEN = 0x6dff8a, GOLD = 0xffd34d, RED = 0xff3048, KEY = 'fta6.story.v1';
 const GLYPH = { sal: 'S', tiff: 'T', dale: 'D', scrap: '⚙' };
@@ -24,15 +27,17 @@ export function createStory(game) {
   const A = game.activities, kit = A.kit, p = game.player, hud = game.hud, audio = game.audio, police = game.police, traffic = game.traffic, outlaws = game.outlaws;
   const talk = createDialogue(game), gunmen = createGunmen(game);
   const { missions, spots } = buildMissions(game);
+  const tools = {};          // what the second chapter's missions (missions2.js) borrow from this file; filled in further down
+  missions.push(...buildMissions2(game, tools, spots));
 
   // ---------- what is remembered ----------
-  let data = { done: 0, on: false };
+  let data = { done: 0, on: false, won: {} };
   try { data = { ...data, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch (e) { /* a fresh start */ }
   data.done = clamp(data.done | 0, 0, missions.length);
   const store = () => { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) { /* private window: this session only */ } };
 
   let run = null;            // the mission in progress
-  let retry = null;          // { m, t }: the mission that just failed, offered again for a little while
+  let retry = null;          // { m, t, cp }: the mission that just failed, offered again for a little while (cp: from its last checkpoint)
   let page = 0;              // seconds until the pager says who has the next job (0 = nothing to say)
   let hintHtml = '', held = 0, shownFor = null, ending = 0, stepOut = false;
 
@@ -104,8 +109,10 @@ export function createStory(game) {
     car: {
       enter(s, st) {
         const [x, z, h] = val(s.at);
-        for (const v of traffic.vehicles.slice()) if (!v.driver && Math.hypot(v.x - x, v.z - z) < 5.5) traffic.remove(v);        // whatever was parked there makes way
-        const v = st.v = traffic.add(s.car, x, z, h); if (s.own) v.stolen = true;
+        // adopt: one of that kind already waiting there (a helicopter on its pad) is the one. Otherwise whatever was parked there makes way.
+        let v = s.adopt ? traffic.vehicles.find(o => o.type === s.car && !o.driver && !o.wrecked && Math.hypot(o.x - x, o.z - z) < 5.5) : null;
+        if (!v) { for (const o of traffic.vehicles.slice()) if (!o.driver && Math.hypot(o.x - x, o.z - z) < 5.5) traffic.remove(o); v = traffic.add(s.car, x, z, h, s.color); }
+        st.v = v; if (s.own) v.stolen = true; v.temp = false; s.made?.(run, v);
         run.cars[s.as || s.car] = run.refs[s.as || s.car] = v;
         st.blip = useBlip({ x, z, color: '#6dff8a', glyph: '', pin: true, hot: true, size: 7 });
       },
@@ -114,7 +121,7 @@ export function createStory(game) {
     bring: {
       enter(s, st) {
         const [x, z] = val(s.to), v = st.v = run.cars[s.bring];
-        st.ring = useRing(GREEN, s.r ?? 5).place(x, z);
+        st.ring = useRing(GREEN, s.r ?? 5).place(x, z, s.y ?? null);
         useBlip({ x, z, color: '#6dff8a', glyph: '', pin: true, hot: true, size: 7, visible: () => p.vehicle === v });
         st.blip = useBlip({ x: v.x, z: v.z, color: '#6dff8a', glyph: '', pin: true, hot: true, size: 7, visible: () => p.vehicle !== v });
       },
@@ -181,6 +188,8 @@ export function createStory(game) {
       },
       exit() { run.count = ''; },
     },
+    // a checkpoint: fail after this and "try again" starts here. cp: [x, z, face, y?] where you are put; again(run): put back what the steps ahead need
+    cp: { enter(s) { if (run.cp?.i !== run.i && run.from !== run.i) { hud.toast('CHECKPOINT', 'good'); audio.pickup(); } run.cp = { i: run.i, s }; }, update: () => true },
     lose: { update: () => police.stars === 0 },
     until: { update: (s, st, dt, t) => !!s.until(run, dt, t) },
     run: { enter(s) { s.run(run); }, update: () => true },
@@ -203,24 +212,26 @@ export function createStory(game) {
     run.s = run.m.steps[run.i]; run.kind = kindOf(run.s); run.st = {}; run.line = val(run.s.text) || '';
     KINDS[run.kind].enter?.(run.s, run.st);
   }
-  function begin(m, again = false) {
+  function begin(m, again = false, cp = null) {
     A.begin(part); retry = null; page = 0; startRing.hide(); setHint('');
-    run = { m, i: -1, s: null, st: null, kind: null, line: '', phase: 'intro', cars: {}, refs: {}, goons: [], runaways: [], rings: [], blips: [], timer: null, count: '' };
-    const go = () => { if (!run || run.m !== m) return; run.phase = 'steps'; kit.ui.banner(m.title, again ? 'Take two' : '', 'go', 2.4); audio.pager(); nextStep(); };
+    run = { m, i: cp ? cp.i - 1 : -1, s: null, st: null, kind: null, line: '', phase: 'intro', cars: {}, refs: {}, goons: [], runaways: [], rings: [], blips: [], undo: [], timer: null, count: '', cp: null, from: cp ? cp.i : -1 };
+    const go = () => { if (!run || run.m !== m) return; run.phase = 'steps'; kit.ui.banner(m.title, cp ? 'From the checkpoint' : again ? 'Take two' : '', 'go', 2.4); audio.pager(); cp?.s.again?.(run); nextStep(); };
     if (again) go(); else { faceGiver(m.giver); talk.play(m.intro, go); }
   }
   // Take everything a mission put in the world back out of it.
   function cleanup() {
     talk.stop(); endStep();
     gunmen.clear(run.goons); for (const r of run.runaways) outlaws.release(r);
+    for (const fn of run.undo) { try { fn(); } catch (e) { console.error(e); } }
+    game.sea?.clear();
     for (const k in run.cars) run.cars[k].temp = true;
     arrow.visible = false; arrowOn = null; run = null; shownFor = undefined; stepOut = true; A.end();      // standing in a start ring? step out of it first
   }
   function fail(reason, offer = true) {
     if (!run) return;
-    const m = run.m; cleanup();
+    const m = run.m, cp = run.cp; cleanup();
     kit.ui.banner('MISSION FAILED', reason, 'bad', 3.6); if (!game.over) audio.busted();
-    if (offer) { retry = { m, t: STORY.retry }; held = 0; }
+    if (offer) { retry = { m, t: STORY.retry, cp }; held = 0; }
   }
   function finish() {
     run.phase = 'outro'; arrow.visible = false; arrowOn = null; kit.ui.panel('');
@@ -228,17 +239,31 @@ export function createStory(game) {
     audio.pager(); talk.play(m.outro, () => { if (run && run.m === m) pass(); });
   }
   function pass() {
-    const m = run.m, pay = STORY.pay[m.id] || 0; cleanup();
-    data.done = Math.min(missions.length, missions.indexOf(m) + 1); store(); refreshMenus();
+    const m = run.m, pay = STORY.pay[m.id] ?? STORY2.pay[m.id] ?? 0; cleanup();
+    if (missions.indexOf(m) === data.done) data.done++;          // a mission picked from the list (played early, or again) leaves the story where it was
+    data.won[m.id] = 1; store(); refreshMenus();
     game.addMoney(pay); m.reward?.(game); audio.evade();
     kit.ui.banner('MISSION PASSED', `${m.title}  +${cash(pay)}`, 'gold', 4.5);
-    if (data.done >= missions.length) ending = 6; else page = 7;
+    if (data.done >= missions.length && m === missions[missions.length - 1]) ending = 6; else if (data.done < missions.length) page = 7;
   }
   // Back to where the job was handed out, for another go.
-  function again(m) {
-    const g = spots[m.giver], armor = p.armor;
-    police.clear(); p.respawn({ x: g.x, z: g.z, face: g.face }); p.armor = armor; game.cam.yaw = Math.atan2(Math.cos(g.face), Math.sin(g.face));
-    begin(m, true);
+  function again(m, cp = null) {
+    const g = spots[m.giver], armor = p.armor, at = cp ? val2(cp.s.cp) : null, spot = at ? { x: at[0], z: at[1], face: at[2] ?? 0 } : g;
+    police.clear(); p.respawn({ x: spot.x, z: spot.z, face: spot.face }); p.armor = armor; game.cam.yaw = Math.atan2(Math.cos(spot.face), Math.sin(spot.face));
+    if (at && at[3] != null) p.y = at[3];                  // up on a deck or a roof
+    begin(m, true, cp);
+  }
+  const val2 = (v) => typeof v === 'function' ? v() : v;
+  // Any mission, from the list in the pause menu: off to whoever gives it, and they say their piece.
+  function play(i) {
+    const m = missions[i]; if (!m) return;
+    if (game.match?.on || game.over) return;
+    if (run) fail('SKIPPED', false); else if (A.busy) A.busy.abort?.('');
+    if (A.busy) { hud.toast('FINISH WHAT YOU ARE DOING FIRST', 'bad'); return; }
+    if (!story.on) story.setMode(true);
+    const g = spots[m.giver];
+    police.clear(); p.frozen = false; p.respawn({ x: g.x, z: g.z, face: g.face }); p.y = groundY(g.x, g.z); game.cam.yaw = Math.atan2(Math.cos(g.face), Math.sin(g.face));
+    retry = null; begin(m);
   }
 
   // ---------- the menus ----------
@@ -260,10 +285,15 @@ export function createStory(game) {
   const next = document.createElement('p'); next.className = 'tip';
   $('resumeBtn').after(next, toggle);
   toggle.addEventListener('click', () => story.setMode(!story.on));
+  // every mission, to play in any order
+  const pickBox = document.createElement('div'); pickBox.className = 'missionPick'; pickBox.innerHTML = '<p class="tip"><b>Missions</b> · click one to play it now</p><div></div>';
+  const pickBtns = missions.map((m, i) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'ghost small'; b.addEventListener('click', () => { $('resumeBtn').click(); play(i); }); pickBox.lastChild.appendChild(b); return b; });
+  toggle.after(pickBox);
   function refreshMenus() {
     const m = missions[data.done], n = missions.length;
-    note.innerHTML = data.done === 0 ? '<b>Story:</b> eight jobs for Big Sal, Scrap, Tiff and Officer Dale, ending with the Sunset Tower job. <b>Free roam:</b> the whole map and nobody telling you what to do.'
-      : m ? `<b>Story so far:</b> ${data.done} of ${n} jobs done. Next up: ${m.title}, from ${CAST[m.giver].name}.` : '<b>Story finished.</b> Sunset Coast is yours.';
+    pickBtns.forEach((b, i) => { const mi = missions[i], on = run?.m === mi; b.textContent = `${data.won[mi.id] || i < data.done ? '✓ ' : ''}${i + 1}. ${mi.title}`; b.classList.toggle('next', i === data.done && !on); b.classList.toggle('now', on); });
+    note.innerHTML = data.done === 0 ? `<b>Story:</b> ${n} jobs for Big Sal, Scrap, Tiff and Officer Dale, from a borrowed limo to buried treasure and the Possum Grand. Any of them can be picked from the pause menu. <b>Free roam:</b> the whole map and nobody telling you what to do.`
+      : m ? `<b>Story so far:</b> ${data.done} of ${n} jobs done. Next up: ${m.title}, from ${CAST[m.giver].name}. Any mission can be picked from the pause menu (Esc).` : '<b>Story finished.</b> Sunset Coast is yours. Any mission can be played again from the pause menu (Esc).';
     storyBtn.textContent = data.done === 0 ? 'Story mode' : m ? 'Continue the story' : 'Story mode';
     fresh.hidden = data.done === 0 && !game.wallet?.saved;
     toggle.textContent = `Story mode: ${story.on ? 'on' : 'off'}`;
@@ -277,7 +307,7 @@ export function createStory(game) {
     abort(msg) { if (!run) return; if (run.phase === 'outro') pass(); else fail(msg || (p.health <= 0 ? 'YOU WENT DOWN' : 'YOU GOT NABBED')); },
     progress() { return story.on || data.done ? ['Story', data.done >= missions.length ? 'finished' : `${data.done}/${missions.length} jobs`] : null; },
     update(dt, t) {
-      talk.update(dt); gunmen.update(dt, t); game.wallet?.update(dt);
+      talk.update(dt); gunmen.update(dt, t); game.wallet?.update(dt); game.sea?.update(dt, t);
       const giver = run ? run.m.giver : story.on && data.done < missions.length ? missions[data.done].giver : null;
       setWaiting(giver === 'scrap' ? null : giver); updateBots(dt, t);
 
@@ -321,9 +351,9 @@ export function createStory(game) {
       else if (!game.over) {
         if ((retry.t -= dt) <= 0) retry = null;
         else {
-          h = `<b>${retry.m.title}</b>Hold <kbd>Y</kbd> to try again`;
+          h = `<b>${retry.m.title}</b>Hold <kbd>Y</kbd> to try again${retry.cp ? ' from the checkpoint' : ''}`;
           held = game.input.down('KeyY') ? held + dt : 0;
-          if (held > .6) { const m2 = retry.m; held = 0; again(m2); return; }
+          if (held > .6) { const m2 = retry.m, cp = retry.cp; held = 0; again(m2, cp); return; }
         }
       }
     }
@@ -357,8 +387,9 @@ export function createStory(game) {
     // for tests and the curious: jump to a job (0 = the first), or start it on the spot
     jump(n) { if (run) fail('SKIPPED', false); data.done = clamp(n, 0, missions.length); store(); shownFor = undefined; refreshMenus(); },
     start(n = data.done, skipTalk = true) { if (run) fail('SKIPPED', false); data.done = clamp(n, 0, missions.length - 1); begin(missions[data.done], skipTalk); },
-    fail,
+    fail, play,
   };
+  Object.assign(tools, { ring: useRing, blip: useBlip, point, fail, gunmen, talk, val, tip: (h) => { tip = h; } });
   A.parts.story = part;
   document.addEventListener('pointerlockchange', refreshMenus);          // the pause menu shows where the story stands
   refreshMenus();

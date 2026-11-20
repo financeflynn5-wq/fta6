@@ -41,6 +41,8 @@ import { createWhoPicker } from './ui/whoPicker.js';
 import { createOutlaws } from './missions/outlaws.js';
 import { createWallet } from './story/wallet.js';
 import { createStory } from './story/story.js';
+import { createSea } from './story/sea.js';
+import { createSiteTower } from './world/siteTower.js';
 import { createNet } from './net/net.js';
 import { createLobby } from './ui/lobby.js';
 import { createMatch } from './net/match.js';
@@ -225,6 +227,8 @@ async function boot() {
   $('playBtn').addEventListener('click', () => { cam.yaw = -Math.PI / 2; play(); hud.toast('FIND A RIDE', 'info'); });
   $('resumeBtn').addEventListener('click', play);
   game.wallet = createWallet(game);             // cash and guns carry over between sessions
+  game.site = createSiteTower(game);            // The Possum Grand: a hotel going up in Port Sunset, floor by floor
+  game.sea = createSea(game);                   // what story missions do on the water: a bow gun, crooks in boats, fish and spears, a race
   game.story = createStory(game);               // story mode: adds "Story mode" beside the play button, and the jobs themselves
   // Full screen: F11 or the menu buttons. Going full screen from a menu also starts / resumes play.
   const fullscreen = () => {

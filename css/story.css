@@ -29,3 +29,23 @@ button.ghost.small{font-size:.78rem;padding:6px 14px;opacity:.75}
 .actHint kbd{font:700 .72rem var(--body);background:#fff;color:#111;border-radius:5px;padding:1px 6px;margin:0 2px}
 .actBanner.bad b{color:#ff6b86}
 .job b{white-space:nowrap}
+
+/* every mission, in the pause menu */
+.missionPick{display:grid;gap:6px;justify-items:center;width:100%}
+.missionPick>div{display:grid;grid-template-columns:1fr 1fr;gap:5px;width:min(430px,100%)}
+.missionPick button.ghost.small{display:block;font-size:.66rem;padding:5px 9px;text-align:left;opacity:.82;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-width:1.5px;letter-spacing:.02em}
+.missionPick button.ghost.small:hover{opacity:1;border-color:#fff}
+.missionPick button.next{border-color:#7dffa8;color:#7dffa8;opacity:1}
+.missionPick button.now{border-color:#ffd34d;color:#ffd34d;opacity:1}
+
+/* the dial on the safe */
+.safeDial{position:absolute;left:50%;bottom:8%;transform:translateX(-50%);width:min(520px,86vw);display:grid;gap:9px;justify-items:center;background:rgba(10,12,18,.86);backdrop-filter:blur(8px);border:2px solid rgba(255,211,77,.55);border-radius:18px;padding:13px 20px 12px;box-shadow:0 14px 40px rgba(0,0,0,.5)}
+.safeDial[hidden]{display:none}
+.safeDial b{font:400 .86rem var(--display);letter-spacing:.18em;color:#ffd34d}
+.safeDial .track{position:relative;width:100%;height:26px;border-radius:13px;background:linear-gradient(#1b1f2a,#2a3040);box-shadow:inset 0 2px 6px rgba(0,0,0,.6);overflow:hidden}
+.safeDial .zone{position:absolute;top:0;bottom:0;background:#2fbf71;box-shadow:0 0 14px #2fbf71}
+.safeDial .needle{position:absolute;top:-3px;bottom:-3px;width:5px;margin-left:-2.5px;border-radius:3px;background:#fff;box-shadow:0 0 10px #fff}
+.safeDial span{font:600 .74rem var(--body);opacity:.85}
+.safeDial kbd{font:700 .7rem var(--body);background:#fff;color:#111;border-radius:5px;padding:1px 6px}
+.safeDial.hit .track{animation:safehit .35s ease-out}
+@keyframes safehit{from{box-shadow:0 0 0 3px #7dffa8,inset 0 2px 6px rgba(0,0,0,.6)}to{box-shadow:0 0 0 0 transparent,inset 0 2px 6px rgba(0,0,0,.6)}}

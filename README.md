@@ -113,6 +113,17 @@ There is no build step.
   Pelican, and the Sunset Tower job. People talk in a box at the bottom of the screen (E for the next line, Enter to skip the lot).
   Fail and you can hold Y to try again from the start of the job; hold X to give one up. Free roam's activities stay open between jobs.
   In story mode you are always Rocco.
+- **Four more jobs** follow the tower: **Catch of the Day** (take Sal's boat off the beach pier and spear three golden marlin:
+  ease up to them, look at one, left-click to throw; then bring the catch back), **The Marlin Bay Cup** (a boat race through
+  buoy gates from Sunset Beach up the coast to the marina; first across the line or it does not count), **Dead Possum's Chest**
+  (dig at three X's on Golden Acres, win the shoot-out when two cars of Possum Posse roll up, lose more of them on the road to
+  Marlin Bay, sink five of their boats with the gun on your bow (hold left mouse; it locks on to whichever boat you look at),
+  land at Port Sunset, and fly the chest to Rocco's Rock by helicopter) and **The Possum Grand** (the hotel the Posse is building
+  in Port Sunset: up the ramps a floor at a time through the guards, crack the safe on the roof by pressing E as the needle
+  crosses the green, four times, before the clock runs out; then you are trapped up there and the only way down is off the
+  plank with a parachute). The long ones have checkpoints: after a fail, Y starts you from the last one.
+- **Any mission, any time.** The pause menu lists all twelve; click one and you are at whoever gives it. A mission picked that
+  way pays as usual and leaves your place in the story where it was.
 - **Your cash and guns are saved** in the browser between sessions, in both modes, along with story progress. "Start over" on
   the title screen wipes them.
 - **Wasted** (out of health) bills you and wakes you outside Sunset General (red cross on the radar). You keep your guns.
@@ -235,6 +246,7 @@ src/world/                  city (the downtown scene), materials, sky (day/night
                             ride (cars on slopes, jumps, water), roads (road lookups), world (ties the land to the game),
                             highway (the Sunset Loop, Highway 6 and their ramps: routes, lanes, decks, piers, signs),
                             skyline (downtown's towers), interiors (the buildings you can walk into and what you can do there),
+                            siteTower (the Possum Grand: a six-floor building site in Port Sunset you can climb, built from stacked decks),
                             north (the valley: its land, the shared building kit, and the order its districts are built in),
                             park, mall, marina, farm, base (one file per valley district; Palmview is in north),
                             places (things that break: glass, fences, props, gate booms; the base's alarm; roofs the camera stays under)
@@ -242,8 +254,11 @@ src/world/                  city (the downtown scene), materials, sky (day/night
                             forest (Whisper Woods: the pines over High Meadows, the trail, the clearing and everything in the camp)
 src/activities/             activities (start rings, one-at-a-time), kit (markers, panel, banner, save), races, stunts, tins,
                             pizza, traps (speed cameras), bowling, bounty, derby, spree (the mall), range, spray, bigmap (hold Tab)
-src/story/                  story (the mission runner: start rings, the people who give jobs, steps, pass/fail/retry, the menu
-                            buttons), missions (the eight jobs as data: read its header for the step vocabulary), dialogue (the
+src/story/                  story (the mission runner: start rings, the people who give jobs, steps, checkpoints, pass/fail/retry,
+                            the menu buttons and the mission list), missions (the first eight jobs as data: read its header for the
+                            step vocabulary), missions2 (the four after that, with their own little scenes: digging, the ambush,
+                            the chase, the boat battle, the safe, the jump), sea (what missions do on the water: the bow gun,
+                            crooks in boats, fish and spears, the buoy race), dialogue (the
                             talking box and who can speak), gunmen (armed goons), wallet (cash and guns saved between sessions)
 src/vehicles/               damage (dents, scuffs, cracked glass, dead lamps, torn-off bumpers: see the notes at its top),
                             vehicle (handling, rider seat), carModel (stand-in shapes + the wheel batch), vehicleModels (loads the

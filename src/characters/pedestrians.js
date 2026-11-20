@@ -156,7 +156,7 @@ export function createPedestrians(game) {
 
         if (visible && p.state !== 'air' && p.state !== 'down' && p.state !== 'ko' && !(p.state === 'up' && p.timer > .4)) {
           for (const v of vehicles) {
-            if (v.speed < 2.4 || v.y - p.y > 3) continue;                 // cars on a bridge overhead can't hit anyone down here
+            if (v.speed < 2.4 || v.y - p.y > 3 || p.y - v.y > 4) continue;                 // cars on a bridge overhead can't hit anyone down here, nor cars on the street someone up on a deck
             const ddx = p.x - v.x, ddz = p.z - v.z; if (Math.abs(ddx) > 16 || Math.abs(ddz) > 16) continue;
             const lx = ddx * v.fx + ddz * v.fz, lz = ddx * v.rx + ddz * v.rz;
             if (Math.abs(lx) < v.halfLen + .25 && Math.abs(lz) < v.halfWid + .3) {            // bonk
@@ -174,7 +174,8 @@ export function createPedestrians(game) {
           }
         }
         if (!visible) continue;
-        p.y = groundY(p.x, p.z) + p.air;
+        // ref: someone up on a bridge or a deck (a mission's guards) stands on it, not on the ground underneath
+        p.y = (p.ref === undefined ? groundY(p.x, p.z) : (p.ref = groundY(p.x, p.z, p.ref + .3))) + p.air;
         p.model.position.set(p.x, p.y, p.z); p.model.rotation.y = p.face;
         setCharacterShadow(p.model, far < 60);
         if (far < 90) animateCharacter(p.model, t, dt, p.speed, pose);
