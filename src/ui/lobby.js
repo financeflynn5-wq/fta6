@@ -1,6 +1,8 @@
 // "Play together" on the title menu: a name, a room code and a button. Everyone who joins the same code is in
 // the same city. Also the list of who is here (top left of the screen) and "Leave the room" on the pause menu.
 // A link with ?room=CODE fills the code in, so an invite is just a link.
+import { NET } from '../config.js';
+
 const $ = (id) => document.getElementById(id);
 const read = (k) => { try { return localStorage.getItem(k) || ''; } catch { return ''; } };
 const write = (k, v) => { try { localStorage.setItem(k, v); } catch { /* fine */ } };
@@ -8,6 +10,9 @@ const write = (k, v) => { try { localStorage.setItem(k, v); } catch { /* fine */
 export function createLobby(game, play) {
   const net = game.net, nameIn = $('mpName'), roomIn = $('mpRoom'), btn = $('mpBtn'), note = $('mpNote'), list = $('mpList'), status = $('mpStatus'), leave = $('mpLeave');
   const q = new URLSearchParams(location.search);
+  // switched off (config.js NET.enabled): the menu stays hidden and nothing here can start a connection
+  if (!NET.enabled && !q.has('mp')) return { join() { }, refresh() { }, off: true };
+  $('mp').hidden = false; $('mpKey').hidden = false;
   nameIn.value = (q.get('name') || read('fta6.name')).slice(0, 14);
   roomIn.value = (q.get('room') || read('fta6.room') || 'SUNSET').slice(0, 12).toUpperCase();
   const who = () => nameIn.value.trim() || 'Player ' + (10 + Math.floor(Math.random() * 90));

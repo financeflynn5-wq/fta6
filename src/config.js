@@ -350,6 +350,11 @@ export const BASE = {
 
 // ---------- Cops vs Robbers (net/match.js) ----------
 // Two teams, two halves. One team robs while the other polices, then they swap; the team that stashed more wins.
+// Playing together. OFF: the game never shows the "Play together" menu and never connects to anything.
+// It comes back on when `enabled` is true and `relay` holds the address of the relay (relay/ in this repo, run on
+// Cloudflare), e.g. 'wss://fta6-relay.someone.workers.dev'. For testing, ?mp in the address switches it on for that page.
+export const NET = { enabled: false, relay: '' };
+
 export const MATCH = {
   teams: [{ name: 'CRITTERS', color: '#ff6b8b' }, { name: 'TIN BOTS', color: '#4de3ff' }],   // team 0 robs in the first half
   lengths: [240, 360, 600], halfTime: 360,       // seconds a half can last (the host picks), and the usual pick

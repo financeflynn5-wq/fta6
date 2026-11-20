@@ -8,7 +8,7 @@
 // A car belongs to whoever drove it last. Its owner's game moves it; everyone else sees a ghost (ghostCar.js).
 // Getting into a car another player left makes it yours. The parked cars the city starts with are the same on
 // every screen, so the first player to touch one takes it away from everyone else's copy of the street.
-import { WEAPONS, COMBAT } from '../config.js';
+import { WEAPONS, COMBAT, NET } from '../config.js';
 import { openTransport, cleanRoom } from './transport.js';
 import { createRemote } from './remote.js';
 import { packCar } from './ghostCar.js';
@@ -46,6 +46,7 @@ export function createNet(game) {
 
     // Join a room (anyone who joins the same code sees each other). Resolves once connected.
     async join(room, name, transport) {
+      if (!NET.enabled && !new URLSearchParams(location.search).has('mp')) throw new Error('playing together is switched off');
       if (net.active) net.leave();
       net.room = cleanRoom(room); net.name = String(name || 'Player').slice(0, 14) || 'Player';
       tr = transport || await openTransport(net.room);

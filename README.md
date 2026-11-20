@@ -112,6 +112,10 @@ Both are ordinary vehicles: walk up, press E, and the same damage, theft and mul
 
 ## Playing together
 
+**Switched off for now** (`NET.enabled` in `src/config.js`): the menu is hidden and the game connects to nothing. It comes back
+once the relay in `relay/` runs on Cloudflare and its address is in `NET.relay`. `?mp` in the address switches it on for one page.
+The rest of this section describes how it works when it is on.
+
 The title menu has a name, a room code and **Join room**. Everyone who joins the same code is in the same city: you see each
 other walk, drive and shoot, and you can hurt each other. Each player's own game stays in charge of their own body, their own
 cars and their own health, and tells the others about them 20 times a second; the others play that back a moment (0.11 s) later.
