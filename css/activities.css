@@ -29,11 +29,11 @@
 .bigMap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;gap:18px;background:rgba(8,10,16,.62);backdrop-filter:blur(3px)}
 .bigMap[hidden]{display:none}
 .bigMap canvas{height:min(90vh,105vw);width:auto;border-radius:18px;border:3px solid rgba(255,255,255,.85);box-shadow:0 14px 40px rgba(0,0,0,.55);background:#1a1d24}
-.bigMap aside{width:min(250px,30vw);background:rgba(10,12,18,.8);border-radius:16px;padding:14px 16px;font:600 .8rem var(--body)}
+.bigMap aside{width:min(250px,30vw);max-height:96vh;overflow-y:auto;box-sizing:border-box;background:rgba(10,12,18,.8);border-radius:16px;padding:12px 16px;font:600 .8rem var(--body)}
 .bigMap h3{margin:0 0 8px;font:400 1.05rem var(--display);letter-spacing:.1em;color:var(--gold)}
-.bigMap ul{list-style:none;margin:0 0 10px;padding:0;display:grid;gap:5px}
+.bigMap ul{list-style:none;margin:0 0 8px;padding:0;display:grid;gap:3px}
 .bigMap .done li{display:flex;justify-content:space-between;gap:10px}.bigMap .done span{color:#7dffa8;white-space:nowrap}
-.bigMap .key{border-top:1px solid rgba(255,255,255,.16);padding-top:10px}
+.bigMap .key{border-top:1px solid rgba(255,255,255,.16);padding-top:8px;gap:2px}
 .bigMap .key li{display:flex;align-items:center;gap:8px;opacity:.9}
 .bigMap .key i{width:18px;height:18px;flex:none;border-radius:50%;border:2px solid #111;display:grid;place-items:center;font:400 .62rem var(--display);font-style:normal;color:#111}
 .bigMap p{margin:0;opacity:.7;line-height:1.35}

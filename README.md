@@ -17,10 +17,10 @@ There is no build step.
 | Space / Shift | In a helicopter: up / down (let go and it hovers; W S fly forward and back, A D turn) |
 | E, then Space | In a flying helicopter: jump out, then open your parachute (A D steer it, S flares for a soft landing; W dives while you fall) |
 | Shift | Sprint |
-| Left click | Punch / shoot (hold for the SMG) |
-| Right click (hold) | Aim down the gun's own sights; the sniper looks through its scope (mouse wheel: 4× / 8×) |
+| Left click | Punch / slash / shoot (hold for the SMG). Keep clicking with your fists up: every third punch in a row is a haymaker |
+| Right click (hold) | With fists or the knife: block. With a gun: aim down its own sights; the sniper looks through its scope (mouse wheel: 4× / 8×) |
 | [ and ] | Mouse sensitivity down / up (remembered) |
-| 1 to 6 / mouse wheel | Fists, pistol, SMG, shotgun, burst rifle, sniper |
+| 1 to 6 / mouse wheel | Fists (1 again swaps to the knife once you have one), pistol, SMG, shotgun, burst rifle, sniper |
 | R | Reload |
 | H | Horn |
 | T | Skip to night / day |
@@ -43,6 +43,23 @@ There is no build step.
   The swap happens on the spot and keeps your guns and cash; the choice is remembered.
 - **Driving.** Steering alone never breaks the tyres loose: the car turns as tight as its grip allows at that speed and no tighter. Hold the handbrake and steer to swing the tail round; let go and the tyres bite again within half a second, keeping most of the speed.
 - **Aiming.** Hold right mouse and you look through Rocco's eyes, down the sights of the gun in his hands: the pistol's notch and post (with night-sight dots), the SMG's red dot, the bead on the shotgun's rib and the burst rifle's optic. Shots go where the sights point, which is always the middle of the screen. The gun kicks, its slide or pump cycles, and it trails the hand a little when you turn. The aim lands on whoever is nearly dead ahead when the gun comes up, and a lit aiming mark brightens over someone you can hit. The sniper keeps its full scope.
+- **Fist fights and knives.** A swing steps you toward whoever is in front of you. Punches land as a combination, the third one is a
+  haymaker that puts them on the floor, and holding right mouse blocks most of what comes back from the front. Take three punches
+  in a row without landing one and the next one floors you. The knife ($150 at Bullseye Guns, one lies in the alley south of the
+  start, and anyone who pulls one on you drops it) cuts deeper and faster. Punch a citizen and some of them square up instead of running.
+  Everyone who fights you on foot is one system, `src/combat/brawlers.js`, tuned by `MELEE` and `BRAWL` in `src/config.js`.
+- **Hit reactions.** Nobody spins on the spot any more. A punch rocks them back a step, a shove or a slow car sits them down, a fast
+  car throws them up the road and over, and then they sit up and climb back to their feet. Rocco does the same when he is floored.
+  It lives in `animateCharacter` and its helpers in `src/characters/models.js`; `peds.launch` and `peds.stagger` start one.
+- **Whisper Woods.** The pine forest over High Meadows (north-west of the hills, a trail leaves the road by the KEEP OUT board).
+  In the clearing in the middle is a camp, and the people who live there want you gone the moment they see you: seven of them,
+  two with knives. Fight them all off for $500 and what they kept in the stash. They are back after a while. `CAMP` in config.
+- **The Tipsy Possum.** The bar one block south of where you start (pink Y on the map). $20 buys a drink: +25 health and the room
+  sways. Walk into one of the drinkers and he takes it personally, and half the bar takes his side. `BAR` in config.
+- **Gangs.** The Neon Vipers (purple), the Scrap Kings (orange Tin Bots) and the Possum Posse (green) each hold two corners,
+  marked V, K and P on the map. Come close and they tell you once to keep walking. Stay, walk into the middle of them, touch one
+  or drive at them and the whole crew comes for you with fists, knives and a pistol or two. Run a crew off for $350; the corner
+  is theirs again later. `GANGS` in config (add a corner by adding a `[x, z, name]` to a gang's `turf`).
 - **Steal a car.** Parked cars may set off an alarm. Taking one with a driver in it always gets you a star.
 - **Stars.** More trouble means more stars, and more (and angrier) cruisers. Officers jump out if you stop.
 - **Lose them.** Break line of sight until the stars stop flashing. You get paid for every chase you escape.
@@ -188,6 +205,7 @@ src/world/                  city (the downtown scene), materials, sky (day/night
                             north (the valley: its land, the shared building kit, and the order its districts are built in),
                             park, mall, marina, farm, base (one file per valley district; Palmview is in north),
                             places (things that break: glass, fences, props, gate booms; the base's alarm; roofs the camera stays under)
+                            forest (Whisper Woods: the pines over High Meadows, the trail, the clearing and everything in the camp)
 src/activities/             activities (start rings, one-at-a-time), kit (markers, panel, banner, save), races, stunts, tins,
                             pizza, traps (speed cameras), bowling, bounty, derby, spree (the mall), range, spray, bigmap (hold Tab)
 src/story/                  story (the mission runner: start rings, the people who give jobs, steps, pass/fail/retry, the menu
@@ -207,7 +225,10 @@ src/player/                 player (on foot, in/out of cars), camera, skydive (j
 src/police/                 police (stars, cruisers, officers on foot), airSea (the police helicopter, its searchlight, patrol boats)
 src/missions/               jobs (chop-shop orders, taxi fares, their markers and radar blips), outlaws (crooks' cars: runaways
                             you run down, rivals that come after you; used by the story, the bounty hunts and the derby)
-src/combat/                 combat (Rocco's weapons, aim, punch), hits (damage rules), copGuns (cops shoot back),
+                            trouble (ties these to the game) with camp (the people in Whisper Woods), barfight (the drinkers
+                            in The Tipsy Possum) and gangs (three gangs and their corners)
+src/combat/                 combat (Rocco's weapons, aim, punches, the knife, blocking), hits (damage rules), copGuns (cops shoot back),
+                            brawlers (everyone who fights you on foot: wind-ups, taking turns, knives, pistols, getting floored),
                             pickups, gunfx (tracers, muzzle flash), weaponModels (loads assets/weapons/*.gltf.json),
                             sightView (the gun seen down its sights: each model's sight line, paws, recoil and sway)
 assets/weapons/             Flynn's guns as self-contained glTF (.gltf.json), converted from GrappleStrikeGuns.fbx
