@@ -102,7 +102,7 @@ export function createSea(game) {
       if (v.gone || v.driver !== r.pilot) { r.out = true; sunk++; continue; }
       if (v.wrecked) {
         r.out = true; sunk++; explode(v.x, v.y, v.z, 1.1); game.wake?.foam(v.x, v.z, 6, 3.5, 4, 1);
-        v.sink = BOAT.sinkTime - 2.2; v.outlaw = false; v.temp = true; v.driver = null; v.body.setAngvel(rnd(-2, 2), true);
+        v.sink = BOAT.sinkTime - 2.2; v.outlaw = false; v.temp = true; v.driver = null; v.dropRider(); v.body.setAngvel(rnd(-2, 2), true);
         r.onSunk?.(r); continue;
       }
       const tb = p.mode === 'car' ? p.vehicle : null, dist = Math.hypot(p.x - v.x, p.z - v.z), lead = clamp(dist / 26, 0, 1.2);

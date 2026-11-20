@@ -137,7 +137,7 @@ export function buildMissions2(game, tools) {
     for (const c of A.cars) {
       if (c.out) continue;
       const v = c.v, d = dist(v); outlaws.aim(v);
-      if (d > 19 && A.t < 9 && !v.wrecked && !v.gone) continue;
+      if (d > 24 && A.t < 9 && !v.wrecked && !v.gone) continue;
       // they stop and pile out (or, if the car never made it, come running from that side)
       c.out = true; if (!v.gone) { v.driver = null; v.controls.throttle = 0; v.controls.steer = 0; v.controls.handbrake = true; }
       const far = d > 45, ax = far ? p.x + (v.x - p.x) / d * 30 : v.x, az = far ? p.z + (v.z - p.z) / d * 30 : v.z;
