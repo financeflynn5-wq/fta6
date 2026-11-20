@@ -9,7 +9,7 @@ import { AIDriver, nearestNodeIndex } from '../vehicles/aiDriver.js';
 const N = WORLD.nodes;
 
 export function createPolice(game) {
-  const units = [];      // { car, driver, officer, deployed, search }
+  const units = [];      // { car, driver, officer, deployed, search, crew, outT }   crew: officers of this car still on their feet (POLICE.crew to start with)
   const officers = [];   // cops on foot with a physics body: { ped, body, unit, state, grab, stuck, side }
   let sightTimer = 0, spawnTimer = 0, patrolTimer = 3;
 
@@ -53,18 +53,18 @@ export function createPolice(game) {
     // The player took one of our cars.
     carStolen(car) {
       const i = units.findIndex(u => u.car === car); if (i < 0) return;
-      const u = units[i]; if (u.officer) u.officer.unit = null; units.splice(i, 1); car.siren = false;
+      const u = units[i]; if (u.officer) u.officer.unit = null; units.splice(i, 1); car.siren = false; holdBackup();
     },
     carWrecked(car) {
       const i = units.findIndex(u => u.car === car); if (i < 0) return;
-      const u = units[i]; units.splice(i, 1); if (u.officer) u.officer.unit = null;
-      else if (police.stars > 0) footOfficer(choose(COPS), car.x - car.rx * 1.9, car.z - car.rz * 1.9, null);   // crawls out and keeps coming
+      const u = units[i]; units.splice(i, 1); holdBackup(); if (u.officer) u.officer.unit = null;
+      else if (police.stars > 0 && u.crew > 0) footOfficer(choose(COPS), car.x - car.rx * 1.9, car.z - car.rz * 1.9, null);   // crawls out and keeps coming
       car.driver = null;
     },
     // An officer on foot got hit by a car: they go flying like anyone else.
     knockOfficer(o, car) {
       if (car.speed < 4 || !officers.includes(o)) return;
-      const ped = o.ped; retire(o, false);
+      const ped = o.ped; if (o.unit) o.unit.crew--; retire(o, false);          // the car is one officer short: nobody takes their place
       game.peds.list.push(ped); game.peds.launch(ped, car.vx * .8, car.vz * .8, 2 + car.speed * .34);
       game.onPedHit(ped, car);
     },
@@ -75,7 +75,7 @@ export function createPolice(game) {
       o.hp = (o.hp ?? COMBAT.hp.officer) - dmg; o.grab = 0; o.stun = Math.max(o.stun || 0, .3 + push * .05);
       o.body.setLinvel({ x: dx * push, y: dz * push }, true); reelCharacter(o.ped.model, dx, dz, o.ped.face, push / 3);
       if (o.hp > 0) return false;
-      const ped = o.ped; retire(o, false); game.peds.knockOut(ped, dx * 3, dz * 3); return true;
+      const ped = o.ped; if (o.unit) o.unit.crew--; retire(o, false); game.peds.knockOut(ped, dx * 3, dz * 3); return true;
     },
 
     update(dt, t) {
@@ -105,7 +105,7 @@ export function createPolice(game) {
         if (!police.seen) for (const c of peds.list) if (c.cop && (c.state === 'walk' || c.state === 'return') && Math.hypot(c.x - p.x, c.z - p.z) < 45 && sees(c.x, c.z)) { police.seen = true; break; }
         // beat cops close by join the chase on foot
         for (const c of peds.list.slice()) {
-          if (!c.cop || (c.state !== 'walk' && c.state !== 'return') || officers.length >= 6) continue;
+          if (!c.cop || (c.state !== 'walk' && c.state !== 'return') || officers.length >= POLICE.footMax) continue;
           if (Math.hypot(c.x - p.x, c.z - p.z) < 30 && game.physics.canSee(c.x, c.z, p.x, p.z)) makeOfficer(peds.release(c), null);
         }
       }
@@ -138,18 +138,19 @@ export function createPolice(game) {
           }
           if (spot) { car = game.traffic.add('police', spot.x, spot.z, spot.h); car.temp = true; new AIDriver(game, car, spot.from, spot.to); car.body.setLinvel({ x: Math.cos(spot.h) * 14, y: Math.sin(spot.h) * 14 }, true); }
         }
-        if (car) units.push({ car, driver: car.driver, officer: null, deployed: false, search: null, flank: (units.length % 3 - 1) * 5 });
+        if (car) units.push({ car, driver: car.driver, officer: null, deployed: false, search: null, flank: (units.length % 3 - 1) * 5, crew: POLICE.crew, outT: 0 });
       }
 
       // ----- drive each unit -----
       const inCar = p.mode === 'car', stars = police.stars, shore = game.airSea?.offRoad();      // shore: the player is afloat or in the air; the cars wait at the nearest street
-      for (const u of units) {
+      for (const u of units.slice()) {
         const car = u.car, d = u.driver; if (car.wrecked) continue;
-        car.siren = true;
+        car.siren = true; u.outT = Math.max(0, u.outT - dt);
         const dist = Math.hypot(car.x - p.x, car.z - p.z);
         if (u.deployed) {
           const o = u.officer;
-          if (!o) { u.deployed = false; d.mode = 'pursue'; }
+          if (!o && u.crew <= 0) { abandon(u); continue; }          // both officers are down: the car stays where it stopped, empty
+          if (!o) { u.deployed = false; d.mode = 'pursue'; u.outT = POLICE.nextOut; }
           else if ((inCar && p.speed > 7) || Math.hypot(o.ped.x - p.x, o.ped.z - p.z) > 34 || police.hidden > 3) o.state = 'return';
           else o.state = 'chase';
           continue;
@@ -173,7 +174,7 @@ export function createPolice(game) {
           d.target.x = (u.search || police.lastKnown).x; d.target.z = (u.search || police.lastKnown).z; d.hold = false; d.ram = false; d.maxSpeed = 17;
         }
         // boxed in or cornered: the officer gets out
-        if (d.hold && !shore && dist < 9.5 && car.speed < 2.5 && !u.officer && police.seen) {
+        if (d.hold && !shore && dist < 9.5 && car.speed < 2.5 && !u.officer && u.crew > 0 && u.outT <= 0 && police.seen) {
           u.deployed = true; d.mode = 'wait';
           u.officer = footOfficer(choose(COPS), car.x - car.rx * 1.8, car.z - car.rz * 1.8, u); game.audio.door();
         }
@@ -188,8 +189,16 @@ export function createPolice(game) {
     },
   };
 
+  // A cruiser was emptied, wrecked or stolen: its replacement takes a while to turn up.
+  function holdBackup() { spawnTimer = Math.max(spawnTimer, POLICE.backup); }
+  // Nobody is left in this car. It is no longer one of ours: lights off, parked where it stopped (yours to take).
+  function abandon(u) {
+    const i = units.indexOf(u); if (i >= 0) units.splice(i, 1);
+    const car = u.car, c = car.controls; car.siren = false; car.temp = true; car.driver = null; c.throttle = 0; c.steer = 0; c.handbrake = true;
+    holdBackup();
+  }
   function footOfficer(kind, x, z, unit) {
-    const ped = game.peds.release(game.peds.spawn(kind, x, z, 0, 0, true));
+    const ped = game.peds.release(game.peds.spawn(kind, x, z, 0, 0, true)); ped.extra = true;
     if (unit?.car.up) ped.y = unit.car.y;        // stepping out onto the bridge, not the street under it
     return makeOfficer(ped, unit);
   }

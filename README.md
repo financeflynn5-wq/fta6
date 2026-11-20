@@ -61,7 +61,7 @@ There is no build step.
   or drive at them and the whole crew comes for you with fists, knives and a pistol or two. Run a crew off for $350; the corner
   is theirs again later. `GANGS` in config (add a corner by adding a `[x, z, name]` to a gang's `turf`).
 - **Steal a car.** Parked cars may set off an alarm. Taking one with a driver in it always gets you a star.
-- **Stars.** More trouble means more stars, and more (and angrier) cruisers. Officers jump out if you stop.
+- **Stars.** More trouble means more stars, and more (and angrier) cruisers. Officers jump out if you stop. A cruiser carries two officers and puts one out at a time: knock both down and the car is left empty (yours to take), and its replacement is a while coming. Numbers are in `POLICE` in `src/config.js` (`crew`, `nextOut`, `backup`, `footMax`).
 - **Lose them.** Break line of sight until the stars stop flashing. You get paid for every chase you escape.
 - **Weapons.** Guns lie on the sidewalks, and in a few places in the valley, (yellow dots on the radar), with body armor (blue) and first-aid kits (green). They come back a minute after you take them. Knocked-out cops drop ammo.
 - **Fighting.** Hitting or shooting people raises your stars if a cop sees it; hurting a cop always does. From two stars, officers on foot draw pistols and shoot back. Armor soaks damage before health.
@@ -147,7 +147,11 @@ Both are ordinary vehicles: walk up, press E, and the same damage, theft and mul
   for $250; you can carry three, each opens once, and they are saved with your cash. Tuning is `SKY` in `src/config.js`.
 - **The law**: stealing a police boat or chopper, or anything of the army's, puts stars on you at once. From three stars
   (two if you are afloat or in the air) a police helicopter circles over you; while it can see you the cops never lose you,
-  so get under a bridge or indoors, or shoot it down. At night it carries a searchlight. On the water, patrol boats come
+  so put a tall building between you and it, get under a bridge, indoors or into the pines of Whisper Woods, outrun it
+  (a sports car or a motorbike flat out is faster), or shoot it down. Once it has lost you it circles where you were last
+  seen and has to come close to pick you up again; after a few seconds of nobody seeing you it gives up, and after about a
+  minute over you it runs low on fuel, and the next one is a while coming (`POLICE_CRAFT` in `src/config.js`: `heliSight`,
+  `heliSpot`, `heliGiveUp`, `heliStay`, `heliAgain`, `heliPace`). At night it carries a searchlight. On the water, patrol boats come
   after you and bust you if you stop. Cruisers wait at the nearest street until you come ashore.
 - Each craft has a home slot (`src/vehicles/fleet.js`) and comes back there once it is stolen, wrecked or lost and you are far away.
 

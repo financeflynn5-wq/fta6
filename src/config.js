@@ -152,6 +152,10 @@ export const POLICE = {
   sightRange: 80, nearRange: 16,
   spawnMin: 62, spawnMax: 125,
   footSpeed: 6.5,
+  crew: 2,                   // officers in each cruiser. One gets out at a time; once both are down the car is left empty and nobody else climbs out of it
+  nextOut: 3,                // seconds after a cruiser's officer goes down before its second one gets out
+  backup: 10,                // seconds before a replacement cruiser is sent for one that was emptied, wrecked or stolen
+  footMax: 4,                // beat cops stop joining a chase on foot once this many officers are after you
   bounty: [0, 150, 400, 900, 1800, 3500],
   crime: { carjack: 10, alarm: 6, pedHit: 14, copRam: 16, copPedHit: 45, copCarTheft: 35, perSecond: 1.1 },
 };
@@ -399,18 +403,24 @@ export const ZOO = {
 export const POLICE_CRAFT = {
   heliStars: 3,              // a helicopter joins the chase from this many stars...
   heliStarsOff: 3,           // ...or this many, when you are in a boat or in the air and the cruisers can't follow
-  heliPace: .88,             // how hard it flies after you (1 = flat out): a Dragonfly held wide open slowly gets away
+  heliPace: .75,             // how hard it flies after you on the ground (1 = flat out, 52 m/s): a sports car or a motorbike held wide open gets away
+  heliPaceAir: .88,          // and when you are flying too: a Dragonfly held wide open slowly gets away
   heliFrom: 260,             // how far away it arrives from, m
   cruise: 75,                // the height it comes in at, m above the sea
   orbit: 30, orbitRate: .35, // it circles you this far out, at this many radians a second
   above: 24,                 // and this far above you (or above the roofs under it)
-  heliSight: 150,            // while it is this close and you are not under cover, the cops can see you
+  heliSight: 110,            // while it is this close, has a clear line to you past the buildings and you are not under cover, the cops can see you
+  heliLag: 1.5,              // seconds after everyone loses sight of you before it stops following you and circles where you were last seen
+  heliSpot: 50,              // once it has lost you it only picks you up again inside this distance
+  searchGrow: 4, searchMax: 30,   // its search circle widens by this many m a second, up to this much wider than `orbit`
+  heliGiveUp: 6,             // seconds with nobody seeing you before it gives up and flies off
+  heliStay: 55,              // seconds over you before it runs low on fuel and flies off (0 = it stays for good)
   boatSight: 80,
   boatFrom: [110, 170],      // patrol boats arrive from this far off, over open water
   boats: [0, 1, 1, 2, 2, 3], // how many, by stars, while you are afloat
   grab: 1.6,                 // seconds alongside a stopped boat before you are busted
   giveUp: 25,                // seconds after you leave the water before the boats drift off
-  heliAgain: 40,             // seconds before another helicopter comes after you bring one down
+  heliAgain: 40,             // seconds before another helicopter comes after one gives up, runs low on fuel or is brought down
   heliPay: 500, boatPay: 300,
 };
 

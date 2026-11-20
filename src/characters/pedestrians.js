@@ -46,7 +46,7 @@ export function createPedestrians(game) {
   function remove(p) {
     const i = list.indexOf(p); if (i >= 0) list.splice(i, 1);
     game.scene.remove(p.model); p.model.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
-    refill.push({ cop: p.cop });
+    if (!p.extra) refill.push({ cop: p.cop });          // extra: an officer who came out of a cruiser, not one of the town's own
   }
 
   const peds = {
@@ -115,6 +115,7 @@ export function createPedestrians(game) {
         const visible = far < 130; p.model.visible = visible;
         p.panic -= dt;
         let pose = 'move';
+        if (p.extra && far > 150 && (p.state === 'walk' || p.state === 'return')) { gone.push(p); continue; }      // a cruiser's officer left on the beat: gone once you are well away
 
         if (p.state === 'walk') {
           const run = p.panic > 0 ? 3.4 : 1;
