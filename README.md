@@ -121,15 +121,17 @@ other walk, drive and shoot, and you can hurt each other. Each player's own game
 cars and their own health, and tells the others about them 20 times a second; the others play that back a moment (0.11 s) later.
 A car belongs to whoever drove it last. Street traffic, pedestrians and the AI police are not shared yet: every screen has its own.
 
-How the players reach each other (`src/net/transport.js`, tried in this order):
+How the players reach each other (`src/net/transport.js`):
 
+- **relay**: a small server on Cloudflare passes everything along (`relay/`, with its own README for setting it up). Nobody's
+  computer hosts: each player sends only their own snapshots and receives the others'. This is the normal way, used whenever
+  `NET.relay` holds the relay's address. If the line drops, the game rejoins the room by itself.
 - **room**: the live room of a Claude page, when the game is published as one with the `room` capability (topic `ev` open to
-  everyone it is shared with).
-- **direct**: browser to browser (WebRTC, through the vendored PeerJS). The first player to join a code hosts the room and passes
-  everything along; PeerJS's free public service only introduces the browsers. If the host leaves, the room closes.
-  `?peer=host:port` uses a PeerJS server of your own.
-- **tabs**: windows of one browser on one computer (`?tabs` forces it). For trying multiplayer alone, and the fallback when the
-  introduction service cannot be reached.
+  everyone it is shared with). Used when the relay cannot be reached from that page.
+- **tabs**: windows of one browser on one computer (`?tabs` forces it). For trying multiplayer alone, and the last fallback.
+- **direct**: browser to browser (WebRTC, through the vendored PeerJS), with the first player in a room hosting it and passing
+  everything along. That costs the host's computer and connection, so it is only used when the address asks for it
+  (`?direct`, or `?peer=host:port` for a PeerJS server of your own).
 
 ### Cops vs Robbers
 

@@ -1,14 +1,19 @@
 // How players reach each other. A transport carries two things between everyone in a room:
 //   state  - each player's latest snapshot, sent many times a second; only the newest one matters
 //   events - one-off things (a shot, a hit, "I took that car")
-// Three transports are built in, tried in this order:
+// Four transports are built in:
+//   "relay"  a small server on Cloudflare that passes everything along (relay/ in this repo). Nobody's computer hosts:
+//            every player only sends their own snapshots and receives the others'. The normal way to play; used
+//            whenever config.js NET.relay holds its address.
 //   "room"   the live room of the Claude page the game is published on (only there, and only if the page was given one)
-//   "direct" players' browsers connected straight to each other (WebRTC, through the vendored PeerJS). The first player
-//            to join a room code hosts it; the others connect to the host, who passes everything along. A free public
-//            service (PeerJS's) introduces the browsers to each other; after that nothing goes through a server.
 //   "tabs"   windows of one browser on one computer, for trying multiplayer alone, and the fallback when the
-//            introduction service cannot be reached.
+//            relay cannot be reached.
+//   "direct" players' browsers connected straight to each other (WebRTC, through the vendored PeerJS). The first player
+//            to join a room code hosts it and passes everything along, which costs that player's computer and
+//            connection. Not used unless the address asks for it (?direct or ?peer=host:port).
 // Each has the same calls: id, setState(obj), emit(type, data, to?), onState(fn), onEvent(fn), onLeave(fn), onClose(fn), close()
+
+import { NET } from '../config.js';
 
 const newId = () => Math.random().toString(36).slice(2, 8);
 export const cleanRoom = (code) => (String(code || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20)) || 'sunset';
@@ -20,6 +25,33 @@ function base(kind) {
     onState(fn) { on.state.push(fn); }, onEvent(fn) { on.event.push(fn); }, onLeave(fn) { on.leave.push(fn); }, onClose(fn) { on.close.push(fn); },
     tell(list, ...a) { for (const fn of on[list]) fn(...a); },
   };
+}
+
+// The relay on Cloudflare: one WebSocket to wss://<relay>/room/<code>. It gives us our id, stamps every message
+// with its sender and passes it to the others (relay/src/index.js has the other half).
+export function createRelayTransport(room, address) {
+  const t = base('relay'), url = String(address).replace(/^http/, 'ws').replace(/\/+$/, '') + '/room/' + cleanRoom(room);
+  return new Promise((res, rej) => {
+    let ws, opened = false, closing = false;
+    try { ws = new WebSocket(url); } catch (e) { rej(new Error('the relay address is not valid')); return; }
+    // ten seconds to answer. If the page itself was busy all that time (still building the city), the answer may be
+    // sitting unread, so look once more a moment later before giving up.
+    const giveUp = () => { if (opened) return; closing = true; ws.close(); rej(new Error('the relay did not answer')); };
+    let timer = setTimeout(() => { timer = setTimeout(giveUp, 400); }, 10000);
+    const send = (m) => { if (ws.readyState === 1) ws.send(JSON.stringify(m)); };
+    ws.onmessage = (e) => {
+      let m; try { m = JSON.parse(e.data); } catch { return; }
+      if (!m || typeof m !== 'object') return;
+      if (m.k === 'hi') { t.id = m.id; opened = true; clearTimeout(timer); res(t); }
+      else if (m.k === 's') t.tell('state', m.f, m.d); else if (m.k === 'e') t.tell('event', m.f, m.t, m.d); else if (m.k === 'bye') t.tell('leave', m.f);
+    };
+    ws.onclose = () => { clearTimeout(timer); if (!opened) rej(new Error('the relay refused the connection (the room may be full)')); else if (!closing) t.tell('close'); };
+    t.setState = (d) => { if (ws.bufferedAmount < 65536) send({ k: 's', d }); };          // a slow link: skip snapshots instead of queueing them
+    t.emit = (type, d, to) => send(to ? { k: 'e', t: type, d, to } : { k: 'e', t: type, d });
+    const bye = () => { closing = true; ws.close(); };
+    addEventListener('pagehide', bye);
+    t.close = () => { removeEventListener('pagehide', bye); bye(); };
+  });
 }
 
 // Tabs of one browser on one computer (BroadcastChannel). Nothing leaves the machine.
@@ -140,14 +172,17 @@ export async function createRtcTransport(room, server) {
   return t;
 }
 
-// The best transport this page has. ?tabs in the address forces the one-computer kind; ?peer=host:port names our own
-// introduction server.
+// The best transport this page has: the relay if there is one, else the Claude page's room, else this computer only.
+// In the address: ?tabs forces the one-computer kind, ?relay=ws://host:port names another relay (the playtests run
+// one), ?direct or ?peer=host:port asks for direct connections.
 export async function openTransport(room) {
-  const q = new URLSearchParams(location.search);
+  const q = new URLSearchParams(location.search), relay = q.get('relay') || NET.relay;
+  if (q.has('tabs')) return createTabTransport(room);
+  let note = relay ? '' : 'no relay is set up';
+  try {
+    if (q.has('direct') || q.has('peer')) return await createRtcTransport(room, q.get('peer'));
+    if (relay) return await createRelayTransport(room, relay);
+  } catch (e) { note = String(e?.message || e?.type || e); }
   const live = await createRoomTransport(room); if (live) return live;
-  if (!q.has('tabs')) {
-    try { return await createRtcTransport(room, q.get('peer')); }
-    catch (e) { const t = createTabTransport(room); t.note = String(e?.message || e?.type || e); return t; }
-  }
-  return createTabTransport(room);
+  const t = createTabTransport(room); t.note = note; return t;
 }

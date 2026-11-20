@@ -15,6 +15,7 @@ import { packCar } from './ghostCar.js';
 
 const RATE = 1 / 20;          // seconds between snapshots
 const DELAY = .11;            // other players are drawn this far in the past, so there is always a report either side
+const ALONE = 1;               // seconds between snapshots while nobody else is in the room
 const KEEP_CARS = 3;          // how many of my cars the others are told about
 const r2 = (n) => Math.round(n * 100) / 100, r1 = (n) => Math.round(n * 10) / 10;
 
@@ -53,7 +54,13 @@ export function createNet(game) {
       net.id = tr.id; net.kind = tr.kind; net.host = tr.host; net.note = tr.note; net.active = true; clock = 0; sendT = 0; wasOver = game.over; hosting = false;
       for (const v of owned) v.netId = net.id + '.' + (++serial);
       tr.onState(onState); tr.onEvent(onEvent); tr.onLeave(drop);
-      tr.onClose(() => { net.leave(); game.hud.toast('THE HOST LEFT: THE ROOM IS CLOSED', 'bad'); });
+      tr.onClose(() => {
+        const kind = net.kind, was = net.room, me = net.name; net.leave();
+        if (kind !== 'relay') { game.hud.toast('THE HOST LEFT: THE ROOM IS CLOSED', 'bad'); return; }
+        // the line to the relay dropped: try once to get back into the room
+        game.hud.toast('CONNECTION LOST: REJOINING…', 'bad');
+        setTimeout(() => { if (!net.active) net.join(was, me).then(() => { if (net.kind === 'relay') game.hud.toast(`BACK IN ROOM ${was.toUpperCase()}`, 'good'); else { net.leave(); game.hud.toast('COULD NOT GET BACK INTO THE ROOM', 'bad'); } }, () => game.hud.toast('COULD NOT GET BACK INTO THE ROOM', 'bad')); }, 1500);
+      });
       beat = setInterval(() => { if (document.hidden && lastState) { lastState.aw = 1; tr.setState(lastState); } }, 1000);    // a tab in the background still says "I'm here"
       changed();
       return net;
@@ -118,7 +125,9 @@ export function createNet(game) {
       // knocked out with other players around: tell them who did it
       if (game.over && !wasOver && !game.match?.on) tr.emit('down', { by: lastHit && clock - lastHit.at < 6 ? lastHit.from : null });
       wasOver = game.over;
-      if ((sendT -= dt) <= 0) { sendT += RATE; if (sendT < -RATE) sendT = 0; tr.setState(lastState = snapshot()); }
+      // alone in a room there is nobody to tell 20 times a second: once a second keeps my place, and costs the relay next to nothing
+      const every = remotes.size ? RATE : ALONE;
+      if ((sendT -= dt) <= 0) { sendT = sendT < -every ? every : sendT + every; tr.setState(lastState = snapshot()); }
     },
   };
 
@@ -147,6 +156,7 @@ export function createNet(game) {
       r = createRemote(game, from, joined++); remotes.set(from, r);
       r.dress(s.who, s.lk, s.nm); r.heard = clock;
       game.hud.toast(`${r.name.toUpperCase()} JOINED`, 'info'); changed();
+      sendT = 0;                                       // tell the newcomer about me now, not at the next slow beat
     } else if (s.nm !== r.name || s.who !== r.who || (s.who === 'bighead' && JSON.stringify(s.lk) !== r.lookJson)) { const n = r.name; r.dress(s.who, s.lk, s.nm); if (n !== r.name) changed(); }
     r.lookJson = s.who === 'bighead' ? JSON.stringify(s.lk) : '';
     r.heard = clock; r.hosting = !!s.hs;

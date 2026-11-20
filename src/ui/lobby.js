@@ -37,7 +37,7 @@ export function createLobby(game, play) {
     btn.textContent = on ? 'Back to the room' : 'Join room'; nameIn.disabled = roomIn.disabled = on;
     note.textContent = !on ? 'Pick a room code and tell your friends. Everyone who joins the same code plays in the same city. Once you are in, press Esc to set up Cops vs Robbers.'
       : net.kind === 'tabs' ? 'You are in, but only on this computer' + (net.note ? ' (' + net.note + ')' : '') + '. Open the game in a second window and join the same code to try it.'
-        : net.host ? 'You are hosting this room. Friends who open the game and join the same code will appear. If you close the game, the room closes.'
+        : net.kind === 'direct' && net.host ? 'You are hosting this room. Friends who open the game and join the same code will appear. If you close the game, the room closes.'
           : 'You are in. Friends who join the same code will appear.';
     list.hidden = !on; status.hidden = leave.hidden = !on;
     list.textContent = ''; if (!on) return;

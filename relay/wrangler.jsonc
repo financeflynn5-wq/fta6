@@ -1,0 +1,14 @@
+// The relay for playing together, run on Cloudflare (a Worker plus one Durable Object per room).
+// Deploy: connect this repository in the Cloudflare dashboard with "Root directory" set to relay
+// (see relay/README.md), or run `npx wrangler deploy` in this folder.
+{
+  "name": "fta6-relay",                 // must match the Worker's name in the Cloudflare dashboard
+  "main": "src/index.js",
+  "compatibility_date": "2025-10-01",
+  "durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "Room" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],   // SQLite-backed: the kind the free plan allows
+  "vars": {
+    // Pages that may use this relay, separated by commas. A game opened from this computer (localhost) is always allowed.
+    "ALLOWED_ORIGINS": "https://financeflynn5-wq.github.io"
+  }
+}
