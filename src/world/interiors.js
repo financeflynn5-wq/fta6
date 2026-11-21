@@ -13,7 +13,9 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { frontage } from './landmarks.js';
 import { addRibbon, groundY } from './terrain.js';
 import { makeWeapon } from '../combat/weaponModels.js';
-import { makeCharacter, animateCharacter } from '../characters/models.js';
+import { makeCharacter, animateCharacter, CIVILIANS, COPS } from '../characters/models.js';
+import { STOREY, bayOf, buildStoreys } from './storeys.js';
+import { UPSTAIRS, furnish, wallColour, ceilColour, floorOf, nameOf } from './rooms.js';
 
 // Where they are. block / corner pick the building (as in city.js), face is the side its door is on.
 // landmark: the building landmarks.js hangs that sign on, whichever it turns out to be.
@@ -36,8 +38,36 @@ const SHOPS = [
   { id: 'gunsNorth', name: 'BULLSEYE GUNS', kind: 'guns', at: [58, 678], size: [15, 13, 7.6], face: [0, -1], who: 'dale', sign: '#ff8a3d' },
   { id: 'valleyDiner', name: 'VALLEY DINER', kind: 'diner', at: [100, 678], size: [14, 13, 7.6], face: [0, -1], who: 'possum', tint: 0x2f9c8f, sign: '#3de0ff' },
   { id: 'bar', name: BAR.name, kind: 'bar', block: [-1, -2], corner: [-1, 1], face: [-1, 0], who: 'raccoon', sign: '#ff4d8d' },      // a block south of the start, on the same street
+  // buildings with floors upstairs (rooms.js): up = what is on each floor above the street, roof = what is on the roof (if you can get to it)
+  ...UPSTAIRS,
 ];
+// ...and three of the old ones have grown an upstairs too
+const GROWN = { motel: { up: ['hotel', 'hotel', 'suite'], roof: 'terrace' }, station: { up: ['squad', 'evidence'], roof: 'helipad' }, hospital: { up: ['ward', 'theatre'], roof: 'plain' } };
+for (const s of SHOPS) if (GROWN[s.id]) Object.assign(s, GROWN[s.id]);
 const T = .3, H = 4.6, DOOR = 2.6, CEIL = 4.0;      // wall thickness, ground-floor height, doorway width, ceiling height
+
+// What turns up when you go through people's things (rooms.js says which table a drawer rolls on): [chances, what, least, most]
+const FIND = {
+  drawer: [[5, 'cash', 20, 120], [1, 'ammo'], [1, 'snack'], [3, 'none']],
+  wardrobe: [[3, 'cash', 40, 200], [1, 'armor'], [1, 'chute'], [4, 'none']],
+  fridge: [[5, 'snack'], [1, 'cash', 50, 150], [2, 'none']],
+  medicine: [[6, 'medkit'], [1, 'none']],
+  locker: [[3, 'cash', 30, 160], [2, 'ammo'], [1, 'armor'], [1, 'snack'], [3, 'none']],
+  crate: [[2, 'cash', 60, 240], [2, 'ammo'], [1, 'chute'], [1, 'armor'], [2, 'none']],
+  desk: [[4, 'cash', 40, 220], [1, 'ammo'], [3, 'none']],
+  luggage: [[4, 'cash', 80, 320], [1, 'chute'], [2, 'none']],
+  evidence: [[3, 'gun'], [3, 'ammo'], [2, 'armor'], [2, 'cash', 200, 600]],
+  stash: [[3, 'cash', 300, 900], [2, 'gun'], [2, 'ammo'], [1, 'armor']],
+  deposit: [[5, 'cash', 400, 1500], [1, 'none']],
+};
+const JUNK = {
+  drawer: ['ODD SOCKS', 'A PHONE CHARGER', 'TAKEAWAY MENUS', 'RUBBER BANDS'], wardrobe: ['MOTH-EATEN JUMPERS', 'A HAWAIIAN SHIRT', 'COAT HANGERS'], fridge: ['A JAR OF PICKLES', 'MILK. OFF.'],
+  locker: ['A SWEATY TOWEL', 'GYM SOCKS'], crate: ['PACKING PEANUTS', 'OLD NEWSPAPERS'], desk: ['PAPERCLIPS', 'A STAPLER', 'EXPENSE FORMS'], luggage: ['HOLIDAY SHIRTS', 'A SNORKEL'], deposit: ["SOMEBODY'S WILL"], medicine: ['EMPTY BOTTLES'],
+};
+// helping yourself to these is a crime whoever is watching: [heat, stars, what the radio calls it]
+const HOT = { evidence: [60, 2, 'STEALING EVIDENCE!'], deposit: [40, 2, 'BANK ROBBERY!'] };
+// who you meet upstairs
+const WHO = { worker: ['scrap', 'bighead', 'possum', 'raccoon', 'bighead'], cop: COPS, nurse: ['tess', 'bighead'], guard: ['dale', 'bigcop'], boss: ['sal', 'bighead'], prisoner: ['raccoon', 'possum'], boxer: ['raccoon', 'scrap'] };
 
 // ---------- materials (made once, when the first room is built) ----------
 let M = null;
@@ -62,9 +92,10 @@ function materials() {
     floors: {
       mart: floor(tiles('#eef0ee', '#cfd8d6')), diner: floor(tiles('#f3ede2', '#2b2f38')), lobby: floor(tiles('#f1e7d2', '#d9c49a', 4)), pawn: floor(planks('#8a5f3c', '#5e3f2a')),
       arcade: floor(tiles('#2a2147', '#3a2d63', 10)), motel: floor(planks('#b08a5c', '#7d5f3c')), laundry: floor(tiles('#dfeaf0', '#9fc3d6')), clinic: floor(tiles('#f2f6f5', '#d5e6e2')), police: floor(tiles('#dfe3ea', '#aab4c6')), guns: floor(planks('#6b6f66', '#3f433c')), bar: floor(planks('#6a4630', '#3d281c')),
+      flats: floor(tiles('#e9dfcc', '#b9a58a', 6)), office: floor(tiles('#e6e9ee', '#c5ccd8', 6)), bank: floor(tiles('#f3ece0', '#d8c9a6', 5)), club: floor(tiles('#1b1730', '#2a2150', 8)), gym: floor(tiles('#3a3f48', '#30343c', 8)), museum: floor(planks('#c9a877', '#96784f')),
     },
-    walls: { mart: lit(0xe8f1ee), diner: lit(0xf6ead6), lobby: lit(0xf3e9d8), pawn: lit(0xd9c7a6), arcade: lit(0x1d1a33), motel: lit(0xf0d9b8), laundry: lit(0xdcecf4), clinic: lit(0xeef6f3), police: lit(0xdde3ee), guns: lit(0xd8d2c0), bar: lit(0x4a2f3a) },
-    accent: { mart: lit(0x2f8f83), lobby: lit(0xc9a45a), pawn: lit(0x7a4a2a), arcade: lit(0xff4d8d), motel: lit(0xe8455b), laundry: lit(0x3e8fd6), clinic: lit(0xe8455b), police: lit(0x24408f), guns: lit(0xc7622a), bar: lit(0x8a2f4a) },
+    walls: { mart: lit(0xe8f1ee), diner: lit(0xf6ead6), lobby: lit(0xf3e9d8), pawn: lit(0xd9c7a6), arcade: lit(0x1d1a33), motel: lit(0xf0d9b8), laundry: lit(0xdcecf4), clinic: lit(0xeef6f3), police: lit(0xdde3ee), guns: lit(0xd8d2c0), bar: lit(0x4a2f3a), flats: lit(0xefe2cc), office: lit(0xe9edf2), bank: lit(0xf1e9d9), club: lit(0x241a3a), gym: lit(0xdfe3e6), museum: lit(0xf2ede4) },
+    accent: { mart: lit(0x2f8f83), lobby: lit(0xc9a45a), pawn: lit(0x7a4a2a), arcade: lit(0xff4d8d), motel: lit(0xe8455b), laundry: lit(0x3e8fd6), clinic: lit(0xe8455b), police: lit(0x24408f), guns: lit(0xc7622a), bar: lit(0x8a2f4a), flats: lit(0x2f7f8f), office: lit(0x3e6fd6), bank: lit(0x1f6f4f), club: lit(0xff4d8d), gym: lit(0xe8553b), museum: lit(0x7a2f3f) },
     goods: [0xff4d6d, 0xffd34d, 0x3de0ff, 0x7dff8a, 0xff8a3d, 0xc77dff, 0xffffff, 0x4d7dff].map(c => lit(c)),
     screens: [0x3de0ff, 0xff4d8d, 0x7dff8a, 0xffd34d, 0xc77dff, 0xff8a3d].map(c => glowing(c, 1.8)),
     cool: glowing(0xcdefff, 1.1), red: glowing(0xff3b4f, 1.6), green: glowing(0x5dff8a, 1.6), tints: new Map(),
@@ -86,7 +117,7 @@ function towerSign(name = 'SUNSET TOWER', col = '#ffd34d') {
 
 // ---------- building the rooms ----------
 export function buildInteriors(api) {
-  const { scene, realScene, solids, lots, signMats, signNames, skyline, building } = api, m = materials(), r = seeded(3301);
+  const { scene, realScene, solids, lots, signMats, signNames, skyline, building, IB } = api, m = materials(), r = seeded(3301), r2 = seeded(7717);      // r2: the dice for everything upstairs, so the old rooms keep their furniture
   const named = new Map();        // signs made for shops that are not in the city's own set, one per name
   const _mx = new THREE.Matrix4(), _q = new THREE.Quaternion();
   const rooms = [], spots = [];
@@ -118,16 +149,19 @@ export function buildInteriors(api) {
     // The walls and frames join the city's own welded meshes (seen from far off). What is inside is welded into a few
     // meshes of this room's own, which are only drawn while you are near (createInteriors hides them beyond that).
     const inner = new THREE.Group(); inner.position.copy(g.position); const coloured = new Map();
-    const put = (mat, a, y, b, sa, sy, sb, cast = false, geo = G.box) => {
-      if (mat === mats.trim || mat === mats.darkMetal) return mesh(geo, mat, P(a, y, b), S(sa, sy, sb), g, cast);
-      if (!mat.vc) return mesh(geo, mat, P(a, y, b), S(sa, sy, sb), inner, false);
-      const geom = plainGeometry(geo, _mx.compose(P(a, y, b).add(g.position), _q, S(sa, sy, sb))), n = geom.attributes.position.count, col = new Float32Array(n * 3);
+    // raw: a piece at `pos` (metres from the middle of the lot), `scl` along the world's own axes, turned by `quat` if given
+    const raw = (mat, pos, scl, cast = false, geo = G.box, quat = null) => {
+      if (mat === mats.trim || mat === mats.darkMetal || mat === lot.fm) { const o = mesh(geo, mat, pos, scl, g, cast); if (quat) o.quaternion.copy(quat); return o; }
+      if (!mat.vc) { const o = mesh(geo, mat, pos, scl, inner, false); if (quat) o.quaternion.copy(quat); return o; }
+      const geom = plainGeometry(geo, _mx.compose(pos.add(g.position), quat || _q, scl)), n = geom.attributes.position.count, col = new Float32Array(n * 3);
       for (let i = 0; i < n; i++) { col[i * 3] = mat.color.r; col[i * 3 + 1] = mat.color.g; col[i * 3 + 2] = mat.color.b; }
       geom.setAttribute('color', new THREE.BufferAttribute(col, 3));
       if (!coloured.has(mat.vc)) coloured.set(mat.vc, []); coloured.get(mat.vc).push(geom);
     };
+    const put = (mat, a, y, b, sa, sy, sb, cast = false, geo = G.box) => raw(mat, P(a, y, b), S(sa, sy, sb), cast, geo);
+    const bay = shop.up ? bayOf(shop, L, D) : null, roofTop = lot.y + lot.h + .7;      // bay: where the stairs go up, in a building with an upstairs
     const world = (a, b) => { const p = P(a, 0, b); return { x: lot.x + p.x, z: lot.z + p.z }; };
-    const wall = (a, b, sa, sb, h) => { const p = world(a, b), wx = fx ? sb : sa, wz = fx ? sa : sb; solids.walls.push({ x: p.x, z: p.z, hl: Math.max(wx, wz) / 2, ht: Math.min(wx, wz) / 2, rot: wx >= wz ? 0 : Math.PI / 2, kind: 'solid', h }); };
+    const wall = (a, b, sa, sb, h = bay ? roofTop : undefined) => { const p = world(a, b), wx = fx ? sb : sa, wz = fx ? sa : sb; solids.walls.push({ x: p.x, z: p.z, hl: Math.max(wx, wz) / 2, ht: Math.min(wx, wz) / 2, rot: wx >= wz ? 0 : Math.PI / 2, kind: 'solid', h }); };
     // something you bump into but can see (and shoot) over
     const solid = (a, b, sa, sb, h = 1.1) => { const p = world(a, b); solids.boxes.push({ x: p.x, z: p.z, hw: (fx ? sb : sa) / 2, hd: (fx ? sa : sb) / 2, low: true, h: lot.y + h, wall: true }); };
     const block = (mat, a, y, b, sa, sy, sb, h = sy) => { put(mat, a, y + sy / 2, b, sa, sy, sb); solid(a, b, sa, sb, y + h); };
@@ -139,15 +173,15 @@ export function buildInteriors(api) {
     for (const s of [-1, 1]) {
       const ac = s * (DOOR / 2 + seg / 2);
       put(mats.trim, ac, .35, T / 2, seg, .7, T, true); put(m.glass, ac, 1.95, T / 2, seg - T, 2.5, .06); put(mats.trim, ac, 3.9, T / 2, seg, 1.4, T, true);
-      put(mats.darkMetal, s * (DOOR / 2 + .07), 1.6, T / 2, .14, 3.2, T + .04); put(mats.darkMetal, ac, 3.16, T / 2, seg, .1, T + .04); put(mats.darkMetal, ac, .74, T / 2, seg, .08, T + .04);
+      put(mats.darkMetal, s * (DOOR / 2 + .058), 1.6, T / 2, .164, 3.2, T + .04);      // (its inner face stands a hair proud of the plinth's end, or the two flicker) put(mats.darkMetal, ac, 3.16, T / 2, seg, .1, T + .04); put(mats.darkMetal, ac, .74, T / 2, seg, .08, T + .04);
       for (let k = 1; k * 2.4 < seg; k++) put(mats.darkMetal, s * (DOOR / 2 + k * 2.4), 1.95, T / 2, .08, 2.5, .1);
       wall(ac, T / 2, seg, T, 1.2);                               // low: you can be seen (and shot at) through the glass
       put(m.glass, s * (DOOR / 2 - .04), 1.4, T + .62, .05, 2.6, 1.2); put(mats.darkMetal, s * (DOOR / 2 - .04), 2.72, T + .62, .07, .06, 1.2);   // the doors stand open
     }
     put(mats.trim, 0, 3.675, T / 2, DOOR, 1.85, T, true); put(mats.darkMetal, 0, 2.76, T / 2, DOOR, .1, T + .04);
     put(m.floors[shop.kind], 0, .025, D / 2, L - T * 2, .05, D - T * 2); put(m.dark, 0, .06, .95, 2.2, .03, 1.3);
-    put(m.ceiling, 0, CEIL + .08, D / 2, L - T * 2, .16, D - T * 2);
-    for (const a of [-L / 4, L / 4]) for (const b of [D * .3, D * .7]) put(m.panel, a, CEIL - .02, b, 1.8, .05, .6);
+    if (!bay) put(m.ceiling, 0, CEIL + .08, D / 2, L - T * 2, .16, D - T * 2);                  // (with an upstairs, storeys.js makes the ceiling: it has a hole for the stairs)
+    for (const a of [-L / 4, L / 4]) for (const b of [D * .3, D * .7]) if (shop.kind !== 'club' && (!bay || bay.side * a < bay.a0 - 1 || b < bay.b0 - .4)) put(m.panel, a, CEIL - .02, b, 1.8, .05, .6);
     const wm = m.walls[shop.kind], ac = shop.tint ? tinted(shop.tint) : m.accent[shop.kind];
     put(wm, 0, CEIL / 2, D - T - .02, L - T * 2, CEIL, .04); put(ac, 0, 1.05, D - T - .05, L - T * 2, .16, .04);
     for (const s of [-1, 1]) { put(wm, s * (L / 2 - T - .02), CEIL / 2, D / 2, .04, CEIL, D - T * 2); put(ac, s * (L / 2 - T - .05), 1.05, D / 2, .04, .16, D - T * 2); }
@@ -161,7 +195,7 @@ export function buildInteriors(api) {
     }
 
     // --- what is in it
-    const extra = [], hw = L / 2 - T, room = { ...shop, x: lot.x, z: lot.z, y: lot.y, hw: lot.w / 2, hd: lot.d / 2, face: [fx, fz], door: world(0, -.9), clerk: null, light: { ...world(0, D / 2), y: lot.y + 3.4 }, till: 0 };
+    const extra = [], hw = L / 2 - T, room = { ...shop, x: lot.x, z: lot.z, y: lot.y, hw: lot.w / 2, hd: lot.d / 2, face: [fx, fz], door: world(0, -.9), clerk: null, light: { ...world(0, D / 2), y: lot.y + 3.4 }, till: 0, folk: [], gems: [] };
     const clerkAt = (a, b, da, db) => { const p = world(a, b), dx = rx * da - fx * db, dz = rz * da - fz * db; room.clerk = { ...p, face: Math.atan2(dx, dz), kind: shop.who }; };
     const spot = (a, b, what, rad = 1.5) => spots.push({ ...world(a, b), y: lot.y, r: rad, room, what });
     const counter = (a, b, sa, sb, top = m.steel, body = ac) => { block(body, a, 0, b, sa, 1.02, sb, 1.1); put(top, a, 1.06, b, sa + .12, .08, sb + .12); };
@@ -218,6 +252,7 @@ export function buildInteriors(api) {
       counter(0, D - 2.6, 4.2, .9, m.wood, m.darkWood); clerkAt(0, D - 1.5, 0, -1); spot(0, D - 3.8, 'motel', 1.7);
       put(m.darkWood, 0, 2.3, D - T - .08, 3, 1.3, .06); for (let k = 0; k < 12; k++) put(m.gold, -1.2 + (k % 6) * .48, 2.0 + Math.floor(k / 6) * .5, D - T - .13, .1, .22, .04);
       for (const s of [-1, 1]) {           // a sofa and a table each side of the door, room doors down the walls
+        if (bay && s === bay.side) continue;                 // (the stairs go up that side now)
         block(ac, s * (hw - .8), 0, 3, 1, .5, 3, .9); put(ac, s * (hw - .35), .75, 3, .25, .7, 3);
         block(m.wood, s * (hw - 2.6), 0, 3, .9, .42, 1.4, .5); plant(s * (hw - .6), .9);
         for (let b = 6; b < D - 2.4; b += 2.6) { put(m.darkWood, s * (hw - .04), 1.1, b, .06, 2.2, 1.05); put(m.gold, s * (hw - .08), 1.75, b, .04, .16, .22); }
@@ -251,7 +286,7 @@ export function buildInteriors(api) {
       put(m.white, 0, 3, D - T - .08, 1.5, 1.5, .06); put(m.red, 0, 3, D - T - .12, 1.1, .34, .04); put(m.red, 0, 3, D - T - .12, .34, 1.1, .04);
       for (let b = 2; b < D - 5.5; b += .75) { put(tinted(0x3e8fd6), -hw + .5, .45, b, .6, .1, .6); put(tinted(0x3e8fd6), -hw + .2, .8, b, .08, .7, .6); put(m.steel, -hw + .5, .2, b, .08, .4, .08); }
       solid(-hw + .45, (D - 3.5) / 2 + .2, .7, D - 7.6, .9);
-      for (let b = 2.6; b < D - 5.5; b += 3) {          // beds behind curtains
+      if (!bay) for (let b = 2.6; b < D - 5.5; b += 3) {          // beds behind curtains (the wards are upstairs once there is an upstairs)
         block(m.white, hw - 1.2, 0, b, 2.1, .6, 1, .7); put(tinted(0xbfe3ef), hw - 1.95, .72, b, .5, .14, .7); put(m.steel, hw - 1.2, .28, b, 2.15, .06, 1.05);
         put(tinted(0x9fd3c7), hw - 2.5, 1.5, b + .9, .05, 2.1, 1.4);
       }
@@ -315,8 +350,14 @@ export function buildInteriors(api) {
       for (let b = D - 3.4; b <= D - .4; b += .28) put(mats.darkMetal, hw - 3.2, CEIL / 2, b, .06, CEIL, .06, false, G.cyl);
       solid(hw - 1.7, D - 3.4, 3.2, .15, 4); solid(hw - 3.2, D - 1.9, .15, 3.2, 4); put(m.steel, hw - 1.2, .4, D - .9, 1.9, .12, .7);
       block(m.wood, -hw + .55, 0, 4, .6, .45, 4.2, .5); put(m.wood, -hw + .2, .8, 4, .08, .6, 4.2);
-      put(m.darkWood, hw - .08, 2, 4, .06, 1.4, 3); for (let k = 0; k < 6; k++) put(m.cream, hw - .13, 1.7 + (k % 2) * .6, 3 + Math.floor(k / 2) * .95, .03, .45, .6);
+      if (!bay) { put(m.darkWood, hw - .08, 2, 4, .06, 1.4, 3); for (let k = 0; k < 6; k++) put(m.cream, hw - .13, 1.7 + (k % 2) * .6, 3 + Math.floor(k / 2) * .95, .03, .45, .6); }
       put(ac, 0, 3.3, D - T - .08, 3.2, .7, .06); put(m.gold, 0, 3.3, D - T - .12, .5, .5, .04, false, rbox(1, 1, 1, .2));
+    }
+    // the floors above, and (in the newer buildings) what stands on the ground floor too
+    if (bay) {
+      const st = buildStoreys({ shop, lot, room, L, D, fx, fz, raw, P, Sc: S, world, solids, spots, m, bay, IB, T, CEIL, r: r2, tinted, accent: ac, solid, extra, realScene, clerkAt,
+        wall: (a, b, sa, sb) => wall(a, b, sa, sb, lot.y + H), wallColour: (k) => wallColour(k ? shop.up[k - 1] : shop.kind) ?? m.walls[shop.kind].color.getHex(), ceilColour: (k) => ceilColour(k ? shop.up[k - 1] : shop.kind), floorOf, nameOf: (kind, k) => nameOf(kind, k, shop) }, furnish);
+      Object.assign(room, st);
     }
     room.meshes = bakeStatic(inner, realScene, () => 'room'); room.meshes.push(...extra);
     for (const [mat, list] of coloured) { const mm = new THREE.Mesh(mergeGeometries(list), mat); mm.receiveShadow = true; mm.matrixAutoUpdate = false; realScene.add(mm); room.meshes.push(mm); list.forEach(o => o.dispose()); }
@@ -354,7 +395,21 @@ export function createInteriors(game) {
   const light = new THREE.PointLight(0xffe6c4, 0, 22, 1.3); game.scene.add(light);
   for (const q of rooms) if (q.clerk) { const c = q.clerk; c.model = makeCharacter(c.kind); c.model.position.set(c.x, q.y, c.z); c.model.rotation.y = c.face; c.model.visible = false; game.scene.add(c.model); }
   for (const q of rooms) game.markers.push({ x: q.door.x, z: q.door.z, color: q.kind === 'guns' ? '#ff8a3d' : '#ffffff', glyph: q.kind === 'clinic' ? '+' : q.kind === 'lobby' ? '▲' : q.kind === 'guns' ? 'G' : '', size: q.kind === 'lobby' || q.kind === 'clinic' || q.kind === 'guns' ? 6 : 3.2 });
+  for (const q of rooms) if (q.floors) { const mk = game.markers.find(o => o.x === q.door.x && o.z === q.door.z); if (mk && !mk.glyph) { mk.color = '#ffd34d'; mk.glyph = '≡'; mk.size = 5; } }      // somewhere with an upstairs
   { const q = rooms.find(o => o.kind === 'bar'); if (q) { const mk = game.markers.find(o => o.x === q.door.x && o.z === q.door.z); if (mk) { mk.color = '#ff4d8d'; mk.glyph = 'Y'; mk.ink = '#ffffff'; mk.size = 6; } } }
+
+  // Buildings with an upstairs: their painted-on windows give way to the real ones while you are near enough to see in;
+  // each has a floor you are on; a parachute waits on every roof you can reach.
+  const wins = game.city.interiors.windows, gone = new THREE.Matrix4().makeScale(0, 0, 0);
+  for (const q of rooms) {
+    if (q.swaps) q.swaps = q.swaps.map(([key, i]) => { const im = wins[key], was = new THREE.Matrix4(); im.getMatrixAt(i, was); return { im, i, was }; });
+    if (q.roof) game.skydive.place(q.roof.pack.x, q.roof.pack.z, q.roof.y + 1);
+  }
+  const showWindows = (q, real) => { for (const s of q.swaps) { s.im.setMatrixAt(s.i, real ? gone : s.was); s.im.instanceMatrix.needsUpdate = true; } };
+  // which floor of a building someone at height y is on: 0 = the ground floor, 1.. = upstairs, -1 = the roof
+  const floorAt = (q, y) => { if (!q.floors) return 0; if (q.roof && y > q.roof.y - 1.5) return -1; let k = 0; for (const f of q.floors) if (y > f.y - 1.3) k = f.k; return k; };
+  const floorName = (q, k) => k < 0 ? 'ROOF' : k === 0 ? q.name : q.floors[k - 1].name;
+  let level = 0, levelT = 0;
 
   const pay = (n) => { if (game.money < n) { hud.toast('NOT ENOUGH CASH', 'bad'); return false; } game.money -= n; audio.cash(); return true; };
   const heal = (n) => { p.health = Math.min(100, p.health + n); };
@@ -381,6 +436,8 @@ export function createInteriors(game) {
     liftUp: () => !roof ? null : wanted() ? ['Lift locked: lose the cops first', () => { }] : ['Lift to the roof', () => ride(roof.x, roof.z, roof.y, 0, 'SUNSET TOWER ROOF')],
     liftDown: () => ['Lift to the lobby', () => { const s = spots.find(o => o.what === 'liftUp'); ride(s.x, s.z, s.room.y, Math.atan2(-s.room.face[1], -s.room.face[0]), null); }],
   };
+  offers.roofUp = () => ['Stairs to the roof', () => { const q = at.room; ride(q.roof.out.x, q.roof.out.z, q.roof.y, game.cam.yaw, `${q.name}  ROOF`); }];
+  offers.roofDown = () => ['Back downstairs', () => { const q = at.room; ride(q.roof.up.x, q.roof.up.z, q.roof.up.y, game.cam.yaw, null); }];
   offers.bar = () => [`Drink  ${cash(BAR.drink)}`, () => { if (pay(BAR.drink)) { heal(25); game.trouble?.drink(); hud.toast(game.trouble?.tipsy > BAR.tipsy * 1.5 ? 'ONE TOO MANY' : 'CHEERS  +25 HEALTH', 'good'); } }];
   offers.knife = () => game.combat.owned.has('knife') ? ['Knife: you have one', () => { }] : [`Buy KNIFE  ${cash(MELEE.knifePrice)}`, () => { if (pay(MELEE.knifePrice)) { game.combat.give('knife'); hud.toast('KNIFE BOUGHT: 1 SWAPS FISTS AND KNIFE', 'good'); } }];
   offers.vest = () => p.armor < COMBAT.armor ? [`Body armor  ${cash(C.armor)}`, () => { if (pay(C.armor)) { p.armor = COMBAT.armor; hud.toast('BODY ARMOR', 'good'); } }] : ['Armor is good', () => { }];
@@ -389,25 +446,97 @@ export function createInteriors(game) {
   const gun = (id) => { const w = WEAPONS[id], c = game.combat;
     return c.owned.has(id) ? [`${w.name} ammo  ${cash(C.gunAmmo[id])}`, () => { if (pay(C.gunAmmo[id])) { c.give(id); hud.toast(`+${w.give} ${w.name} AMMO`, 'good'); } }]
       : [`Buy ${w.name}  ${cash(C.guns[id])}`, () => { if (pay(C.guns[id])) { c.give(id); hud.toast(`${w.name} BOUGHT`, 'good'); } }]; };
+  // ---------- things to find upstairs (rooms.js puts them there) ----------
+  const noop = () => { }, between = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo) / 10) * 10;
+  // whoever is on this floor, near enough and not cowering, sees what you are up to
+  const witness = () => here?.folk.find(f => f.k === indoors.level && !(f.scared > 0) && f.kind !== 'prisoner' && f.pose === 'stand' && Math.hypot(f.x - p.x, f.z - p.z) < C.witness);
+  const caught = (label = 'BURGLARY!') => { const w = witness(); if (!w) return; w.scared = 10; hud.toast('"HEY! THIEF!"', 'bad'); game.police.crime(C.burgleHeat, 1, label); };
+  function search(s) {
+    s.until = game.time + C.lootRefill; audio.door();
+    const table = FIND[s.loot] || FIND.drawer, c = game.combat; let n = Math.random() * table.reduce((sum, e) => sum + e[0], 0), e = table[0];
+    for (const o of table) if ((n -= o[0]) < 0) { e = o; break; }
+    let what = e[1];
+    if (what === 'gun') { const id = ['pistol', 'smg', 'shotgun'].find(g => !c.owned.has(g)); if (id) { c.give(id); hud.toast(`FOUND A ${WEAPONS[id].name}`, 'good'); } else what = 'ammo'; }
+    if (what === 'ammo') { if (WEAPONS[c.weapon].melee) what = 'cash'; else { c.give(c.weapon); hud.toast(`FOUND ${WEAPONS[c.weapon].name} AMMO`, 'good'); } }
+    if (what === 'armor') { if (p.armor >= COMBAT.armor) what = 'cash'; else { p.armor = COMBAT.armor; hud.toast('FOUND BODY ARMOR', 'good'); } }
+    if (what === 'chute') { if (p.chutes >= SKY.carry) what = 'cash'; else { game.skydive.give(); hud.toast('FOUND A PARACHUTE', 'good'); } }
+    if (what === 'snack') { heal(25); hud.toast('LEFTOVERS  +25 HEALTH', 'good'); }
+    if (what === 'medkit') { heal(100); hud.toast('FIRST AID KIT  FULL HEALTH', 'good'); }
+    if (what === 'cash') { const take = between(e[2] ?? 40, e[3] ?? 160); game.addMoney(take); audio.cash(); hud.toast(`FOUND ${cash(take)}`, 'good'); }
+    if (what === 'none') { const junk = JUNK[s.loot] || JUNK.drawer; hud.toast(`JUST ${junk[Math.floor(Math.random() * junk.length)]}`, 'info'); }
+    if (HOT[s.loot]) game.police.crime(...HOT[s.loot]); else caught();
+  }
+  offers.search = () => game.time < (at.until || 0) ? [`Nothing left in ${at.label}`, noop] : [`Search ${at.label}`, () => search(at)];
+  // a safe: start on the dial, then stand there until it gives
+  let crack = null;
+  offers.safe = () => game.time < (at.until || 0) ? ['Safe: cleaned out', noop]
+    : crack?.s === at ? [`Cracking the safe  ${Math.floor(crack.t / C.safes[at.tier].time * 10) * 10}%  (stay put)`, noop] : ['Crack the safe', () => { crack = { s: at, t: 0 }; audio.door(); }];
+  function cracking(dt) {
+    const s = crack.s, S = C.safes[s.tier];
+    if (at !== s || game.over) { crack = null; hud.toast('LOST YOUR PLACE ON THE DIAL', 'bad'); return; }
+    if (Math.floor((crack.t + dt) * 2) !== Math.floor(crack.t * 2)) audio.cash();
+    if ((crack.t += dt) < S.time) return;
+    const take = between(...S.cash); crack = null; s.until = game.time + C.safeRefill; game.addMoney(take); hud.toast(`SAFE CRACKED  +${cash(take)}`, 'good');
+    if (S.stars) game.police.crime(S.heat, S.stars, s.tier === 'vault' ? 'BANK VAULT ROBBED!' : 'SAFE CRACKED!'); else caught();
+  }
+  offers.vend = () => [`Soda  ${cash(C.soda)}`, () => { if (p.health >= 100) hud.toast('NOT THIRSTY', 'info'); else if (pay(C.soda)) { heal(15); hud.toast('SODA  +15 HEALTH', 'good'); } }];
+  offers.water = () => ['Drink of water', () => { if (p.health >= 100) hud.toast('NOT THIRSTY', 'info'); else { heal(5); hud.toast('WATER  +5 HEALTH', 'good'); } }];
+  offers.gym = () => [`Work out  ${cash(C.workout)}`, () => { if (p.health >= 100) hud.toast('ALREADY PUMPED', 'info'); else if (pay(C.workout)) { heal(100); hud.toast('PUMPED  FULL HEALTH', 'good'); } }];
+  // the lucky cats: a set hidden about town, remembered between visits
+  const cats = new Set(), catTotal = spots.filter(s => s.what === 'cat').length;
+  try { for (const id of JSON.parse(localStorage.getItem('fta6.cats') || '[]')) cats.add(id); } catch (e) { /* a fresh start */ }
+  offers.cat = () => cats.has(at.id) ? ['Lucky cat: found', noop] : ['Pat the lucky cat', () => {
+    cats.add(at.id); try { localStorage.setItem('fta6.cats', JSON.stringify([...cats])); } catch (e) { /* this session only */ }
+    game.addMoney(C.catCash); audio.cash(); hud.toast(`LUCKY CAT ${cats.size} OF ${catTotal}  +${cash(C.catCash)}`, 'good');
+    if (cats.size >= catTotal) { game.addMoney(C.catBonus); hud.toast(`EVERY LUCKY CAT FOUND  +${cash(C.catBonus)}`, 'good'); }
+  }];
+  offers.gem = () => game.time < (at.until || 0) ? null : [`Take ${at.label}`, () => {
+    at.until = game.time + C.gemRefill; game.addMoney(at.cash); audio.cash(); hud.toast(`${at.label.toUpperCase()}  +${cash(at.cash)}`, 'good'); game.police.crime(at.heat || 100, at.stars || 3, at.crime || 'THEFT!');
+  }];
+  // the people upstairs are only made the first time you walk into their building
+  const dice = seeded(4409);
+  const people = (q) => {
+    if (q.peopled) return; q.peopled = true;
+    for (const f of q.folk) { const list = WHO[f.kind] || CIVILIANS, mo = f.model = makeCharacter(list[Math.floor(dice() * list.length)]); mo.position.set(f.x, f.y + (f.pose === 'lie' ? .62 : 0), f.z); mo.rotation.y = f.face; mo.visible = false; game.scene.add(mo); if (f.pose === 'lie') for (let i = 0; i < 12; i++) animateCharacter(mo, 0, .1, 0, 'down'); }      // (already lying down when you first see them)
+  };
+  function folk(q, k, dt, t) {
+    people(q); const armed = game.combat.aiming && !WEAPONS[game.combat.weapon].melee;
+    for (const f of q.folk) {
+      const mo = f.model, vis = Math.abs(f.y - p.y) < 4.2; mo.visible = vis; if (!vis) continue;
+      const d = Math.hypot(f.x - p.x, f.z - p.z), same = f.k === k; if (same && armed && d < 11) f.scared = 5;
+      f.scared = Math.max(0, (f.scared || 0) - dt); const sc = f.scared > 0;
+      if (f.pose === 'lie') animateCharacter(mo, t, dt, 0, 'down');
+      else if (f.pose === 'dance' && !sc) { animateCharacter(mo, t, dt, 2.4, 'move'); mo.rotation.y = f.face + Math.sin(t * 2.1 + f.x) * .8; mo.position.y = f.y + Math.abs(Math.sin(t * 6 + f.z)) * .09; }
+      else { animateCharacter(mo, t, dt, 0, sc ? 'flail' : 'stand', sc); if (same && d < 7 && !sc) mo.rotation.y += angleDiff(Math.atan2(p.x - f.x, p.z - f.z), mo.rotation.y) * Math.min(1, dt * 3); }
+    }
+  }
   const offer = (what) => what.startsWith('gun:') ? gun(what.slice(4)) : offers[what]();
   let here = null, at = null, shown = '', robT = 0;
   const inside = (q, x, z, m = 0) => Math.abs(x - q.x) < q.hw + m && Math.abs(z - q.z) < q.hd + m;
 
   const indoors = {
-    rooms, busy: false, get room() { return here; },
+    rooms, busy: false, level: 0, get room() { return here; },
     use() { if (at && !indoors.busy && game.state === 'playing' && !game.over && p.mode === 'foot') { const o = offer(at.what); if (o) o[1](); } },
     update(dt, t) {
       // the nearest room: its light is on and whoever works there is at their post
       let near = null, nd = 46;
       for (const q of rooms) {
         const d = Math.hypot(q.x - p.x, q.z - p.z), show = d < C.drawDist;
-        if (q.shown !== show) { q.shown = show; for (const o of q.meshes) o.visible = show; }
+        if (q.shown !== show) { q.shown = show; for (const o of q.meshes) o.visible = show; if (q.swaps) showWindows(q, show); }
+        for (const o of q.gems) { o.mesh.visible = show && game.time >= (o.spot.until || 0); o.mesh.rotation.y = t * 1.4; }
         if (q.clerk) q.clerk.model.visible = d < 46; if (d < nd) { nd = d; near = q; }
       }
-      if (near) light.position.set(near.light.x, near.light.y, near.light.z);
-      light.intensity += ((near ? 26 : 0) - light.intensity) * Math.min(1, dt * 4);
-      const was = here; here = p.mode === 'foot' ? rooms.find(q => Math.abs(p.y - q.y) < 3 && inside(q, p.x, p.z)) || null : null;
+      const was = here; here = p.mode === 'foot' && !p.sky ? rooms.find(q => inside(q, p.x, p.z) && (q.floors ? p.y > q.y - 1 && p.y < (q.roof ? q.roof.y + 3 : q.top) : Math.abs(p.y - q.y) < 3)) || null : null;
       if (here && here !== was && game.state === 'playing') hud.toast(here.name, 'place');
+      // upstairs: say which floor this is once you are standing on it, and carry the light up with you
+      const k = here ? floorAt(here, p.y) : 0, fy = !here || !k ? 0 : k < 0 ? here.roof.y : here.floors[k - 1].y;
+      if (here !== was) level = k;
+      if (k !== level && (levelT += dt) > .25 && Math.abs(p.y - (k ? fy : here.y)) < .4) { level = k; if (game.state === 'playing' && k >= 0) hud.toast(k ? `${here.name}  ${floorName(here, k)}` : here.name, 'place'); } else if (k === level) levelT = 0;
+      indoors.level = here ? k : 0;
+      if (was && was !== here) for (const f of was.folk) if (f.model) f.model.visible = false;
+      if (here?.folk.length) folk(here, k, dt, t);
+      if (near) light.position.set(near.light.x, near === here && k > 0 ? fy + 2.5 : near.light.y, near.light.z);
+      light.intensity += ((near && !(near === here && k < 0) ? 26 : 0) - light.intensity) * Math.min(1, dt * 4);
       if (near?.clerk) {
         const c = near.clerk, scared = near.scared > 0; near.scared = Math.max(0, (near.scared || 0) - dt);
         animateCharacter(c.model, t, dt, 0, scared ? 'flail' : 'stand', scared);
@@ -416,6 +545,7 @@ export function createInteriors(game) {
       // a spot to press E at?
       at = null;
       if (p.mode === 'foot' && !game.over) for (const s of spots) if (Math.abs(s.y - p.y) < 1.5 && Math.hypot(s.x - p.x, s.z - p.z) < s.r) { at = s; break; }
+      if (crack) cracking(dt);
       const o = at && !indoors.busy ? offer(at.what) : null, text = o ? `<kbd>E</kbd> ${o[0]}` : '';
       if (text !== shown) { hint.innerHTML = text; hint.hidden = !text; shown = text; }
       // a hold-up: keep a gun on whoever is behind the counter
@@ -434,7 +564,7 @@ export function createInteriors(game) {
       } else { robT = 0; if (here) here.told = false; }
       // keep the camera under the ceiling
       const cam = game.camera;
-      if (here && !game.combat.aiming) {
+      if (here && !game.combat.aiming && p.y < here.y + 1.2) {          // (upstairs the floors themselves hold it down: world.js)
         const top = here.y + CEIL - .85;
         if (cam.position.y > top && inside(here, cam.position.x, cam.position.z, .5)) { cam.position.y = top; cam.lookAt(game.cam.lookAt); }
       }

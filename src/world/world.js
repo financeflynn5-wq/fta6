@@ -1,7 +1,7 @@
 // Glue between the land and the rest of the game: owns the ride system (cars on hills),
 // keeps Rocco's feet on the slope, slows him down in the sea, keeps the camera out of
 // hillsides, and announces the district you have just entered.
-import { RIDE, WORLD, BOAT, VIEW } from '../config.js';
+import { RIDE, WORLD, BOAT, VIEW, SKY } from '../config.js';
 import { damp, clamp } from '../core/utils.js';
 import { groundY, waterDepth, layer, ceilingY } from './terrain.js';
 import { districtAt } from './map.js';
@@ -13,7 +13,7 @@ export function createWorld(game) {
   game.markers = [];                 // radar blips anyone can add: { x, z, color, glyph, pin, visible() }
   const vel = { x: 0, y: 0 };
   const fwd = new THREE.Vector3();
-  let lift = 0, district = '', districtT = 0, swimT = 0, hazeT = 0;
+  let lift = 0, district = '', districtT = 0, swimT = 0, hazeT = 0, edge = false;
   let hollows = null;
   const below = { top: 0, wall: false, vague: false }, ROUND = [[9, 0], [-9, 0], [0, 9], [0, -9]];
 
@@ -73,12 +73,17 @@ export function createWorld(game) {
       // Passing your own height to groundY is what lets you stand on a bridge or a roof instead of under it.
       if (p.sky || p.high) { /* in the air or up on a roof: player/skydive.js keeps his height */ }
       else if (p.mode === 'foot') {
-        const g = groundY(p.x, p.z, p.y); if (p.y < g - .12) p.y = g - .12; else if (p.y > g + .35) p.y = g + .35;
-        if (layer.up !== !!p.up) { p.up = layer.up; game.physics.setPersonUp(p.body, p.up); }
-      } else { p.y = p.vehicle.y; p.up = !!p.vehicle.up; }       // so he steps out at the car's height
+        const g = groundY(p.x, p.z, p.y), bit = layer.up ? layer.rib.storey || 0 : 0, walked = Math.abs(p.x - p.px) + Math.abs(p.z - p.pz) < 1;
+        // Stepping off the edge of a roof that has no rail there (a diving plank) is a fall, not a step down.
+        if (edge && walked && p.y - g > SKY.step + 1.5 && !game.over) { edge = false; game.skydive.begin('fall', p.y, p.vx, p.vz, 0); return; }
+        edge = layer.up && !!layer.rib.drop;
+        if (p.y < g - .12) p.y = g - .12; else if (p.y > g + .35) p.y = g + .35;
+        if (layer.up !== !!p.up || bit !== (p.storey || 0)) { p.up = layer.up; p.storey = bit; game.physics.setPersonUp(p.body, p.up, bit); }
+      } else { p.y = p.vehicle.y; p.up = !!p.vehicle.up; edge = false; }       // so he steps out at the car's height
       for (const o of game.police.officers) {
         const g = groundY(o.ped.x, o.ped.z, o.ped.y); if (o.ped.y < g - .12) o.ped.y = g - .12; else if (o.ped.y > g + .35) o.ped.y = g + .35;
-        if (layer.up !== !!o.up) { o.up = layer.up; game.physics.setPersonUp(o.body, o.up); }
+        const bit = layer.up ? layer.rib.storey || 0 : 0;
+        if (layer.up !== !!o.up || bit !== (o.storey || 0)) { o.up = layer.up; o.storey = bit; game.physics.setPersonUp(o.body, o.up, bit); }
       }
       game.physics.eyeY = p.y + 1.6;
     },

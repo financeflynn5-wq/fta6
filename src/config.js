@@ -335,6 +335,12 @@ export const INDOORS = {
   // Bullseye Guns: what each gun costs (a gun you already own is refilled for its ammo price instead)
   guns: { pistol: 350, smg: 900, shotgun: 1200, burst: 2200, sniper: 4000 },
   gunAmmo: { pistol: 60, smg: 120, shotgun: 140, burst: 200, sniper: 300 },
+  // Upstairs (world/rooms.js). lootRefill: seconds until a searched drawer has something in it again. witness: how near
+  // somebody on the same floor has to be to see you at it (a star, unless a gun has them cowering first).
+  lootRefill: 480, witness: 9, burgleHeat: 25,
+  // safes: seconds standing at the dial, what is inside, and how many stars the alarm brings
+  safes: { house: { time: 3, cash: [300, 900], stars: 0 }, office: { time: 5, cash: [1200, 2600], stars: 2, heat: 60 }, vault: { time: 8, cash: [6000, 12000], stars: 3, heat: 120 } }, safeRefill: 900,
+  soda: 5, workout: 20, catCash: 250, catBonus: 10000, gemRefill: 1200,
 };
 
 // ---------- the valley in the north (world/north.js and friends, world/places.js) ----------

@@ -100,13 +100,14 @@ export function buildCity(realScene) {
     const box = { x: cx, z: cz, hw: w / 2, hd: d / 2, h: y + h }; solids.boxes.push(box);
     const shopH = 4.6;
     // what interiors.js needs to open a building up later: its ground floor block, and each side's shop window and sign
-    const lot = { x: cx, z: cz, w, d, h, y, g, box, fronts: {}, signs: {} }; lots.push(lot);
+    // (storeys.js opens the floors above as well: for that it needs the wall above the shop, the belt and bands round it, and each window)
+    const lot = { x: cx, z: cz, w, d, h, y, g, box, fronts: {}, signs: {}, fm, wins: [], bands: [] }; lots.push(lot);
     lot.base = mesh(G.box, mats.trim, V(0, shopH / 2, 0), V(w, shopH, d), g);
-    mesh(G.box, fm, V(0, shopH + (h - shopH) / 2, 0), V(w - .3, h - shopH, d - .3), g);
-    mesh(G.box, mats.trim, V(0, shopH + .15, 0), V(w + .3, .35, d + .3), g);
+    lot.upper = mesh(G.box, fm, V(0, shopH + (h - shopH) / 2, 0), V(w - .3, h - shopH, d - .3), g);
+    lot.belt = mesh(G.box, mats.trim, V(0, shopH + .15, 0), V(w + .3, .35, d + .3), g);
     mesh(G.box, mats.trim, V(0, h + .35, 0), V(w + .5, .7, d + .5), g);
-    const floors = Math.floor((h - shopH - 1.5) / 3.4);
-    for (let f = 1; f <= floors; f += 2) mesh(G.box, mats.trim, V(0, shopH + f * 3.4 + 1.5, 0), V(w - .1, .18, d - .1), g, false);
+    const floors = lot.floors = Math.floor((h - shopH - 1.5) / 3.4);
+    for (let f = 1; f <= floors; f += 2) lot.bands.push(mesh(G.box, mats.trim, V(0, shopH + f * 3.4 + 1.5, 0), V(w - .1, .18, d - .1), g, false));
     const faces = [[0, 1, w], [0, -1, w], [1, 0, d], [-1, 0, d]];
     for (const [fx, fz, len] of faces) {
       const ry = Math.atan2(fx, fz), cols = Math.max(2, Math.floor(len / 3.2)), step = len / cols;
@@ -116,6 +117,7 @@ export function buildCity(realScene) {
         const nrm = V(fx, 0, fz);
         IB.frame.add(mat4(base.clone().addScaledVector(nrm, .04), fx ? V(.12, 2.2, 1.6) : V(1.6, 2.2, .12)));
         const lit = rand() < .33; (lit ? IB.lit : IB.win).add(mat4(base.clone().addScaledVector(nrm, .1), fx ? V(.08, 1.95, 1.35) : V(1.35, 1.95, .08)));
+        lot.wins.push({ fx, fz, f, u, frame: IB.frame.list.length - 1, pane: (lit ? IB.lit : IB.win).list.length - 1, lit });
         IB.frame.add(mat4(base.clone().addScaledVector(nrm, .22).add(V(0, -1.07, 0)), fx ? V(.35, .12, 1.8) : V(1.8, .12, .35)));
       }
       // storefront
@@ -223,7 +225,7 @@ export function buildCity(realScene) {
   // The towers roll their own dice, so the rest of the map comes out exactly as it did before there were any.
   const dice = randSeed(), skyline = buildSkyline(towers, { scene, solids, building });
   // ...and so do the shops and lobbies you can walk into, which open up buildings that are already standing
-  const interiors = buildInteriors({ scene, realScene, solids, lots, signMats, signNames, skyline, building }); randSeed(dice);
+  const interiors = buildInteriors({ scene, realScene, solids, lots, signMats, signNames, skyline, building, IB }); randSeed(dice);
 
   // Everything beyond downtown: the land itself, the elevated roads, then what stands on the land.
   buildGround(realScene);
@@ -236,6 +238,7 @@ export function buildCity(realScene) {
   welded.push(...highway.meshes);
 
   const IBm = {}; for (const k in IB) IBm[k] = IB[k].build();
+  interiors.windows = { frame: IBm.frame, win: IBm.win, lit: IBm.lit };      // the painted-on windows of floors you can go up to are swapped for real ones while you are near
   IBm.mark.material = std({ color: 0xffffff, roughness: .6 });
 
   let glowOn = -1;
@@ -246,5 +249,5 @@ export function buildCity(realScene) {
     if (on !== glowOn) { glowOn = on; for (const s of skyline.glow) s.m.emissiveIntensity = s.k * on; }
   }
 
-  return { solids, lampPts, signMats, litWindows: IBm.lit, updateLights, districts, welded, highway, skyline, interiors };
+  return { solids, lampPts, signMats, litWindows: IBm.lit, updateLights, districts, welded, highway, skyline, interiors, lots };
 }

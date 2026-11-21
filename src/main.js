@@ -74,7 +74,7 @@ async function boot() {
   // heights say what a shot, a look or the camera can pass over; things that give none stand 2.6 m (low) or 7 m (posts) above their own ground
   for (const b of game.city.solids.boxes) if (!b.hollow) game.physics.addStaticBox(b.x, b.z, b.hw, b.hd, b.low, b.h ?? (b.low ? groundY(b.x, b.z) + 2.6 : undefined), b.edge);       // hollow: you can walk in (its walls are in solids.walls)
   for (const p of game.city.solids.posts) game.physics.addStaticPost(p.x, p.z, p.r, p.h ?? groundY(p.x, p.z) + 7);
-  for (const w of game.city.solids.walls) game.physics.addWall(w.x, w.z, w.hl, w.ht, w.rot, w.kind, w.h);
+  for (const w of game.city.solids.walls) game.physics.addWall(w.x, w.z, w.hl, w.ht, w.rot, w.kind, w.h, w.bits, w.y0);
   game.env = createSky(engine, game.city);
   game.fx = createEffects(engine.scene, engine.camera);
   game.world = createWorld(game);               // the land: hills, air time, water (also sets game.ride)

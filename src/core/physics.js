@@ -5,7 +5,10 @@ import RAPIER from 'rapier';
 // LOW: walls and boxes a flying car clears. The UP groups are the upper level (bridges, elevated roads, roofs):
 // cars and people up there only touch each other and the rails up there, never what is on the ground below.
 // EDGE: the walls round the edge of the world. They stop everything on land; boats and helicopters go past them.
-export const GROUP = { BUILDING: 1, PROP: 2, CAR: 4, PED: 8, LOW: 16, UP_CAR: 32, RAIL: 64, UP_PED: 128, EDGE: 256 };
+// STOREY: the walls and furniture of one upper floor of a building you can walk around in (world/storeys.js). There are six
+// of these bits, one per storey; someone upstairs is on exactly one of them, so each floor has its own rooms.
+export const GROUP = { BUILDING: 1, PROP: 2, CAR: 4, PED: 8, LOW: 16, UP_CAR: 32, RAIL: 64, UP_PED: 128, EDGE: 256, STOREY: 512 };
+export const STOREYS = 6, storeyBit = (n) => GROUP.STOREY << n, ALL_STOREYS = (GROUP.STOREY << STOREYS) - GROUP.STOREY;
 const UP = GROUP.UP_CAR | GROUP.RAIL | GROUP.UP_PED;
 const groups = (member, filter) => ((member << 16) | filter) >>> 0;
 const ALL = 0xffff;
@@ -17,12 +20,14 @@ export async function createPhysics() {
   const queue = new RAPIER.EventQueue(true);
   const owners = new Map();          // collider handle -> game object
   const ray = new RAPIER.Ray({ x: 0, y: 0 }, { x: 1, y: 0 });
-  const buildingsOnly = groups(ALL, GROUP.BUILDING | GROUP.EDGE), solidStuff = groups(ALL, GROUP.BUILDING | GROUP.PROP | GROUP.LOW | GROUP.EDGE), railsOnly = groups(ALL, GROUP.RAIL);
+  const buildingsOnly = groups(ALL, GROUP.BUILDING | GROUP.EDGE | ALL_STOREYS), solidStuff = groups(ALL, GROUP.BUILDING | GROUP.PROP | GROUP.LOW | GROUP.EDGE | ALL_STOREYS), railsOnly = groups(ALL, GROUP.RAIL);
   const roofs = groups(ALL, GROUP.BUILDING | GROUP.LOW), disc = new RAPIER.Ball(1), at = { x: 0, y: 0 };
   const edgeFree = new Set();        // people the edge walls let through (the player, who may have to wade back from a boat)
   // How tall each static thing is, so a look-out high above the street sees (and shoots) over the roofs below.
-  const heights = new Map();
-  const taller = (c) => (heights.get(c.handle) ?? 1e9) > physics.eyeY;
+  // A wall upstairs also has a bottom (`floors`): it only gets in the way of an eye that is on its own storey.
+  const heights = new Map(), floors = new Map(), storey = new Map();      // storey: which upper floor each person is on (a STOREY bit)
+  const taller = (c) => (heights.get(c.handle) ?? 1e9) > physics.eyeY && (floors.get(c.handle) ?? -1e9) <= physics.eyeY;
+  const grounded = (c) => !floors.has(c.handle);
 
   const physics = {
     RAPIER, world, owners,
@@ -36,10 +41,12 @@ export async function createPhysics() {
     },
     // A straight wall at any angle: hl long, ht thick (half sizes), turned by rot.
     // kind: 'solid' (like a building), 'low' (stops cars on the ground only) or 'rail' (the edge of a bridge or roof: upper level only).
-    addWall(x, z, hl, ht, rot, kind = 'solid', h = kind === 'solid' ? 1e9 : 1) {
-      const g = kind === 'rail' ? groups(GROUP.RAIL, GROUP.UP_CAR | GROUP.UP_PED) : groups(kind === 'low' ? GROUP.LOW : GROUP.BUILDING, ALL);
+    // kind 'storey': part of an upper floor. bits = which storeys it stands on (STOREY bits), y0 = where its foot is; it stops
+    // people on those storeys, and looks and shots that pass between y0 and h.
+    addWall(x, z, hl, ht, rot, kind = 'solid', h = kind === 'solid' ? 1e9 : 1, bits = 0, y0 = 0) {
+      const g = kind === 'storey' ? groups(bits, GROUP.UP_PED) : kind === 'rail' ? groups(GROUP.RAIL, GROUP.UP_CAR | GROUP.UP_PED) : groups(kind === 'low' ? GROUP.LOW : GROUP.BUILDING, ALL);
       const c = world.createCollider(RAPIER.ColliderDesc.cuboid(hl, ht).setTranslation(x, z).setRotation(rot).setCollisionGroups(g).setFriction(.25).setRestitution(.15));
-      heights.set(c.handle, h); return c;
+      heights.set(c.handle, h); if (kind === 'storey') floors.set(c.handle, y0); return c;
     },
     // Where a car is: 0 = on the ground (hits everything there), 1 = high in the air (only buildings), 2 = on the upper level,
     // 3 = a helicopter in the air (touches nothing: vehicles/helis.js looks after it), 4 = a boat (everything but the edge of the world).
@@ -49,7 +56,11 @@ export async function createPhysics() {
     },
     setFlying(body, on) { physics.setCarMode(body, on ? 1 : 0); },
     // Someone on foot steps onto (or off) the upper level.
-    setPersonUp(body, up) { body.collider(0).setCollisionGroups(up ? groups(GROUP.UP_PED, UP) : groups(GROUP.PED, edgeFree.has(body.handle) ? ALL ^ GROUP.EDGE : ALL)); },
+    // bit: the storey of a building they are on (a STOREY bit, 0 for a bridge or an open roof). Left out, it stays what it was.
+    setPersonUp(body, up, bit) {
+      if (bit !== undefined) storey.set(body.handle, bit);
+      body.collider(0).setCollisionGroups(up ? groups(GROUP.UP_PED, UP | (storey.get(body.handle) || 0)) : groups(GROUP.PED, (edgeFree.has(body.handle) ? ALL ^ GROUP.EDGE : ALL) & ~ALL_STOREYS));
+    },
     // In the air (falling, under a parachute, up on a roof) a person touches nothing: player/skydive.js looks after them.
     setPersonAir(body, on, up = false) { if (on) body.collider(0).setCollisionGroups(groups(GROUP.PED, 0)); else physics.setPersonUp(body, up); },
     // The edge walls stop holding this person in (world.js turns them back gently instead).
@@ -74,6 +85,7 @@ export async function createPhysics() {
       owners.set(col.handle, owner); return body;
     },
     remove(body) {
+      storey.delete(body.handle);
       for (let i = 0; i < body.numColliders(); i++) owners.delete(body.collider(i).handle);
       world.removeRigidBody(body);
     },
@@ -82,7 +94,7 @@ export async function createPhysics() {
     blocked(ax, az, bx, bz, street = false) {
       const dx = bx - ax, dz = bz - az, len = Math.hypot(dx, dz); if (len < .01) return -1;
       ray.origin.x = ax; ray.origin.y = az; ray.dir.x = dx / len; ray.dir.y = dz / len;
-      const hit = world.castRay(ray, len, true, undefined, buildingsOnly, undefined, undefined, street ? undefined : taller);
+      const hit = world.castRay(ray, len, true, undefined, buildingsOnly, undefined, undefined, street ? grounded : taller);
       return hit ? hit.timeOfImpact : -1;
     },
     canSee(ax, az, bx, bz) { return physics.blocked(ax, az, bx, bz) < 0; },
@@ -102,7 +114,7 @@ export async function createPhysics() {
     // up = true: what a driver on the upper level feels instead (the rails).
     probeDrive(ax, az, dx, dz, max, up = false) {
       ray.origin.x = ax; ray.origin.y = az; ray.dir.x = dx; ray.dir.y = dz;
-      const hit = world.castRay(ray, max, true, undefined, up ? railsOnly : solidStuff);
+      const hit = world.castRay(ray, max, true, undefined, up ? railsOnly : solidStuff, undefined, undefined, up ? undefined : grounded);
       return hit ? hit.timeOfImpact : max;
     },
     // What stands under a disc of radius r seen from height y: out.top = the tallest roof at or below y (-1e9 for none),
