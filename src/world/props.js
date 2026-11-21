@@ -117,7 +117,7 @@ export function makeProps(api, R) {
       const g = top(x, y0, z, -rot);
       mesh(wedgeGeo(len, wid, h), M.ramp, null, null, g);
       for (const side of [-1, 1]) {      // side rails and the legs under the lip
-        mesh(G.box, mats.darkMetal, V(len / 2 - .15, h / 2 - 2, side * (wid / 2 - .15)), V(.3, h + 4, .3), g);
+        mesh(G.box, mats.darkMetal, V(len / 2 - .15, h / 2 - 2.03, side * (wid / 2 - .15)), V(.34, h + 3.94, .34), g);      // a little proud of the ramp's faces, never level with them
         const rail = mesh(G.box, mats.yellowPaint, V(0, h / 2 + .25, side * (wid / 2 + .06)), V(Math.hypot(len, h), .16, .12), g); rail.rotation.z = Math.atan2(h, len);
       }
       return { x, z, rot, len, wid, h, lipX: x + c * len / 2, lipZ: z + s * len / 2, y: y0 + h };
@@ -132,7 +132,7 @@ export function makeProps(api, R) {
         c.lineWidth = 10; c.strokeStyle = 'rgba(0,0,0,.55)'; if (!bg) c.strokeText(text, s / 2, s / 2 + 4);
         c.fillStyle = fg; c.fillText(text, s / 2, s / 2 + 4);
       });
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w), new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: .08 }));
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w), new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: .08, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 })      /* a board sits a hair off its wall: drawn a touch nearer so the two never flicker */);
       m.position.set(x, y, z); m.rotation.y = ry; api.realScene.add(m); api.signMats.push(m.material);
       if (both) { const b = new THREE.Mesh(m.geometry, m.material); b.position.copy(m.position); b.rotation.y = ry + Math.PI; api.realScene.add(b); }
       return m;

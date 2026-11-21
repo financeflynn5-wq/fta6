@@ -53,7 +53,8 @@ export function buildMouseBear(K) {
   const bannerTex = tex('banner.png'), logoTex = tex('logo.png');
   const teal = std({ color: C.teal, roughness: .5 }), tealD = std({ color: C.tealD, roughness: .6 }), coral = std({ color: C.coral, roughness: .55 }), cream = std({ color: C.cream, roughness: .7 }), gold = std({ color: C.gold, roughness: .5 });
   const bannerLit = std({ map: bannerTex, roughness: .55 });                                             // on the trailers: paint, lit by the sun
-  const bannerGlow = new THREE.MeshBasicMaterial({ map: bannerTex }), logoGlow = new THREE.MeshBasicMaterial({ map: logoTex });   // signs: they brighten at night with the city's others
+  const onTop = { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 };          // painted-on artwork: drawn a touch nearer than the wall it is on
+  const bannerGlow = new THREE.MeshBasicMaterial({ map: bannerTex, ...onTop }), logoGlow = new THREE.MeshBasicMaterial({ map: logoTex, ...onTop });   // signs: they brighten at night with the city's others
   api.signMats.push(bannerGlow, logoGlow);
   const local = (geo, mat, x, y, z, ry = 0, cast = false) => { const m = mesh(geo, mat, V(x - CX, y, z - CZ), null, S.g, cast); m.rotation.y = ry; return m; };
   const low = (x, z, hw, hd, h) => solids.boxes.push({ x, z, hw, hd, low: true, h });
@@ -73,7 +74,7 @@ export function buildMouseBear(K) {
     const len = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(len / 2.6)), pos = [], uv = [], idx = [], rail = [];
     for (let i = 0; i <= n; i++) {
       const x = ax + (bx - ax) * i / n, z = az + (bz - az) * i / n, y = groundY(x, z);
-      pos.push(x - CX, y, z - CZ, x - CX, y + 2.4, z - CZ); uv.push(i * len / n / 1.3, 0, i * len / n / 1.3, 2);
+      pos.push(x - CX, y, z - CZ, x - CX, y + 2.36, z - CZ); uv.push(i * len / n / 1.3, 0, i * len / n / 1.3, 1.97);      // the mesh stops where the top rail starts (they share a plane)
       rail.push(x - CX, y + 2.36, z - CZ, x - CX, y + 2.47, z - CZ);
       if (i < n) { const k = i * 2; idx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3); }
       IB.pole.add(mat4(V(x, y + 1.25, z), V(.05, 2.5, .05)));
@@ -137,7 +138,7 @@ export function buildMouseBear(K) {
       for (const dz of [1.15, 2.45]) S.put(G.cyl, mats.rim, x + s * 1.21, gy + .5, zr - dz, .24, .03, .24, false).rotation.z = PI / 2;
       S.box(mats.darkMetal, x + s * .7, (yt + gy) / 2, zr - len + 1.5, .12, yt - gy, .12); S.box(mats.darkMetal, x + s * .7, gy + .04, zr - len + 1.5, .34, .08, .34, false);
     }
-    local(new THREE.CircleGeometry(.95, 36), std({ map: logoTex, roughness: .6 }), x, yt + tall / 2 + .1, zr - len - .012, PI);
+    local(new THREE.CircleGeometry(.95, 36), std({ map: logoTex, roughness: .6, ...onTop }), x, yt + tall / 2 + .1, zr - len - .012, PI);
     solids.boxes.push({ x, z: zc, hw: 1.32, hd: len / 2, h: yt + tall });
   }
   trailer(DOCKS[0]); trailer(DOCKS[2]);

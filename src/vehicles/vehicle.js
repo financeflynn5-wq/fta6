@@ -4,6 +4,7 @@ import { CAR, FX } from '../config.js';
 import { clamp, lerp, damp, angleDiff } from '../core/utils.js';
 import { groundY } from '../world/city.js';
 import { makeCarModel } from './carModel.js';
+import { poseJoints } from '../characters/models.js';
 
 const GEARS = [0, 9, 17, 25, 32, 42];
 
@@ -226,16 +227,16 @@ export class Vehicle {
     this.dropRider(); this.rider = model; this.mesh.userData.chassis.add(model);
     model.position.set(s.x, s.y, s.z); model.rotation.set(0, Math.PI / 2, 0); model.visible = true;
     const u = model.userData; u.lie = 0; u.body.position.set(0, 0, 0);
-    if (s.pose === 'sit') { u.body.rotation.set(0, 0, 0); u.legs.forEach((l, i) => l.rotation.set(-1.5, 0, i ? .1 : -.1)); u.arms.forEach(a => { a.rotation.x = -1.15; }); }               // at a boat's wheel
-    else if (s.pose === 'stand') { u.body.rotation.set(0, 0, 0); u.legs.forEach(l => l.rotation.set(0, 0, 0)); u.arms.forEach(a => { a.rotation.x = -1.1; }); }                          // standing at a console
-    else { u.body.rotation.set(.3, 0, 0); u.legs.forEach((l, i) => l.rotation.set(-.95, 0, i ? .28 : -.28)); u.arms.forEach(a => { a.rotation.x = -1.2; }); }
+    if (s.pose === 'sit') { u.body.rotation.set(0, 0, 0); u.legs.forEach((l, i) => l.rotation.set(-1.5, 0, i ? .1 : -.1)); u.arms.forEach(a => { a.rotation.x = -1.15; }); poseJoints(model, 1.45, .45); }               // at a boat's wheel
+    else if (s.pose === 'stand') { u.body.rotation.set(0, 0, 0); u.legs.forEach(l => l.rotation.set(0, 0, 0)); u.arms.forEach(a => { a.rotation.x = -1.1; }); poseJoints(model, 0, .5); }                          // standing at a console
+    else { u.body.rotation.set(.3, 0, 0); u.legs.forEach((l, i) => l.rotation.set(-.95, 0, i ? .28 : -.28)); u.arms.forEach(a => { a.rotation.x = -1.2; }); poseJoints(model, 1.35, .3); }      // astride a bike: knees up, feet on the pegs
     return true;
   }
   // Take the rider off and stand them up straight again. The caller decides where the model goes next.
   unseat() {
     const m = this.rider; if (!m) return null;
     this.rider = null; m.removeFromParent(); m.rotation.set(0, 0, 0);
-    const u = m.userData; u.body.rotation.set(0, 0, 0); u.legs.forEach(l => l.rotation.set(0, 0, 0)); u.arms.forEach(a => { a.rotation.x = 0; });
+    const u = m.userData; u.body.rotation.set(0, 0, 0); u.legs.forEach(l => l.rotation.set(0, 0, 0)); u.arms.forEach(a => { a.rotation.x = 0; }); poseJoints(m);
     return m;
   }
   // The rider is gone for good (thrown off as a pedestrian, or the bike was cleared away). Never the player's own model.

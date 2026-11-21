@@ -179,7 +179,13 @@ export function createPedestrians(game) {
         p.y = (p.ref === undefined ? groundY(p.x, p.z) : (p.ref = groundY(p.x, p.z, p.ref + .3))) + p.air;
         p.model.position.set(p.x, p.y, p.z); p.model.rotation.y = p.face;
         setCharacterShadow(p.model, far < 60);
-        if (far < 90) animateCharacter(p.model, t, dt, p.speed, pose);
+        if (far < 90) {
+          // out for a walk: they ease round corners rather than snapping, and glance at you as you pass
+          const u = p.model.userData, strolling = p.state === 'walk' && p.panic <= 0;
+          u.smoothYaw = p.state === 'walk' || p.state === 'return' ? 9 : 0;
+          if (strolling && far < 7 && cam.mode !== 'car') { let g = Math.atan2(cam.x - p.x, cam.z - p.z) - p.face; g = Math.atan2(Math.sin(g), Math.cos(g)); if (Math.abs(g) < 1.5) { u.gaze = g; u.gazeT = .3; } }
+          animateCharacter(p.model, t, dt, p.speed, pose);
+        }
       }
       for (const p of gone) remove(p);
       if (refill.length && (refillT -= dt) <= 0) {

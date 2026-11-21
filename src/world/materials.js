@@ -45,15 +45,18 @@ wallT.repeat.set(3, 3);
 const stripes = (c1, c2) => ctex(128, (x, s) => { for (let i = 0; i < 8; i++) { x.fillStyle = i % 2 ? c2 : c1; x.fillRect(i * s / 8, 0, s / 8, s); } });
 
 // ---------- materials ----------
+// Window glass stands only a few centimetres proud of its frame. From far off that is less than the depth buffer can
+// tell apart, and the two flicker; glass is drawn as if it were a touch nearer, which settles it without moving anything.
+const PROUD = { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -3 };
 export const mats = {
   asphalt: std({ map: asphaltT, color: 0x55585e, roughness: .92 }),
   walk: std({ map: walkT, color: 0xd6cfc4, roughness: .85 }),
   curb: std({ color: 0xd8d4cc, roughness: .8 }),
   grass: std({ color: 0x6fae5a, roughness: 1 }),
   trim: std({ color: 0xe9e1d3, roughness: .7 }),
-  glass: std({ color: 0x24384c, roughness: .06, metalness: .85 }),
-  shop: std({ color: 0x56778c, roughness: .1, metalness: .35, emissive: 0xffc985, emissiveIntensity: 0 }),
-  litWin: std({ color: 0x3a3326, roughness: .2, emissive: 0xffcf8a, emissiveIntensity: 1.1 }),
+  glass: std({ color: 0x24384c, roughness: .06, metalness: .85, ...PROUD }),
+  shop: std({ color: 0x56778c, roughness: .1, metalness: .35, emissive: 0xffc985, emissiveIntensity: 0, ...PROUD }),
+  litWin: std({ color: 0x3a3326, roughness: .2, emissive: 0xffcf8a, emissiveIntensity: 1.1, ...PROUD }),
   metal: std({ color: 0x5b6068, roughness: .45, metalness: .7 }),
   darkMetal: std({ color: 0x2b2f35, roughness: .5, metalness: .6 }),
   lampHead: std({ color: 0xfff6e0, emissive: 0xffe2a8, emissiveIntensity: 0 }),

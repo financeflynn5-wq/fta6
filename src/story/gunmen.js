@@ -52,7 +52,7 @@ export function createGunmen(game) {
       if (o.y != null) { ped.ref = o.y; ped.y = o.y; ped.model.position.y = o.y; }
       const g = { ped, gun: null, alert: false, fireT: rnd(.6, 1.5), stuck: 0, side: 0, sideT: 0, ...STORY.goon, ...o, out: false };
       ped.hp = g.hp; g.full = g.hp;
-      g.gun = makeWeapon(o.gun || 'pistol'); g.gun.position.set(0, -.5, .02); g.gun.rotation.set(Math.PI / 2, 0, 0); ped.model.userData.arms[0].add(g.gun);
+      g.gun = makeWeapon(o.gun || 'pistol'); g.gun.position.set(0, -.5, .02); g.gun.rotation.set(Math.PI / 2, 0, 0); ped.model.userData.hands[0].add(g.gun);
       list.push(g); return g;
     },
     alive: (group) => group.filter(g => !g.out).length,

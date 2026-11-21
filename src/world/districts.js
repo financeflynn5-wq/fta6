@@ -215,8 +215,8 @@ export function buildDistricts(api) {
   taken.push([200, 70, 60]);
   // the quay: flat concrete out over the water, bollards along the edge, two cranes
   deck({ x: 341.5, z: -23.5, hl: 185.5, hw: 10.5, rot: PI / 2, y0: 0, plan: '#9d988f' });
-  for (let z = -178; z <= 131; z += 61.8) box(mats.trim, 341.5, -2.5, z, 21, 5, 61.8, false);
-  box(mats.yellowPaint, 351.4, .03, -23.5, .35, .05, 371, false);
+  for (let z = -178; z <= 131; z += 61.8) box(mats.trim, 341.5, -2.475, z, 21, 5, 61.8, false);      // a finger proud of the land it runs onto, so the two don't flicker
+  box(mats.yellowPaint, 351.4, .055, -23.5, .35, .05, 371, false);
   for (let z = -200; z <= 156; z += 12) { mesh(G2.cyl8, mats.darkMetal, V(351.6, .35, z), V(.3, .7, .3), scene); post(351.6, z, .35); }
   for (const cz of [-92, 72]) {
     for (const lx of [335.5, 347.5]) for (const lz of [-6, 6]) { box(M.crane, lx, 11, cz + lz, .9, 22, .9); post(lx, cz + lz, .65); }

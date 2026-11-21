@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { V, seeded } from '../core/utils.js';
 import { std, G, rbox, cap, ctex } from '../world/materials.js';
-import { rig, googlyEyes, mat, eyeW, eyeB, gold, cone, M, cache } from './rig.js';
+import { rig, googlyEyes, eyelids, torsoGeo, lathe, DEEP, mat, eyeW, eyeB, gold, cone, M, cache } from './rig.js';
 import { LOOKS, randomLook } from './bigheadLooks.js';
 import { CAST } from '../config.js';
 
@@ -57,6 +57,13 @@ const printCap = (r, l) => keep(`pcap${r},${l}`, () => {
   return g;
 });
 
+// The same for the body, whose shape comes off a lathe.
+const printTorso = (loose) => keep('ptorso' + loose, () => {
+  const g = torsoGeo(loose).clone(), p = g.attributes.position, uv = g.attributes.uv;
+  for (let i = 0; i < p.count; i++) uv.setXY(i, uv.getX(i), (p.getY(i) - 1.08) / .94);
+  return g;
+});
+
 // ---------- the head ----------
 function buildHead(h, L, body) {
   const [hw, hh, hd] = L.shape, sk = mat(L.skin, .6), hair = mat(L.hairC ?? 0x2a1a12, .9);
@@ -85,6 +92,7 @@ function buildHead(h, L, body) {
   if (eyes === 'googly' || eyes === 'specs') {
     const ez = F(.17, .05).z - .05;
     pupils = googlyEyes(h, .05, ez, 1.3, .17);
+    h.userData.lid = eyelids(h, sk, .05, ez, 1.3, .17);
     if (L.lids) for (const k of [-1, 1]) M(sm, sk, V(k * .17, .115, ez + .012), V(.156, .11, .112), h);        // heavy eyelids: unimpressed
     if (eyes === 'specs') {
       const rim = mat(L.rimC ?? 0x16161a, .35);
@@ -176,44 +184,56 @@ function buildHead(h, L, body) {
   if (L.hat === 'cop') {
     const navy = mat(0x1c2a55, .8);
     M(G.cyl, navy, V(0, .42, 0), V(.5, .22, .5), h); M(G.cyl, mat(0x111111, .4), V(0, .33, .12), V(.52, .03, .58), h); M(sm, gold, V(0, .45, .48), V(.07, .08, .02), h);
-    M(sm, gold, V(.14, 1.2, .27), V(.05, .06, .02), body);
+    M(sm, gold, V(.14, 1.2, .236), V(.05, .06, .02), body);
   }
   return pupils;
 }
 
 // ---------- clothes and what they carry ----------
 function dress(r, L, sk, shirt) {
-  const u = r.userData, body = u.body, top = L.top, pants = mat(L.legC ?? 0x2b3443, .9), accent = mat(blend(L.topC ?? 0xffffff, 0xffffff, .82), .85);
+  const u = r.userData, body = u.body, ch = u.chest, top = L.top, pants = mat(L.legC ?? 0x2b3443, .9), accent = mat(blend(L.topC ?? 0xffffff, 0xffffff, .82), .85);
   const shortSleeves = top === 'tee' || top === 'hawaii' || top === 'leopard';
   if (shortSleeves) for (const a of u.arms) M(shirt.map ? printCap(.103, .09) : cap(.103, .09), shirt, V(0, -.07, 0), null, a);
+  if (top === 'tee') M(torus(.14, .024), accent, V(0, 1.468, 0), null, ch, [HALF, 0, 0]);
+  if (top === 'tank') M(torus(.15, .03), shirt, V(0, 1.46, 0), null, ch, [HALF, 0, 0]);
   if (top === 'hawaii' || top === 'leopard') {            // open collar
-    for (const k of [-1, 1]) M(rbox(.13, .05, .1, .02), shirt, V(k * .085, 1.47, .2), null, body, [.5, k * .5, k * .45]);
-    M(sm, sk, V(0, 1.4, .19), V(.09, .12, .06), body);
+    for (const k of [-1, 1]) M(rbox(.13, .05, .1, .02), shirt, V(k * .085, 1.47, .2), null, ch, [.5, k * .5, k * .45]);
+    M(sm, sk, V(0, 1.4, .19), V(.09, .12, .06), ch);
+    for (let i = 0; i < 3; i++) M(sm, white, V(0, 1.24 - i * .13, .252 + (i === 1 ? .008 : 0)), V(.016, .016, .008), ch);       // buttons
   }
   if (top === 'suit') {
-    M(sm, white, V(0, 1.3, .185), V(.13, .22, .1), body); M(rbox(.075, .27, .03, .02), mat(L.tieC ?? 0xe8455b, .6), V(0, 1.2, .285), null, body, [-.12, 0, 0]);
-    for (const k of [-1, 1]) M(rbox(.1, .26, .03, .02), shirt, V(k * .125, 1.3, .25), null, body, [-.1, k * .35, -k * .32]);
+    M(sm, white, V(0, 1.3, .185), V(.13, .22, .1), ch); M(rbox(.075, .27, .03, .02), mat(L.tieC ?? 0xe8455b, .6), V(0, 1.2, .285), null, ch, [-.12, 0, 0]);
+    for (const k of [-1, 1]) M(rbox(.1, .26, .03, .02), shirt, V(k * .125, 1.3, .25), null, ch, [-.1, k * .35, -k * .32]);
+    belt(body, 0x15161a);
   }
   if (top === 'track') {
-    for (const [i, a] of u.arms.entries()) M(cap(.027, .36), accent, V((i ? 1 : -1) * .072, -.22, 0), null, a);
-    for (const [i, l] of u.legs.entries()) M(cap(.03, .42), accent, V((i ? 1 : -1) * .095, -.3, 0), null, l);
-    M(G.box, accent, V(0, 1.1, .262), V(.022, .56, .02), body); M(torus(.15, .04), shirt, V(0, 1.5, .0), V(1, 1, 1), body, [HALF, 0, 0]);
+    for (const [i, a] of u.arms.entries()) { const k = i ? 1 : -1; M(cap(.027, .2), accent, V(k * .076, -.135, 0), null, a); M(cap(.025, .15), accent, V(k * .073, -.075, 0), null, u.elbows[i]); }
+    for (const [i, l] of u.legs.entries()) { const k = i ? 1 : -1; M(cap(.03, .3), accent, V(k * .098, -.18, 0), null, l); M(cap(.028, .25), accent, V(k * .092, -.125, 0), null, u.knees[i]); }
+    M(G.box, accent, V(0, 1.1, .262), V(.022, .44, .02), ch); M(torus(.15, .04), shirt, V(0, 1.5, .0), V(1, 1, 1), ch, [HALF, 0, 0]);
   }
   if (top === 'hoodie') {
-    M(sm, shirt, V(0, 1.47, -.23), V(.27, .17, .17), body); M(rbox(.32, .15, .06, .03), shirt, V(0, .97, .245), null, body);
-    for (const k of [-1, 1]) M(cap(.012, .16), white, V(k * .06, 1.3, .27), null, body);
+    M(torus(.165, .05), shirt, V(0, 1.475, -.01), null, ch, [HALF, 0, 0]);
+    M(sm, shirt, V(0, 1.45, -.22), V(.27, .17, .17), ch); M(rbox(.32, .15, .06, .03), shirt, V(0, .985, .246), null, ch);
+    for (const k of [-1, 1]) M(cap(.012, .15), white, V(k * .06, 1.31, .246), null, ch, [.14, 0, k * .06]);
   }
-  if (top === 'uniform') { M(rbox(.5, .07, .46, .03), mat(0x15161a, .5), V(0, .86, 0), null, body); M(sm, mat(0x2a3f7a, .85), V(0, 1.42, .17), V(.11, .08, .06), body); }
+  if (top === 'stripes') M(torus(.14, .026), white, V(0, 1.468, 0), null, ch, [HALF, 0, 0]);
+  if (top === 'uniform') {
+    belt(body, 0x15161a); M(rbox(.1, .17, .11, .03), mat(0x15161a, .5), V(-.275, .85, .03), null, body, [0, 0, -.1]);
+    for (const k of [-1, 1]) M(rbox(.11, .05, .04, .012), shirt, V(k * .085, 1.44, .19), null, ch, [-.6, k * .4, k * .5]);
+    M(rbox(.058, .21, .02, .01), mat(0x15203f, .8), V(0, 1.29, .247), null, ch, [-.1, 0, 0]);
+  }
   if (L.legs === 'shorts') for (const l of u.legs) M(cap(.128, .15), pants, V(0, -.13, 0), null, l);
   if (L.legs === 'skirt') { M(frustum(.27, .41, .4), pants, V(0, .7, 0), V(1, 1, .86), body); for (const l of u.legs) M(cap(.12, .06), pants, V(0, -.06, 0), null, l); }
-  if (L.chain) M(torus(.2, .02), gold, V(0, 1.4, .1), V(1, 1.25, 1), body, [HALF + .62, 0, 0]);
+  if (L.chain) M(torus(.2, .02), gold, V(0, 1.4, .1), V(1, 1.25, 1), ch, [HALF + .62, 0, 0]);
 
-  const hand = u.arms[1];                                  // the left hand, so the right stays free for a gun
+  const hand = u.hands[1];                                 // the left hand, so the right stays free for a gun
   if (L.prop === 'phone') M(rbox(.18, .32, .04, .03), mat(0x111216, .1, .4), V(0, -.48, .1), null, hand, [.2, 0, 0]);
   if (L.prop === 'donut') M(keep('donut', () => new THREE.TorusGeometry(.12, .06, 10, 20)), mat(0xff8fb1, .5), V(0, -.47, .1), null, hand, [HALF, 0, 0]);
   if (L.prop === 'coffee') { M(frustum(.07, .055, .2), white, V(0, -.5, .1), null, hand, [HALF, 0, 0]); M(frustum(.075, .075, .03), mat(0x6b4423, .7), V(0, -.5, .2), null, hand, [HALF, 0, 0]); }
   if (L.prop === 'bag') { M(rbox(.3, .32, .13, .03), mat(L.shoes ?? 0xe8455b, .8), V(0, -.78, 0), null, hand); M(torus(.07, .012, Math.PI), dark, V(0, -.62, 0), V(1, 1.4, 1), hand); }
 }
+// a leather belt with a buckle, for tops that are tucked in
+function belt(body, c) { M(lathe('belt', [[.289, .875], [.297, .905], [.289, .94]]), mat(c, .5), null, V(1, 1, DEEP), body); M(rbox(.075, .058, .02, .008), gold, V(0, .905, .256), null, body); }
 
 // kind: 'bighead' (a fresh citizen), 'bigcop', or one of the named three. opt.look: parts to force, or a whole saved look.
 // opt.props: false leaves the hands empty (the player).
@@ -225,10 +245,15 @@ export function bigHead(kind = 'bighead', opt = {}) {
   const topC = top === 'uniform' ? 0x2a3f7a : L.topC ?? 0xe8455b;
   const shirt = top === 'hawaii' || top === 'stripes' || top === 'leopard' ? printed(top, L.print || 0) : mat(topC, .88);
   const bare = top === 'tee' || top === 'hawaii' || top === 'leopard' || top === 'tank';
-  const r = rig({ shirt, pants: mat(L.legC ?? 0x2b3443, .9), shoes: mat(L.shoes ?? 0xf4f4f4, .7), skin: sk, headY: NECK + L.shape[1] * S, armMat: bare ? sk : null, legMat: L.legs === 'shorts' || L.legs === 'skirt' ? sk : null });
+  const loose = top !== 'suit' && top !== 'uniform', shoeC = L.shoes ?? 0xf4f4f4;
+  const r = rig({ shirt, pants: mat(L.legC ?? 0x2b3443, .9), shoes: mat(shoeC, .7), skin: sk, headY: NECK + L.shape[1] * S, armMat: bare ? sk : null, legMat: L.legs === 'shorts' || L.legs === 'skirt' ? sk : null,
+    loose, sleeve: top === 'tee' || top === 'hawaii' || top === 'leopard' ? shirt : null, sole: mat(shoeC === 0xf4f4f4 ? 0xcfc9c0 : top === 'suit' || top === 'uniform' ? 0x15161a : 0xf4f1ea, .85) });
   const u = r.userData;
-  if (shirt.map) { const torso = u.body.children.find(o => o.isMesh); torso.geometry = printCap(.3, .34); for (const a of u.arms) if (!bare) a.children[0].geometry = printCap(.085, .36); }
-  u.pupils = buildHead(u.head, L, u.body);
+  if (shirt.map) {
+    u.chest.children.find(o => o.name === 'torso').geometry = printTorso(loose);
+    if (!bare) { for (const a of u.arms) a.children.find(o => o.name === 'upper').geometry = printCap(.088, .2); for (const e of u.elbows) e.children.find(o => o.name === 'fore').geometry = printCap(.085, .15); }
+  }
+  u.pupils = buildHead(u.head, L, u.chest); u.lid = u.head.userData.lid;
   dress(r, L, sk, shirt);
   u.head.scale.setScalar(S);
   // bobble: the head rides on a soft spring. headR/headY/top: the (bigger) target a bullet can hit. eye: how high they see from.

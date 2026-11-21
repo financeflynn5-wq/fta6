@@ -33,7 +33,7 @@ export function createFleet(game) {
   for (const [x, z, type] of quayPads) { const y = groundY(x, z); slot(type, x, z, Math.PI, y); paintPad(x, z, y); }
 
   function paintPad(x, z, y) {
-    const g = new THREE.Group(); g.position.set(x, y + .025, z);
+    const g = new THREE.Group(); g.position.set(x, y + .055, z);        // clear of the quay's top (y + .025)
     const flat = (geo, m, px = 0, pz = 0, ry = 0) => { const o = new THREE.Mesh(geo, m); o.rotation.set(-HALF, 0, ry); o.position.set(px, 0, pz); o.receiveShadow = true; g.add(o); };
     flat(new THREE.RingGeometry(6.1, 6.5, 48), mats.yellowPaint);
     flat(new THREE.PlaneGeometry(.6, 4.6), mats.paint, -1.5); flat(new THREE.PlaneGeometry(.6, 4.6), mats.paint, 1.5); flat(new THREE.PlaneGeometry(3, .6), mats.paint);

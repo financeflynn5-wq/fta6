@@ -50,7 +50,7 @@ export function createRemote(game, id, index) {
         const old = model;
         if (old && riding?.rider === old) riding.unseat();
         model = r.model = makeCharacter(who, { props: false, look: who === 'bighead' ? look : undefined });
-        for (const g of Object.values(guns)) model.userData.arms[0].add(g);
+        for (const g of Object.values(guns)) model.userData.hands[0].add(g);
         if (old) { old.removeFromParent(); old.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); }
         game.scene.add(model); model.visible = false; riding = null;
         game.env?.touch();
@@ -105,7 +105,7 @@ export function createRemote(game, id, index) {
         animateCharacter(model, t, dt, r.speed, r.state);
         // the gun in their hand
         const w = WEAPONS[r.weapon];
-        if (!w.melee && !guns[r.weapon]) { const g = makeWeapon(r.weapon); g.position.set(0, -.5, .02); g.rotation.set(HALF_PI, 0, 0); model.userData.arms[0].add(g); guns[r.weapon] = g; }
+        if (!w.melee && !guns[r.weapon]) { const g = makeWeapon(r.weapon); g.position.set(0, -.5, .02); g.rotation.set(HALF_PI, 0, 0); model.userData.hands[0].add(g); guns[r.weapon] = g; }
         for (const k in guns) guns[k].visible = k === r.weapon;
         const air = r.state === 'sky' || r.state === 'dive' || r.state === 'chute';
         if (air) for (const k in guns) guns[k].visible = false;

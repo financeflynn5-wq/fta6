@@ -14,6 +14,17 @@ export const WORLD = {
   LANE: 2.6,
 };
 
+// ---------- how far in front of the camera the picture starts (world/world.js) ----------
+// The further out it starts, the less far-off surfaces flicker against each other, but anything nearer the lens is cut away.
+export const VIEW = {
+  near: .3,          // on the ground, where walls, poles and people pass right by the camera
+  nearMax: 5,        // high in clear air (a helicopter, a parachute): it eases out to this
+  perMetre: .22,     // how much further out for every metre of clear air round the camera
+  clutter: 10,       // trees, lamp posts and signs reach this far above the ground: clear air starts above them
+  side: 14,          // a wall this near the camera (and taller than it) keeps the picture starting close
+  unknown: 45,       // a wall with no height written down, and no building outline to read it from, is taken to be no taller than this
+};
+
 export const CAR = {
   halfLen: 2.3, halfWid: 0.95, wheelbase: 2.8,
   types: {

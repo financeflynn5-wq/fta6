@@ -11,7 +11,7 @@ export function createCopGuns(game) {
 
   function arm(o) {
     const g = makeWeapon('pistol'); g.position.set(0, -.5, .02); g.rotation.set(Math.PI / 2, 0, 0);
-    o.ped.model.userData.arms[0].add(g); o.gun = g; o.hold = COMBAT.copHold; o.fireT = .6 + Math.random() * .8; armed.add(o);
+    o.ped.model.userData.hands[0].add(g); o.gun = g; o.hold = COMBAT.copHold; o.fireT = .6 + Math.random() * .8; armed.add(o);
   }
   function disarm(o) {
     if (o.gun) dropWeapon(o.gun); o.gun = null; o.hold = 0; armed.delete(o);

@@ -1,8 +1,8 @@
 // Glue between the land and the rest of the game: owns the ride system (cars on hills),
 // keeps Rocco's feet on the slope, slows him down in the sea, keeps the camera out of
 // hillsides, and announces the district you have just entered.
-import { RIDE, WORLD, BOAT } from '../config.js';
-import { damp } from '../core/utils.js';
+import { RIDE, WORLD, BOAT, VIEW } from '../config.js';
+import { damp, clamp } from '../core/utils.js';
 import { groundY, waterDepth, layer, ceilingY } from './terrain.js';
 import { districtAt } from './map.js';
 import * as THREE from 'three';
@@ -14,6 +14,37 @@ export function createWorld(game) {
   const vel = { x: 0, y: 0 };
   const fwd = new THREE.Vector3();
   let lift = 0, district = '', districtT = 0, swimT = 0, hazeT = 0;
+  let hollows = null;
+  const below = { top: 0, wall: false, vague: false }, ROUND = [[9, 0], [-9, 0], [0, 9], [0, -9]];
+
+  // How far in front of the lens the picture starts. Close to things it has to be tight (VIEW.near), or a wall beside
+  // the camera would be cut open. But the depth buffer tells far-off surfaces apart about `near` times better for every
+  // time further out it sits: from a helicopter, with nothing near the lens, pushing it out is what stops distant
+  // windows, road edges and shorelines flickering against the surface behind them.
+  function nearPlane(cam, p) {
+    const c = cam.position; let room = 0;
+    if (game.state === 'title' || !game.combat?.aiming) {
+      // clear air under and around the camera: over the ground (here and round about), any roof below, and the trees and poles standing on them
+      let floor = groundY(c.x, c.z, c.y);
+      for (const [dx, dz] of ROUND) floor = Math.max(floor, groundY(c.x + dx, c.z + dz, c.y));
+      game.physics.under(c.x, c.z, VIEW.side, c.y - 1, below);
+      let top = below.top, wall = below.wall;
+      if (below.vague) {
+        // the walls of a walk-in building carry no height of their own: the building's outline does
+        let known = false;
+        for (const b of (hollows ||= game.city.solids.boxes.filter(b => b.hollow && b.h !== undefined))) {
+          if (Math.abs(c.x - b.x) > b.hw + VIEW.side || Math.abs(c.z - b.z) > b.hd + VIEW.side) continue;
+          known = true; if (b.h > c.y - 1) wall = true; else top = Math.max(top, b.h);
+        }
+        if (!known) top = Math.max(top, floor + VIEW.unknown);
+      }
+      if (!wall) room = c.y - Math.max(floor + VIEW.clutter, top + 2);
+      // and never past whatever it is following (a helicopter is a big thing to have just in front of the lens)
+      if (game.state !== 'title') { const v = p.vehicle; room = Math.min(room, (Math.hypot(c.x - p.x, c.y - (v ? v.y : p.y) - 1, c.z - p.z) - (v ? Math.max(v.halfLen, 5) + 1 : 1.5)) * 2); }
+    }
+    const near = clamp(room * VIEW.perMetre, VIEW.near, VIEW.nearMax);
+    if (Math.abs(near - cam.near) > cam.near * .02) { cam.near = near; cam.updateProjectionMatrix(); }
+  }
 
   return {
     ride: game.ride, district: () => district,
@@ -65,6 +96,7 @@ export function createWorld(game) {
       }
       // from a helicopter you see further: the haze thins as the camera climbs
       if (game.scene.fog && game.env?.fogFar) { const up = Math.min(230, Math.max(0, cam.position.y - 14)), fog = game.scene.fog; fog.near = game.env.fogNear + up * 1.2; fog.far = game.env.fogFar + up * 3.2; }
+      nearPlane(cam, p);
       // scenery the haze has swallowed isn't drawn: nothing shows past the far edge of the fog
       if ((hazeT -= dt) <= 0 && game.scene.fog) {
         hazeT = .2; cam.getWorldDirection(fwd); const far = game.scene.fog.far + 6, c = cam.position;

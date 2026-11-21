@@ -27,7 +27,7 @@ export function createBarFight(game) {
   });
   function bottle(f) {               // something to hold (and to wave about)
     const g = new THREE.Group(), m = choose(glass); g.add(new THREE.Mesh(bottleGeo, m)); const n = new THREE.Mesh(neckGeo, m); n.position.y = .15; g.add(n);
-    g.position.set(0, -.5, .06); g.rotation.x = Math.PI; f.ped.model.userData.arms[1].add(g);
+    g.position.set(0, -.5, .06); g.rotation.x = Math.PI; f.ped.model.userData.hands[1].add(g);
   }
   function populate() {
     state = 'open'; grace = 1.5;

@@ -13,7 +13,7 @@ const HALF_PI = Math.PI / 2;
 
 export function createCombat(game) {
   const hits = createHits(game), gfx = createGunFx(game.scene), view = createSightView(game);     // view: the gun as seen down its sights
-  const player = game.player; let arms = player.model.userData.arms;
+  const player = game.player; let arms = player.model.userData.arms, hands = player.model.userData.hands;
   const guns = {};                      // the gun meshes in Rocco's right hand, made on first pickup
   const muzzle = new THREE.Vector3(), d = new THREE.Vector3(), shot = new THREE.Vector3(), side = new THREE.Vector3(), up = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
   let reportT = 0;
@@ -32,7 +32,7 @@ export function createCombat(game) {
       if (!combat.owned.has(id)) {
         combat.owned.add(id); if (!w.melee) { combat.clip[id] = Math.min(w.mag, rounds); combat.ammo[id] = rounds - combat.clip[id]; }
         if (!guns[id]) {
-          const g = makeWeapon(id); g.visible = false; arms[0].add(g); guns[id] = g;
+          const g = makeWeapon(id); g.visible = false; hands[0].add(g); guns[id] = g;
           if (w.blade) { g.position.set(0, -.47, .04); g.rotation.set(Math.PI / 4, 0, 0); } else { g.position.set(0, -.5, .02); g.rotation.set(HALF_PI, 0, 0); }
         }
         if (combat.weapon === 'fists' || WEAPONS[combat.weapon].slot < w.slot) combat.select(id);
@@ -50,7 +50,7 @@ export function createCombat(game) {
     },
     // The player turned into someone else: move the guns to the new right hand, and repaint the hands in the sight view.
     rehand() {
-      arms = player.model.userData.arms; for (const g of Object.values(guns)) arms[0].add(g);
+      arms = player.model.userData.arms; hands = player.model.userData.hands; for (const g of Object.values(guns)) hands[0].add(g);
       const u = player.model.userData; view.setHands(u.skinC ?? 0x8b8d94, u.sleeveC ?? 0xe8455b);
     },
     totalAmmo(id = combat.weapon) { return (combat.clip[id] || 0) + (combat.ammo[id] || 0); },
@@ -283,6 +283,7 @@ export function createCombat(game) {
 // arms: [right, left]. c: { aimPitch, swingT, swingSide, reloading, kick }. Other players' bodies are posed with this too (net/remote.js).
 export function holdPose(arms, w, c, t, ready) {
   const [R, L] = arms, pitch = c.aimPitch;
+  const bend = (r, l) => { R.userData.bend = r; L.userData.bend = l; };      // how far each elbow folds (the walk cycle reads these)
   R.rotation.y = L.rotation.y = 0; R.rotation.z = -.12; L.rotation.z = .12;   // the rig's resting shoulder angles
   if (w.melee) {
     const blade = !!w.blade;
@@ -292,33 +293,34 @@ export function holdPose(arms, w, c, t, ready) {
         // forehand down across the body, then a backhand the other way
         const a = Math.sin(Math.min(1, k * 1.5) * HALF_PI);
         if (c.swingSide) { R.rotation.x = -2.6 + a * 1.9; R.rotation.z = -.35 + a * .95; } else { R.rotation.x = -1.5 - Math.sin(k * Math.PI) * .35; R.rotation.z = .75 - a * 1.25; }
-        L.rotation.x = -1.05; L.rotation.z = -.45;
+        L.rotation.x = -.8; L.rotation.z = -.45; bend(.5 * (1 - a) + .12, 1.6);
       } else if (c.swingKind === 'hay') {
         // wound right back, then all the way through
         const wind = Math.min(1, k / .4), go = Math.min(1, Math.max(0, (k - .4) / .35)), ext = Math.sin(go * HALF_PI), back = 1 - Math.max(0, (k - .8) / .2);
-        R.rotation.x = (.75 * wind * (1 - ext) - ext * 1.85) * back - 1.25 * (1 - back); R.rotation.z = .1 + .35 * ext;
-        L.rotation.x = -1.3; L.rotation.z = -.55;
+        R.rotation.x = (.75 * wind * (1 - ext) - ext * 1.85) * back - .8 * (1 - back); R.rotation.z = .1 + .35 * ext;
+        L.rotation.x = -.85; L.rotation.z = -.55; bend(1.5 * (1 - ext) * back + 1.7 * (1 - back) + .1, 1.75);
       } else {
         const ext = Math.sin(Math.min(1, k * 1.6) * Math.PI);
         const jab = c.swingSide ? L : R, guard = c.swingSide ? R : L;
-        jab.rotation.x = -.9 - ext * .75; jab.rotation.z = (jab === R ? .25 : -.25) * (1 - ext * .5);
-        guard.rotation.x = -1.25; guard.rotation.z = guard === R ? .5 : -.5;
+        jab.rotation.x = -.8 - ext * .8; jab.rotation.z = (jab === R ? .4 : -.4) * (1 - ext * .7);
+        guard.rotation.x = -.8; guard.rotation.z = guard === R ? .5 : -.5;
+        jab.userData.bend = 1.7 * (1 - ext); guard.userData.bend = 1.75;
       }
-    } else if (c.guard) { R.rotation.x = L.rotation.x = -1.95 - (c.kick || 0) * .25; R.rotation.z = .68; L.rotation.z = -.68; }      // forearms up in front of the face
+    } else if (c.guard) { R.rotation.x = L.rotation.x = -1.1 - (c.kick || 0) * .25; R.rotation.z = .5; L.rotation.z = -.5; bend(1.95, 1.95); }      // forearms up in front of the face
     else if (ready) {
-      R.rotation.x = L.rotation.x = -1.25 + Math.sin(t * 6) * .05; R.rotation.z = .5; L.rotation.z = -.5;
-      if (blade) { R.rotation.x = -1.0 - Math.sin(t * 6) * .05; R.rotation.z = .22; }
+      R.rotation.x = L.rotation.x = -.8 + Math.sin(t * 6) * .05; R.rotation.z = .5; L.rotation.z = -.5; bend(1.7, 1.7);                              // fists up
+      if (blade) { R.rotation.x = -.65 - Math.sin(t * 6) * .05; R.rotation.z = .22; R.userData.bend = 1.0; }
     }
     return;
   }
   if (c.reloading > 0) {
     const k = Math.sin(t * 14) * .08;
-    R.rotation.x = -.85; R.rotation.z = .35; L.rotation.x = -1.05 + k; L.rotation.z = -.55; return;
+    R.rotation.x = -.5; R.rotation.z = .3; L.rotation.x = -.65 + k; L.rotation.z = -.5; bend(1.0, 1.15); return;
   }
   if (ready) {
     R.rotation.x = -HALF_PI - pitch - c.kick * .5; R.rotation.z = .12;
-    L.rotation.x = -HALF_PI - pitch + (w.twoHand ? .2 : .1) - c.kick * .4; L.rotation.z = w.twoHand ? -.62 : -.5;
+    L.rotation.x = -HALF_PI - pitch + (w.twoHand ? .2 : .1) - c.kick * .4; L.rotation.z = w.twoHand ? -.62 : -.5; bend(0, w.twoHand ? .12 : .06);
   } else if (w.twoHand) {
-    R.rotation.x = -.95; R.rotation.z = .2; L.rotation.x = -1.1; L.rotation.z = -.6;   // low ready across the body
+    R.rotation.x = -.5; R.rotation.z = .16; L.rotation.x = -.7; L.rotation.z = -.55; bend(.8, .85);   // low ready across the body
   }
 }

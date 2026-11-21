@@ -50,8 +50,8 @@ export function createBrawlers(game) {
     ped.fighter = f; ped.state = FLOORED[ped.state] ? ped.state : 'goon'; ped.panic = 0; ped.speed = 0;
     ped.hp = o.keepHp ? (ped.hp ?? maxHp(ped)) : f.hp; f.lastHp = ped.hp;
     if (o.outlaw) ped.outlaw = true;
-    if (weapon === 'knife') { const g = makeWeapon('knife'); g.position.set(KNIFE_GRIP[0], KNIFE_GRIP[1], KNIFE_GRIP[2]); g.rotation.set(KNIFE_GRIP[3], 0, 0); ped.model.userData.arms[0].add(g); f.tool = g; }
-    else if (weapon === 'pistol') { const g = makeWeapon('pistol'); g.position.set(0, -.5, .02); g.rotation.set(Math.PI / 2, 0, 0); ped.model.userData.arms[0].add(g); f.tool = g; }
+    if (weapon === 'knife') { const g = makeWeapon('knife'); g.position.set(KNIFE_GRIP[0], KNIFE_GRIP[1], KNIFE_GRIP[2]); g.rotation.set(KNIFE_GRIP[3], 0, 0); ped.model.userData.hands[0].add(g); f.tool = g; }
+    else if (weapon === 'pistol') { const g = makeWeapon('pistol'); g.position.set(0, -.5, .02); g.rotation.set(Math.PI / 2, 0, 0); ped.model.userData.hands[0].add(g); f.tool = g; }
     list.push(f); f.group?.list.push(f); return f;
   }
 
@@ -99,8 +99,8 @@ export function createBrawlers(game) {
       else if (Math.random() < dt * .12) f.sip = 1.6;
       if (!ped.model.visible) return;
       u.body.rotation.z += Math.sin(t * 1.3 + f.seed) * .1; u.body.rotation.x += Math.sin(t * .9 + f.seed * 2) * .05; u.head.rotation.z += Math.sin(t * 1.1 + f.seed) * .12;
-      if (f.sip > 0) { f.sip -= dt; const k = Math.sin(Math.min(1, (1.6 - f.sip) * 2.2, f.sip * 2.2) * Math.PI / 2); L.rotation.x = -2.2 * k; L.rotation.z = -.35 * k + .12 * (1 - k); }
-      else if (!ped.speed) { L.rotation.x = -.5; }
+      if (f.sip > 0) { f.sip -= dt; const k = Math.sin(Math.min(1, (1.6 - f.sip) * 2.2, f.sip * 2.2) * Math.PI / 2); L.rotation.x = -.35 - 1.05 * k; L.rotation.z = -.3 * k + .12 * (1 - k); L.userData.bend = .7 + 1.25 * k; }
+      else if (!ped.speed) { L.rotation.x = -.35; L.userData.bend = .7; }
       return;
     }
     // watching you when you come near, otherwise facing the way they were put
@@ -110,9 +110,9 @@ export function createBrawlers(game) {
     ped.model.rotation.y = ped.face;
     if (f.idle === 'sit') {              // on the ground by the fire, legs out
       u.body.position.y -= .56; u.legs[0].rotation.x = -1.5; u.legs[1].rotation.x = -1.38; u.legs[0].rotation.z = -.14; u.legs[1].rotation.z = .14;
-      u.body.rotation.x = -.12 + Math.sin(t * .8 + f.seed) * .03; R.rotation.x = -.75 + Math.sin(t * 1.3 + f.seed) * .08; L.rotation.x = -.6;
-    } else if (f.seed > 3.1) { R.rotation.x = L.rotation.x = -.95; R.rotation.z = .85; L.rotation.z = -.85; }       // arms folded
-    else if (f.seed > 1.5) { R.rotation.x = -.15; L.rotation.x = -1.1 + Math.sin(t * .7 + f.seed) * .1; L.rotation.z = -.3; }       // one hand up, talking
+      u.body.rotation.x = -.12 + Math.sin(t * .8 + f.seed) * .03; R.rotation.x = -.6 + Math.sin(t * 1.3 + f.seed) * .08; L.rotation.x = -.5; R.userData.bend = .7; L.userData.bend = .55;
+    } else if (f.seed > 3.1) { R.rotation.x = L.rotation.x = -.42; R.rotation.z = .5; L.rotation.z = -.5; R.userData.bend = 1.5; L.userData.bend = 1.62; }       // arms folded
+    else if (f.seed > 1.5) { R.rotation.x = -.15; L.rotation.x = -.55 + Math.sin(t * .7 + f.seed) * .1; L.rotation.z = -.3; R.userData.bend = .2; L.userData.bend = 1.3 + Math.sin(t * 1.9 + f.seed) * .15; }       // one hand up, talking
   }
 
   // One step in a direction, going round whatever is in the way. Sets ped.speed and turns them to face where they walk.
@@ -179,16 +179,16 @@ export function createBrawlers(game) {
     ped.model.rotation.y = ped.face;
     if (f.weapon === 'pistol') return;
     const bob = Math.sin(t * 6 + f.seed) * .06;
-    L.rotation.x = -1.25 + bob; L.rotation.z = u.big ? -.75 : -.5;
+    L.rotation.x = -.8 + bob; L.rotation.z = u.big ? -.75 : -.5; L.userData.bend = 1.7;                 // the guard hand stays up
     if (f.strikeT > 0) {
       const k = 1 - f.strikeT / .24, ext = Math.sin(Math.min(1, k * 1.7) * Math.PI / 2) * (1 - Math.max(0, k - .6) * 1.6);
-      if (blade) { R.rotation.x = -2.5 + ext * 1.8; R.rotation.z = .5 - ext * .5; }
-      else { R.rotation.x = -.5 - ext * (f.heavy ? 1.3 : 1.1); R.rotation.z = (u.big ? .5 : .25) * (1 - ext * .6); u.body.rotation.x += ext * (f.heavy ? .22 : .1); }
+      if (blade) { R.rotation.x = -2.5 + ext * 1.8; R.rotation.z = .5 - ext * .5; R.userData.bend = .9 * (1 - ext) + .15; }
+      else { R.rotation.x = -.6 - ext * (f.heavy ? 1.2 : 1.0); R.rotation.z = (u.big ? .5 : .3) * (1 - ext * .6); R.userData.bend = 1.6 * (1 - ext); u.body.rotation.x += ext * (f.heavy ? .22 : .1); }
     } else if (f.windT > 0) {
       const k = 1 - f.windT / f.windDur, e = Math.sin(k * Math.PI / 2);
-      if (blade) { R.rotation.x = -1.2 - e * 1.3; R.rotation.z = .3 + e * .2; }                       // the knife goes up
-      else { R.rotation.x = -1.2 + e * (f.heavy ? 2.1 : 1.6); R.rotation.z = .3 - e * .1; u.body.rotation.x -= e * (f.heavy ? .2 : .08); }      // the fist goes back
-    } else { R.rotation.x = (blade ? -1.0 : -1.25) - bob; R.rotation.z = u.big ? .75 : blade ? .25 : .5; }
+      if (blade) { R.rotation.x = -1.2 - e * 1.3; R.rotation.z = .3 + e * .2; R.userData.bend = .6 + e * .4; }                       // the knife goes up
+      else { R.rotation.x = -.8 + e * (f.heavy ? 1.5 : 1.1); R.rotation.z = .3 - e * .1; R.userData.bend = 1.7 + e * .25; u.body.rotation.x -= e * (f.heavy ? .2 : .08); }      // the fist goes back
+    } else { R.rotation.x = (blade ? -.65 : -.8) - bob; R.rotation.z = u.big ? .75 : blade ? .25 : .5; R.userData.bend = blade ? 1.0 : 1.7; }
   }
 
   const brawlers = {

@@ -158,7 +158,7 @@ export function createSkydive(game) {
     // ---------- once per drawn frame ----------
     update(dt, t) {
       // the pack rides on whoever the player is right now
-      const back = p.model.userData.body;
+      const back = p.model.userData.chest;
       if (p.chutes > 0) { if (pack.parent !== back) back.add(pack); } else if (pack.parent) pack.removeFromParent();
       if (p.sky === 'chute') { shut.x = p.ix; shut.y = sky.drawY() + headRoom(p.model); shut.z = p.iz; shut.face = p.face; setCanopy(canopy, shut.x, shut.y, shut.z, shut.face, open, lean, t); }
       else if (closing > 0) {                       // on the ground: it sags and blows over

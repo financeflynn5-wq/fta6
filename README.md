@@ -39,6 +39,15 @@ There is no build step.
   clothes, so no two match. Big Sal runs the motel, Tiff minds the arcade and Officer Dale sits at the police desk. Their heads
   bobble when they run and snap back when they are hit, and that head is a bigger target for a headshot (they are a little tougher to make up for it).
   How big the heads are is one number, `CAST.bigHead` in `src/config.js`.
+- **How they are built and move.** Everyone stands on one jointed body (`src/characters/rig.js`): hips, knees and ankles, a chest
+  that twists against the hips, shoulders, elbows and hands. A family adds its head and clothes, and the whole character is then
+  welded into three to five skinned meshes (`weld.js`), so a crowd costs a third of the draw calls it used to. One function,
+  `animateCharacter` in `animate.js`, moves them all: knees fold as a leg swings through, feet stay level and planted, the body
+  leans into a run and into a turn, shoulders swing against the hips, the head stays level and looks about, eyes blink, googly
+  pupils and tails and antennas lag behind the body. Citizens ease round corners and glance at you as you pass.
+  Guns and knives go in `userData.hands[0]` (the right hand). Code that poses an arm or leg itself (a gun held up, a punch,
+  sitting on a bike) just sets the shoulder or hip after `animateCharacter` as before; to fold the elbow or knee too it leaves
+  `arm.userData.bend` / `leg.userData.bend` (radians) each frame, or calls `poseJoints` for a whole seated pose.
 - **Play as.** The title and pause menus let you be Rocco, Big Sal, Tiff or a freshly rolled Big Head (click Random again for another).
   The swap happens on the spot and keeps your guns and cash; the choice is remembered.
 - **Driving.** Steering alone never breaks the tyres loose: the car turns as tight as its grip allows at that speed and no tighter. Hold the handbrake and steer to swing the tail round; let go and the tyres bite again within half a second, keeping most of the speed.
@@ -48,9 +57,15 @@ There is no build step.
   in a row without landing one and the next one floors you. The knife ($150 at Bullseye Guns, one lies in the alley south of the
   start, and anyone who pulls one on you drops it) cuts deeper and faster. Punch a citizen and some of them square up instead of running.
   Everyone who fights you on foot is one system, `src/combat/brawlers.js`, tuned by `MELEE` and `BRAWL` in `src/config.js`.
+- **No flickering surfaces.** Two surfaces closer together than the depth buffer can tell apart flicker ("z-fighting"), and it
+  gets worse with distance. Three things keep it away. The picture starts as far in front of the camera as the surroundings
+  allow (`VIEW` in config, `nearPlane` in `src/world/world.js`): 30 cm on the street, up to 5 m from a helicopter with clear air
+  around it, which sharpens far-off depth about fifteen times. Window glass and sign boards are drawn a touch nearer than the
+  wall they sit on (`PROUD` in `src/world/materials.js`). And nothing is built level with something else: leave a couple of
+  centimetres, or let one thing stand proud. `dev/flicker/` scans the whole map for offenders.
 - **Hit reactions.** Nobody spins on the spot any more. A punch rocks them back a step, a shove or a slow car sits them down, a fast
   car throws them up the road and over, and then they sit up and climb back to their feet. Rocco does the same when he is floored.
-  It lives in `animateCharacter` and its helpers in `src/characters/models.js`; `peds.launch` and `peds.stagger` start one.
+  It lives in `animateCharacter` and its helpers in `src/characters/animate.js`; `peds.launch` and `peds.stagger` start one.
 - **Whisper Woods.** The pine forest over High Meadows (north-west of the hills, a trail leaves the road by the KEEP OUT board).
   In the clearing in the middle is a camp, and the people who live there want you gone the moment they see you: seven of them,
   two with knives. Fight them all off for $500 and what they kept in the stash. They are back after a while. `CAMP` in config.
@@ -270,7 +285,9 @@ src/vehicles/               damage (dents, scuffs, cracked glass, dead lamps, to
                             highwayTraffic (drivers and cruisers on the elevated roads),
                             boats (how a boat moves, its wake), helis (how a helicopter flies, lands and crashes), fleet (where
                             boats and helicopters are kept and put back), craftModels + loft (their models, built in code)
-src/characters/             rig (the body everyone shares), models (Critters + Tin Bots, who walks the streets, the walk cycle),
+src/characters/             rig (the jointed body everyone shares), critters (raccoons, possums, pigeons), bots (Tin Bots),
+                            animate (how everybody moves), weld (a finished character becomes a few skinned meshes),
+                            models (builds anyone by name, who walks the streets, hats and crowns),
                             bigheads (the Big Head builder: heads, hair, hats, faces, clothes), bigheadLooks (what a Big Head can
                             look like: the named three and the dice for everyone else), pedestrians
 src/player/                 player (on foot, in/out of cars), camera, skydive (jumping out of a helicopter, free fall, the
@@ -299,6 +316,8 @@ src/fx/                     effects (tyre marks, smoke, sparks), carLights, debr
 dev/damage-lab.html         a bench for the crash damage: vehicles on a plain floor, dented from the console (not part of the game)
 dev/craft-lab.html          a bench for the boats and helicopters, e.g. ?types=heli,speedboat&sea&rider=raccoon
 dev/cast-lab.html           a bench for the characters: a line-up of any cast members, e.g. ?kinds=sal,dale,tiff,bighead*9
+                            (&pose=walk|run|flail|down|up, &strip lays one stride out along the row, &turn=1.57 shows them side on)
+dev/flicker/                finds z-fighting (two surfaces flickering against each other) anywhere on the map: see its README
 dev/zoo-lab.html            a bench for the animals: any of them in a row, in any pose, e.g. ?kinds=lion,bear,shark&who=raccoon
 vendor/                     three.js r160, Rapier 2D and PeerJS 1.5.5, vendored so the game needs no build and no CDN
 ```
