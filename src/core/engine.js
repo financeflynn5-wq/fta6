@@ -6,6 +6,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { createCuller } from './cull.js';
 
 export function createEngine(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
@@ -16,7 +17,8 @@ export function createEngine(canvas) {
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
 
-  const rt = new THREE.WebGLRenderTarget(16, 16, { type: THREE.HalfFloatType, samples: 4 });
+  // The picture's own depth is kept as a texture, so the contact-shadow pass can read it instead of drawing the city again.
+  const rt = new THREE.WebGLRenderTarget(16, 16, { type: THREE.HalfFloatType, samples: 4, depthTexture: new THREE.DepthTexture(16, 16) });
   const composer = new EffectComposer(renderer, rt);
   composer.addPass(new RenderPass(scene, camera));
   const gtao = new GTAOPass(scene, camera, 16, 16);
@@ -34,11 +36,27 @@ export function createEngine(canvas) {
       if (o.isPoints || o.isLine || o.isSprite || o.userData.noAO || (m && !Array.isArray(m) && m.depthWrite === false)) o.visible = false;
     });
   };
+  // Contact shadows used to draw the whole scene a second time, as plain shapes, to learn where the surfaces are: every
+  // building, car and person twice a frame, and the sun's shadow map twice with them. The first drawing already knows how
+  // far away everything is, so the pass now reads that (surface directions are worked out from the depths). `aoSource`
+  // 'scene' brings the old way back for comparing the two.
+  const own = { depth: gtao.depthTexture, normal: gtao.normalTexture }, passRender = gtao.render.bind(gtao);
+  const aoFrom = (src) => {
+    const main = src !== 'scene', G = gtao.gtaoMaterial, D = gtao.pdMaterial;
+    gtao._renderGBuffer = !main; gtao.depthTexture = main ? rt.depthTexture : own.depth; gtao.normalTexture = main ? undefined : own.normal;
+    for (const m of [G, D]) { m.defines.NORMAL_VECTOR_TYPE = main ? 0 : 1; m.uniforms.tNormal.value = gtao.normalTexture ?? null; m.uniforms.tDepth.value = gtao.depthTexture; m.needsUpdate = true; }
+  };
+  gtao.render = (r, writeBuffer, readBuffer, ...rest) => {
+    if (!gtao._renderGBuffer) gtao.gtaoMaterial.uniforms.tDepth.value = gtao.pdMaterial.uniforms.tDepth.value = readBuffer.depthTexture;      // the composer's two buffers take turns
+    passRender(r, writeBuffer, readBuffer, ...rest);
+  };
+  aoFrom('depth');
   const bloom = new UnrealBloomPass(new THREE.Vector2(16, 16), .2, .4, 1.4); composer.addPass(bloom);
   composer.addPass(new OutputPass());
 
   const engine = {
-    renderer, scene, camera, composer, bloom, gtao, quality: 'high', sun: null,
+    renderer, scene, camera, composer, bloom, gtao, quality: 'high', sun: null, aoSource: 'depth',
+    setAoSource(src) { engine.aoSource = src; aoFrom(src); },
     setQuality(q) {
       engine.quality = q; gtao.enabled = q === 'high';
       renderer.shadowMap.type = q === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
@@ -54,7 +72,14 @@ export function createEngine(canvas) {
       renderer.setPixelRatio(pr); renderer.setSize(w, h, false); composer.setPixelRatio(pr); composer.setSize(w, h);
       camera.aspect = w / h; camera.updateProjectionMatrix();
     },
-    render() { composer.render(); },
+    cull: createCuller(scene, camera),
+    render() {
+      // Cars, people and animals that can't be on screen (nor their shadows) sit this frame out, joints and all.
+      engine.cull.before(engine.sun);
+      scene.updateMatrixWorld(); engine.cull.placed();
+      scene.matrixWorldAutoUpdate = false;           // done just above, once, instead of once per pass
+      try { composer.render(); } finally { scene.matrixWorldAutoUpdate = true; engine.cull.after(); }
+    },
   };
   window.addEventListener('resize', engine.resize);
   return engine;

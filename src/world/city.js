@@ -234,7 +234,7 @@ export function buildCity(realScene) {
 
   // downtown welds in 108 m squares (2 x 2 blocks); the districts around it are sparser, so they weld in 162 m squares.
   // Bigger squares = fewer draws for the same picture, which pays for the larger map.
-  const welded = bakeStatic(scene, realScene, (x, z) => inDowntown(x, z) ? Math.floor((x + 162) / 108) + ',' + Math.floor((z + 162) / 108) : 'o' + Math.floor((x + 405) / 162) + ',' + Math.floor((z + 405) / 162));
+  const welded = bakeStatic(scene, realScene, (x, z) => inDowntown(x, z) ? Math.floor((x + 162) / 108) + ',' + Math.floor((z + 162) / 108) : 'o' + Math.floor((x + 405) / 162) + ',' + Math.floor((z + 405) / 162), std);
   welded.push(...highway.meshes);
 
   const IBm = {}; for (const k in IB) IBm[k] = IB[k].build();

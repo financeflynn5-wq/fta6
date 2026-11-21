@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { std, rbox, ctex } from '../world/materials.js';
+import { weld } from '../characters/weld.js';
 import { plainGeometry } from '../world/batching.js';
 import { body as loftBody, loft } from '../vehicles/loft.js';
 
@@ -346,6 +347,13 @@ export const BEAST_KINDS = Object.keys(MAKERS);
 export function makeBeast(kind, opt = {}) {
   const m = MAKERS[kind]();
   if (opt.statue) m.traverse(o => { if (o.isMesh) o.material = GOLD; });
+  // A live animal is a dozen to two dozen pieces on its joints; welded onto a skeleton (as the cast is, characters/weld.js)
+  // it is drawn in two or three. The shark keeps its own skin, which bends point by point; statues are welded with the town.
+  else if (m.userData.rig !== 'shark') {
+    const box = new THREE.Box3().setFromObject(m), ball = box.getBoundingSphere(new THREE.Sphere());
+    ball.radius = ball.radius * 1.5 + 1;          // room to rear up, lie down or stretch out
+    weld(m, { ownColours: true, bounds: ball });
+  }
   if (opt.scale) { m.scale.setScalar(opt.scale); m.userData.scale = opt.scale; }
   return m;
 }

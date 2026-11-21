@@ -61,6 +61,7 @@ export function createWheelBatch(scene, capacity = 640) {
       k.free.push(s); k.dirty = true;
       if (--k.used === 0) { k.top = 0; for (const im of k.ims) im.count = 0; }         // e.g. the stand-ins, once every model is in
     },
+    hide(slot) { if (slot < 0) return; const k = of(slot), s = slot % capacity; for (let i = 0; i < 4; i++) for (const im of k.ims) im.setMatrixAt(s + i, hidden); k.dirty = true; },
     set(i, m) { const k = of(i); for (const im of k.ims) im.setMatrixAt(i % capacity, m); k.dirty = true; },
     commit() { for (const k of kinds) if (k.dirty) { k.dirty = false; for (const im of k.ims) im.instanceMatrix.needsUpdate = true; } },
   };

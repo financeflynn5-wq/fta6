@@ -154,7 +154,11 @@ export class Vehicle {
       w.spin.rotation.z = w.front || !burn ? this.spin : this.spin * 3;
       if (w.front) w.steer.rotation.y = -this.steer * lerp(.55, .2, Math.min(1, Math.abs(this.vf) / 30));
     }
-    if (this.driver || this.speed > .02 || this.wheelsDirty || this.wheelKind !== u.wheelKind) this.pushWheels();
+    // Past the far edge of the haze a car can't be seen, so its wheels aren't placed (that walk through the car's joints was
+    // the biggest single cost of a frame); they are folded away so none are left standing where it was.
+    const fog = g.scene.fog, cam = g.camera.position, away = fog && Math.abs(x - cam.x) + Math.abs(z - cam.z) > fog.far + 40 && this.driver !== 'player';
+    if (away) { if (!this.wheelsAway) { this.wheelsAway = true; g.wheels.hide(this.wheelSlot); } }
+    else if (this.wheelsAway || this.driver || this.speed > .02 || this.wheelsDirty || this.wheelKind !== u.wheelKind) { this.wheelsAway = false; this.pushWheels(); }
     u.tail.emissiveIntensity = g.env.tailBase * (this.braking && this.driver ? 5 : 1);
     if (u.bar) { const on = this.siren ? Math.floor(t * 7) % 2 : -1; u.bar[0].material.emissiveIntensity = on === 1 ? 5 : 0; u.bar[1].material.emissiveIntensity = on === 0 ? 5 : 0; }
 

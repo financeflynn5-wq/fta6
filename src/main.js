@@ -84,6 +84,7 @@ async function boot() {
   game.traffic = createTraffic(game);
   game.peds = createPedestrians(game);
   game.player = createPlayer(game);
+  engine.cull.keep = () => game.player.model; engine.cull.ground = (x, z) => groundY(x, z);
   game.skydive = createSkydive(game);           // falling out of the sky, with or without a parachute
   game.cam = createCamera(game);
   game.police = createPolice(game);
@@ -251,7 +252,7 @@ async function boot() {
     if (game.state !== 'playing') return;
     if (e.code === 'KeyT') game.env.skip();
     if (e.code === 'KeyM') hud.toast(audio.toggleMute() ? 'SOUND OFF' : 'SOUND ON');
-    if (e.code === 'KeyQ') { engine.setQuality(engine.quality === 'high' ? 'fast' : 'high'); autoQuality = false; hud.toast(engine.quality === 'high' ? 'HIGH GRAPHICS' : 'FAST GRAPHICS'); }
+    if (e.code === 'KeyQ') { setGraphics(engine.quality === 'high' ? 'fast' : 'high', true); hud.toast(engine.quality === 'high' ? 'HIGH GRAPHICS' : 'FAST GRAPHICS'); }
   });
 
   // ---------- the loop ----------
@@ -269,6 +270,17 @@ async function boot() {
     game.input.endStep();
   }
   let last = performance.now(), acc = 0, maintainT = 0, slowFor = 0, autoQuality = true, fpsAvg = 60, titleYaw = .75;
+  // Graphics: Q, or the button on the pause menu. A choice you make is remembered; until you make one the game drops
+  // to fast graphics by itself if it can't keep up (below).
+  const gfxBtn = $('gfxBtn');
+  function setGraphics(q, chosen) {
+    if (q !== engine.quality) engine.setQuality(q);
+    if (chosen) { autoQuality = false; try { localStorage.setItem('fta6.gfx', q); } catch { /* private window */ } }
+    if (gfxBtn) gfxBtn.textContent = 'Graphics: ' + (q === 'high' ? 'High' : 'Fast');
+  }
+  gfxBtn?.addEventListener('click', () => setGraphics(engine.quality === 'high' ? 'fast' : 'high', true));
+  let savedGfx = null; try { savedGfx = localStorage.getItem('fta6.gfx'); } catch { /* private window */ }
+  if (savedGfx === 'high' || savedGfx === 'fast') { autoQuality = false; setGraphics(savedGfx); } else setGraphics(engine.quality);
   function frame(now) {
     requestAnimationFrame(frame);
     const dt = Math.min(.05, (now - last) / 1000); last = now;
@@ -313,14 +325,14 @@ async function boot() {
     fpsAvg += (1 / Math.max(dt, .001) - fpsAvg) * .05;
     if (autoQuality && engine.quality === 'high' && game.state === 'playing') {
       slowFor = fpsAvg < 27 ? slowFor + dt : 0;
-      if (slowFor > 4) { autoQuality = false; engine.setQuality('fast'); hud.toast('SWITCHED TO FAST GRAPHICS', 'info'); }
+      if (slowFor > 4) { autoQuality = false; setGraphics('fast'); hud.toast('SWITCHED TO FAST GRAPHICS', 'info'); }
     }
   }
   // let traffic spread out before anyone looks
   for (let i = 0; i < 240; i++) step(STEP);
   // ?test: no free-running loop; a test script drives frames by hand through game.advance
   game.advance = advance; game.setState = setState;
-  if (new URLSearchParams(location.search).has('test')) { autoQuality = false; engine.setQuality('fast'); advance(STEP); }
+  if (new URLSearchParams(location.search).has('test')) { autoQuality = false; setGraphics('fast'); advance(STEP); }
   else requestAnimationFrame(frame);
 }
 

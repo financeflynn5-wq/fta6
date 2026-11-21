@@ -9,7 +9,9 @@ const matteShared = std({ vertexColors: true, roughness: .82 }), metalShared = s
 const _m = new THREE.Matrix4(), _n = new THREE.Matrix3(), _v = new THREE.Vector3(), IDENTITY = new THREE.Matrix4();
 const BOUNDS = new THREE.Sphere(new THREE.Vector3(0, 1, 0), 3.2);       // roomy enough for a character lying down or mid-tumble
 
-export function weld(root) {
+// opt.ownColours: shapes painted point by point (a material with vertexColors) keep their own colours and material.
+// opt.bounds: a ball (in the root's space) roomy enough for every pose, when the character one doesn't fit (a giraffe).
+export function weld(root, opt = {}) {
   root.updateMatrixWorld(true);
   const toRoot = new THREE.Matrix4().copy(root.matrixWorld).invert();
   const parts = []; root.traverse(o => { if (o.isMesh) parts.push(o); });
@@ -17,7 +19,7 @@ export function weld(root) {
   const boneOf = (g) => { let i = boneId.get(g); if (i === undefined) { boneId.set(g, i = bones.length); bones.push(g); } return i; };
   for (const m of parts) {
     const mt = m.material, plain = !mt.map && !mt.transparent && mt.emissive.getHex() === 0;
-    const target = plain && mt.metalness >= .5 ? metalShared : plain && mt.metalness === 0 && mt.roughness >= .4 ? matteShared : mt;
+    const target = opt.ownColours && mt.vertexColors ? mt : plain && mt.metalness >= .5 ? metalShared : plain && mt.metalness === 0 && mt.roughness >= .4 ? matteShared : mt;
     let b = buckets.get(target); if (!b) buckets.set(target, b = { list: [], verts: 0, idx: 0 });
     const g = m.geometry;
     b.list.push({ g, matrix: new THREE.Matrix4().multiplyMatrices(toRoot, m.matrixWorld), bone: boneOf(m.parent), color: target !== mt ? mt.color : null });
@@ -40,7 +42,8 @@ export function weld(root) {
         _v.fromBufferAttribute(gp, i).applyMatrix4(p.matrix); pos[k] = _v.x; pos[k + 1] = _v.y; pos[k + 2] = _v.z;
         _v.fromBufferAttribute(gn, i).applyMatrix3(_n).normalize(); nor[k] = _v.x; nor[k + 1] = _v.y; nor[k + 2] = _v.z;
         if (uv && gu) { uv[(v0 + i) * 2] = gu.getX(i); uv[(v0 + i) * 2 + 1] = gu.getY(i); }
-        if (col) { col[k] = Math.round(p.color.r * 65535); col[k + 1] = Math.round(p.color.g * 65535); col[k + 2] = Math.round(p.color.b * 65535); }
+        if (col && p.color) { col[k] = Math.round(p.color.r * 65535); col[k + 1] = Math.round(p.color.g * 65535); col[k + 2] = Math.round(p.color.b * 65535); }
+        else if (col) { const gc = p.g.attributes.color; const r = gc ? gc.getX(i) : 1, gg = gc ? gc.getY(i) : 1, bb = gc ? gc.getZ(i) : 1; col[k] = Math.round(Math.min(1, r) * 65535); col[k + 1] = Math.round(Math.min(1, gg) * 65535); col[k + 2] = Math.round(Math.min(1, bb) * 65535); }
         si[(v0 + i) * 4] = p.bone; sw[(v0 + i) * 4] = 255;
       }
       if (p.g.index) { const gi = p.g.index; for (let i = 0; i < gi.count; i++) idx[i0 + i] = gi.getX(i) + v0; i0 += gi.count; }
@@ -53,9 +56,10 @@ export function weld(root) {
     if (col) geo.setAttribute('color', new THREE.BufferAttribute(col, 3, true));
     geo.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4)); geo.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4, true));
     geo.setIndex(new THREE.BufferAttribute(idx, 1));
-    geo.boundingSphere = BOUNDS.clone();
+    const ball = opt.bounds || BOUNDS;
+    geo.boundingSphere = ball.clone();
     const sk = new THREE.SkinnedMesh(geo, mt); sk.castShadow = sk.receiveShadow = true;
-    root.add(sk); sk.bind(skeleton, IDENTITY); sk.boundingSphere = BOUNDS.clone();
+    root.add(sk); sk.bind(skeleton, IDENTITY); sk.boundingSphere = ball.clone();
     made.push(sk);
   }
   // callers free a character by disposing its meshes' geometry: the skeleton's little texture goes with the first of them

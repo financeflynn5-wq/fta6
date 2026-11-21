@@ -72,6 +72,7 @@ export const mats = {
   ac: std({ color: 0xc8ccd0, roughness: .6, metalness: .3 }),
   sea: std({ color: 0x2b8fa8, roughness: .12, metalness: .25 }),
 };
+mats.asphalt.userData.live = true;      // night darkens and wets it (sky.js), so it is never merged with other paint (batching.js)
 export const facadeCols = [0xf2b8a2, 0xf4d9a6, 0x9fd3c7, 0xefe6d4, 0xd98c6a, 0xb7c9a8, 0xc9b8e0, 0x8fb5d6, 0xf6c6cf];
 export const facade = facadeCols.map(c => std({ color: c, map: wallT, roughness: .88 }));
 export const awnings = [['#e8455b', '#fff4e6'], ['#2f8f83', '#fff4e6'], ['#f2a93b', '#fff4e6'], ['#3e6fd6', '#ffffff']]

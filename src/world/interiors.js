@@ -359,7 +359,7 @@ export function buildInteriors(api) {
         wall: (a, b, sa, sb) => wall(a, b, sa, sb, lot.y + H), wallColour: (k) => wallColour(k ? shop.up[k - 1] : shop.kind) ?? m.walls[shop.kind].color.getHex(), ceilColour: (k) => ceilColour(k ? shop.up[k - 1] : shop.kind), floorOf, nameOf: (kind, k) => nameOf(kind, k, shop) }, furnish);
       Object.assign(room, st);
     }
-    room.meshes = bakeStatic(inner, realScene, () => 'room'); room.meshes.push(...extra);
+    room.meshes = bakeStatic(inner, realScene, () => 'room', std); room.meshes.push(...extra);
     for (const [mat, list] of coloured) { const mm = new THREE.Mesh(mergeGeometries(list), mat); mm.receiveShadow = true; mm.matrixAutoUpdate = false; realScene.add(mm); room.meshes.push(mm); list.forEach(o => o.dispose()); }
     rooms.push(room);
   }
