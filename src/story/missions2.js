@@ -383,6 +383,7 @@ export function buildMissions2(game, tools) {
         ['tiff', 'The Posse just listed the hotel for sale. One careful owner.'],
         ['scrap', 'Scrap wants the parachute back. Scrap is sentimental. BZZT.'],
         ['sal', 'Sunset Coast is ours. Top to bottom. Go buy yourself something stupid, Rocco. You earned it.'],
+        ['tiff', 'Oh! And Mouse Bear Trucking called. Their dispatcher wants a driver who isn\'t scared of heights. I said you fall off them professionally.'],
       ],
     },
   ];

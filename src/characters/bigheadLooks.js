@@ -21,6 +21,8 @@ export const LOOKS = {
   // Aviators, cop hat, eats donuts while chasing you.
   dale: { skin: 0x8d5a3b, shape: [.54, .52, .52], hair: 'none', hairC: 0x1a1210, hat: 'cop', eyes: 'aviators', nose: 'bulb', tash: 'bar', top: 'uniform', legs: 'pants', legC: 0x1c2a55, shoes: 0x15161a, prop: 'donut' },
   // Giant pink hair and a phone she never looks up from. Witnesses nothing.
+  // Mouse Bear Trucking's dispatcher. Company cap, company hoodie, and she has heard every excuse a driver can make.
+  dot: { skin: 0xe9b98f, shape: [.54, .52, .51], hair: 'ponytail', hairC: 0x8a3b24, hat: 'cap', hatC: 0xff5d62, eyes: 'specs', rimC: 0xe8455b, brows: 'flat', nose: 'small', mouth: 'smirk', blush: true, earring: true, top: 'hoodie', topC: 0x0f9692, legs: 'pants', legC: 0x2d3340, shoes: 0xf4f4f4 },
   tiff: { skin: 0xc68c5f, shape: [.52, .52, .5], hair: 'bun', hairC: 0xff6fb1, eyes: 'googly', lids: true, brows: 'none', nose: 'small', mouth: 'lips', lipC: 0xc0405a, earring: true, top: 'tee', topC: 0xfff1f5, legs: 'pants', legC: 0x7fd3c7, shoes: 0xff4d6d, prop: 'phone' },
 };
 

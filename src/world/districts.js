@@ -13,6 +13,7 @@ import { makeProps, roofGeo } from './props.js';
 import { buildNorth, shapeNorth, northKit } from './north.js';
 import { buildMouseBear } from './mousebear.js';
 import { buildForest, outOfClearing } from './forest.js';
+import { shapeSnow, GATE as SNOW_GATE, EDGE as SNOW_EDGE } from './snowland.js';
 
 const PI = Math.PI;
 export const RACEWAY = { x: -243, z: -108, rx: 55, rz: 80 };      // the dirt oval in the Dustlands
@@ -33,6 +34,7 @@ export function shapeLand() {
   // dunes behind the beach
   for (const [x, z, r, h] of [[-200, -246, 14, 1.3], [-120, -244, 12, 1], [95, -247, 13, 1.1], [152, -241, 10, .8]]) F({ x, z, r, h });
   shapeNorth(F);          // the valley beyond the ridge (north.js)
+  shapeSnow();            // Frostbite Peak, off the west edge (snowland.js)
 }
 
 export function buildDistricts(api) {
@@ -47,7 +49,11 @@ export function buildDistricts(api) {
 
   // the edge of the world: invisible walls out at sea and up in the mountains
   const LN = WORLD.LIMIT_N, mid = (LN - L) / 2, tall = (LN + L) / 2 + 4;
-  for (const [x, z, hw, hd] of [[0, -L - 2, L + 4, 2], [0, LN + 2, L + 4, 2], [-L - 2, mid, 2, tall], [L + 2, mid, 2, tall]]) solids.boxes.push({ x, z, hw, hd, wall: true, edge: true });
+  // (the west wall has a gap where the ice road goes through to Frostbite Peak, and the peak has walls of its own out in the sea round it)
+  const gz = SNOW_GATE.z, gap = SNOW_EDGE.gap, zs = -L - 4, zn = LN + 4, wx = (SNOW_EDGE.x0 - L) / 2 - 2, wl = (-L - SNOW_EDGE.x0) / 2 + 2;
+  for (const [x, z, hw, hd] of [[0, -L - 2, L + 4, 2], [0, LN + 2, L + 4, 2], [L + 2, mid, 2, tall],
+    [-L - 2, (zs + gz - gap) / 2, 2, (gz - gap - zs) / 2], [-L - 2, (gz + gap + zn) / 2, 2, (zn - gz - gap) / 2],
+    [SNOW_EDGE.x0 - 2, (SNOW_EDGE.z0 + SNOW_EDGE.z1) / 2, 2, (SNOW_EDGE.z1 - SNOW_EDGE.z0) / 2 + 4], [wx, SNOW_EDGE.z0 - 2, wl, 2], [wx, SNOW_EDGE.z1 + 2, wl, 2]]) solids.boxes.push({ x, z, hw, hd, wall: true, edge: true });
 
   // ---------- scatter helpers ----------
   const taken = [], keepOut = (x, z, r) => taken.push([x, z, r]);

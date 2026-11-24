@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { noise2 } from '../core/utils.js';
 import { STEP, NX, NZ, X0, ROAD_HALF, WATER, CITY, CITY_EDGE, cellType, hasRoad, nodeHasRoad, nodeX } from './map.js';
 import { landY } from './terrain.js';
+import { tuck } from './snowland.js';
 import { mats, std, ctex } from './materials.js';
 
 const R = ROAD_HALF, IN = STEP - 2 * R;     // 7, 40
@@ -58,16 +59,24 @@ export function buildGround(scene) {
   }
   const E = .6;
   function patch(kind, x0, z0, w, d, nx, nz) {
-    const t = target(kind, x0 + w / 2, z0 + d / 2), base = t.pos.length / 3;
+    const t = target(kind, x0 + w / 2, z0 + d / 2), base = t.pos.length / 3; let under = null;
     const tile = kind === 'asphalt' ? 420 : kind === 'concrete' ? 6 : 9;    // asphalt uses downtown's texture scale
     for (let b = 0; b <= nz; b++) for (let a = 0; a <= nx; a++) {
       const x = x0 + w * a / nx, z = z0 + d * b / nz, y = landY(x, z);
       const sx = (landY(x + E, z) - landY(x - E, z)) / (2 * E), sz = (landY(x, z + E) - landY(x, z - E)) / (2 * E), l = Math.hypot(sx, 1, sz);
+      if (kind === 'land' && x < -330) {          // the ice road through the notch has a mesh of its own (snowpeak.js): the land stops at its rim
+        const k = tuck(x, z);
+        if (k) {
+          const X = k.x, Z = k.z, Y = k.y, ax = (landY(X + E, Z) - landY(X - E, Z)) / (2 * E), az = (landY(X, Z + E) - landY(X, Z - E)) / (2 * E), al = Math.hypot(ax, 1, az), c = landColor(X, Z, Y, Math.hypot(ax, az));
+          t.pos.push(X, Y, Z); t.nor.push(-ax / al, 1 / al, -az / al); t.uv.push(X / tile, Z / tile); t.col.push(c.r, c.g, c.b); (under ||= new Set()).add(base + b * (nx + 1) + a); continue;
+        }
+      }
       t.pos.push(x, y, z); t.nor.push(-sx / l, 1 / l, -sz / l); t.uv.push(x / tile, z / tile);
       if (kind === 'land') { const c = landColor(x, z, y, Math.hypot(sx, sz)); t.col.push(c.r, c.g, c.b); }
     }
     for (let b = 0; b < nz; b++) for (let a = 0; a < nx; a++) {
-      const p = base + b * (nx + 1) + a; t.idx.push(p, p + nx + 1, p + 1, p + 1, p + nx + 1, p + nx + 2);
+      const p = base + b * (nx + 1) + a;
+      for (const [i, j, k] of [[p, p + nx + 1, p + 1], [p + 1, p + nx + 1, p + nx + 2]]) if (!under || !(under.has(i) && under.has(j) && under.has(k))) t.idx.push(i, j, k);
     }
   }
   const allPort = (list) => list.every(([ci, cj]) => ci >= 0 && cj >= 0 && ci < NX - 1 && cj < NZ - 1 && cellType(ci, cj) === 'port');

@@ -1,8 +1,8 @@
 // Hold Tab: the whole of Sunset Coast, with everything there is to do and how much of it you've done.
 // Drawn with north (the valley, then the hills) at the top and the beach at the bottom. The game keeps running underneath.
-const PLACES = [['VISTA HEIGHTS', 0, 300], ['PORT SUNSET', 300, -20], ['THE DUSTLANDS', -250, 40], ['SUNSET BEACH', 0, -268], ['DOWNTOWN', 0, 0], ['WHISPER WOODS', -262, 292], ['LIGHTHOUSE BLUFFS', 222, 262], ['SUNSET ZOO', 312, 284], ['PALM PROMENADE', 0, -193],
+const PLACES = [['FROSTBITE PEAK', -662, 140], ['VISTA HEIGHTS', 0, 300], ['PORT SUNSET', 300, -20], ['THE DUSTLANDS', -250, 40], ['SUNSET BEACH', 0, -268], ['DOWNTOWN', 0, 0], ['WHISPER WOODS', -262, 292], ['LIGHTHOUSE BLUFFS', 222, 262], ['SUNSET ZOO', 312, 284], ['PALM PROMENADE', 0, -193],
   ['PALMVIEW', -243, 594], ['FLAMINGO PARK', -81, 600], ['CORAL PLAZA', 81, 560], ['MARLIN BAY', 292, 600], ['GOLDEN ACRES', -160, 770], ['FORT PELICAN', 190, 800]];
-const KEY = [['#3de0ff', 'R', 'Race'], ['#ff8a3d', 'J', 'Stunt jump'], ['#ff6b3d', 'P', 'Pizza run'], ['#ffffff', 'S', 'Speed camera'], ['#ff4d6d', 'B', 'Car bowling'], ['#7fb0ff', 'W', 'Bounty hunt'], ['#b980ff', 'D', 'Derby'], ['#b4f03c', 'M', 'Smash spree'], ['#ffe14d', 'T', 'Gun range'], ['#3df0b0', 'C', 'Spray shop'], ['#6dff8a', 'S', 'Story job'], ['#ff4fd8', '', 'Scrap\'s chop shop'], ['#ffd34d', '', 'Golden tin (when close)'], ['#ffffff', '', 'Open door: shop, diner or lobby'], ['#ff8a3d', 'G', 'Gun shop'], ['#19b6a4', 'H', 'Helicopter'], ['#35c7e0', '⚓', 'Boat'], ['#c58bff', 'V', 'Gang corner (also K and P)'], ['#ff4d8d', 'Y', 'The Tipsy Possum'], ['#ffd34d', 'Z', 'Sunset Zoo'], ['#ff3b30', '', 'Shark, or a zoo animal on the loose'],
+const KEY = [['#3de0ff', 'R', 'Race'], ['#ff8a3d', 'J', 'Stunt jump'], ['#ff6b3d', 'P', 'Pizza run'], ['#ffffff', 'S', 'Speed camera'], ['#ff4d6d', 'B', 'Car bowling'], ['#7fb0ff', 'W', 'Bounty hunt'], ['#b980ff', 'D', 'Derby'], ['#b4f03c', 'M', 'Smash spree'], ['#ffe14d', 'T', 'Gun range'], ['#3df0b0', 'C', 'Spray shop'], ['#6dff8a', 'S', 'Story job'], ['#ff4fd8', '', 'Scrap\'s chop shop'], ['#ffd34d', '', 'Golden tin (when close)'], ['#ffffff', '', 'Open door: shop, diner or lobby'], ['#ff8a3d', 'G', 'Gun shop'], ['#19b6a4', 'H', 'Helicopter'], ['#35c7e0', '⚓', 'Boat'], ['#c58bff', 'V', 'Gang corner (also K and P)'], ['#ff4d8d', 'Y', 'The Tipsy Possum'], ['#ffd34d', 'Z', 'Sunset Zoo'], ['#eaf6ff', '▲', 'Frostbite Peak'], ['#ff3b30', '', 'Shark, or a zoo animal on the loose'],
   ['#fff3dc', '<img src="assets/mousebear/logo.png" alt="" style="width:18px;height:18px;border-radius:50%">', 'Mouse Bear Trucking']];
 
 export function createBigMap(A) {
@@ -10,8 +10,8 @@ export function createBigMap(A) {
   const wrap = document.createElement('div'); wrap.className = 'bigMap'; wrap.hidden = true;
   wrap.innerHTML = `<canvas></canvas><aside><h3>SUNSET COAST</h3><ul class="done"></ul><ul class="key">${KEY.map(([c, g, n]) => `<li><i style="background:${c}">${g}</i>${n}</li>`).join('')}</ul><p>Stop in a glowing ring to start. Hold <kbd>X</kbd> to quit.</p></aside>`;
   document.getElementById('hud').appendChild(wrap);
-  const cv = wrap.querySelector('canvas'), done = wrap.querySelector('.done'), W = 640, k = W / (mini.half * 2), H = Math.round((mini.half + mini.top) * k), c = W / 2, n = mini.top * k;
-  cv.width = W; cv.height = H; const x = cv.getContext('2d');
+  const cv = wrap.querySelector('canvas'), done = wrap.querySelector('.done'), W0 = 640, k = W0 / (mini.half * 2), W = Math.round(W0 + mini.ext * k), H = Math.round((mini.half + mini.top) * k), c = W0 / 2, n = mini.top * k;      // (west is on the right: the plan's extra strip for Frostbite Peak widens the map that way)
+  cv.width = W; cv.height = H; wrap.style.setProperty('--tall', (H / W).toFixed(3)); const x = cv.getContext('2d');
   const sx = (wx) => c - wx * k, sy = (wz) => n - wz * k;        // north is up, so the map is turned half round
   let shown = false, wait = 0, doneHtml = '';
 
@@ -23,7 +23,7 @@ export function createBigMap(A) {
   }
   function draw(t) {
     x.clearRect(0, 0, W, H);
-    x.save(); x.translate(c, n); x.scale(k, k); x.rotate(Math.PI); x.drawImage(mini.plan, -mini.half, -mini.half); x.restore();
+    x.save(); x.translate(c, n); x.scale(k, k); x.rotate(Math.PI); x.drawImage(mini.plan, -mini.half - mini.ext, -mini.half); x.restore();
     // district names
     x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = '900 13px "Archivo Black",Impact,sans-serif'; x.lineWidth = 4; x.strokeStyle = 'rgba(10,12,18,.75)'; x.fillStyle = 'rgba(255,255,255,.92)';
     for (const [name, wx, wz] of PLACES) { x.strokeText(name, sx(wx), sy(wz)); x.fillText(name, sx(wx), sy(wz)); }

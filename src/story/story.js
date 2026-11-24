@@ -17,10 +17,11 @@ import { createDialogue, CAST } from './dialogue.js';
 import { createGunmen } from './gunmen.js';
 import { buildMissions } from './missions.js';
 import { buildMissions2 } from './missions2.js';
+import { buildMissions3 } from './missions3.js';
 
 const GREEN = 0x6dff8a, GOLD = 0xffd34d, RED = 0xff3048, KEY = 'fta6.story.v1';
-const GLYPH = { sal: 'S', tiff: 'T', dale: 'D', scrap: '⚙' };
-const WHERE = { sal: 'THE MOTEL', tiff: 'THE ARCADE', dale: 'SUNSET PD', scrap: 'THE CHOP SHOP' };
+const GLYPH = { sal: 'S', tiff: 'T', dale: 'D', scrap: '⚙', dot: 'M' };
+const WHERE = { sal: 'THE MOTEL', tiff: 'THE ARCADE', dale: 'SUNSET PD', scrap: 'THE CHOP SHOP', dot: 'MOUSE BEAR TRUCKING' };
 const $ = (id) => document.getElementById(id);
 
 export function createStory(game) {
@@ -29,6 +30,7 @@ export function createStory(game) {
   const { missions, spots } = buildMissions(game);
   const tools = {};          // what the second chapter's missions (missions2.js) borrow from this file; filled in further down
   missions.push(...buildMissions2(game, tools, spots));
+  missions.push(...buildMissions3(game, tools, spots));          // a job on the side: the ice road up Frostbite Peak
 
   // ---------- what is remembered ----------
   let data = { done: 0, on: false, won: {} };
@@ -55,7 +57,7 @@ export function createStory(game) {
   let arrowOn = null, arrowColor = GREEN;
   const point = (v, color = GREEN) => { arrowOn = v; arrowColor = color; };
   // Whoever has the next job waits outside their door (their counter inside stays open). Scrap has no shop to stand in,
-  // so he is always on the pavement beside it.
+  // so he is always on the pavement beside it (and Dot is always at Mouse Bear's gatehouse).
   const bots = {};
   function bot(id) {
     if (bots[id]) return bots[id];
@@ -70,7 +72,7 @@ export function createStory(game) {
   }
   function updateBots(dt, t) {
     for (const id in spots) {
-      const here = id === 'scrap' || id === waiting; if (!here && !bots[id]) continue;
+      const here = spots[id].always || id === waiting; if (!here && !bots[id]) continue;
       const m = bot(id), d = Math.hypot(m.position.x - p.x, m.position.z - p.z);
       m.visible = here && d < 110; if (!m.visible || d > 70) continue;
       setCharacterShadow(m, d < 50); animateCharacter(m, t, dt, 0, 'stand');
@@ -292,7 +294,7 @@ export function createStory(game) {
   function refreshMenus() {
     const m = missions[data.done], n = missions.length;
     pickBtns.forEach((b, i) => { const mi = missions[i], on = run?.m === mi; b.textContent = `${data.won[mi.id] || i < data.done ? '✓ ' : ''}${i + 1}. ${mi.title}`; b.classList.toggle('next', i === data.done && !on); b.classList.toggle('now', on); });
-    note.innerHTML = data.done === 0 ? `<b>Story:</b> ${n} jobs for Big Sal, Scrap, Tiff and Officer Dale, from a borrowed limo to buried treasure and the Possum Grand. Any of them can be picked from the pause menu. <b>Free roam:</b> the whole map and nobody telling you what to do.`
+    note.innerHTML = data.done === 0 ? `<b>Story:</b> ${n} jobs for Big Sal, Scrap, Tiff, Officer Dale and Dot, from a borrowed limo to buried treasure, the Possum Grand and an ice road up a mountain. Any of them can be picked from the pause menu. <b>Free roam:</b> the whole map and nobody telling you what to do.`
       : m ? `<b>Story so far:</b> ${data.done} of ${n} jobs done. Next up: ${m.title}, from ${CAST[m.giver].name}. Any mission can be picked from the pause menu (Esc).` : '<b>Story finished.</b> Sunset Coast is yours. Any mission can be played again from the pause menu (Esc).';
     storyBtn.textContent = data.done === 0 ? 'Story mode' : m ? 'Continue the story' : 'Story mode';
     fresh.hidden = data.done === 0 && !game.wallet?.saved;
@@ -309,7 +311,7 @@ export function createStory(game) {
     update(dt, t) {
       talk.update(dt); gunmen.update(dt, t); game.wallet?.update(dt); game.sea?.update(dt, t);
       const giver = run ? run.m.giver : story.on && data.done < missions.length ? missions[data.done].giver : null;
-      setWaiting(giver === 'scrap' ? null : giver); updateBots(dt, t);
+      setWaiting(giver && spots[giver].always ? null : giver); updateBots(dt, t);
 
       if (!run) { idle(dt, t); return; }
       if (run.phase !== 'steps') return;                   // people are talking

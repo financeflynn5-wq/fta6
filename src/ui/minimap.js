@@ -1,21 +1,26 @@
 // Round radar in the corner. Rotates with the camera; cops flash red and blue.
 import { WORLD } from '../config.js';
 import { paintPlan } from '../world/ground.js';
+import { paintSnowPlan } from '../world/snowpeak.js';
+import { AREA as SNOW_AREA } from '../world/snowland.js';
 
 export function createMinimap(game) {
   const cv = document.getElementById('minimap'), x = cv.getContext('2d'), S = cv.width, R = S / 2;
   const SCALE = 1.05;   // pixels per metre
   // the street plan never changes, so draw it once
   // (the map is taller than it is wide: it runs from -half to +half across, and from -half up to `top` northwards)
-  const plan = document.createElement('canvas'), half = WORLD.LIMIT + 30, top = WORLD.LIMIT_N + 30; plan.width = half * 2; plan.height = half + top;
+  // ...and `ext` further west than that, for Frostbite Peak: everything drawn on the plan is moved over by that much)
+  const plan = document.createElement('canvas'), half = WORLD.LIMIT + 30, top = WORLD.LIMIT_N + 30, ext = Math.ceil(-SNOW_AREA.x0 - half) + 16; plan.width = half * 2 + ext; plan.height = half + top;
   const g = plan.getContext('2d');
+  g.translate(ext, 0); g.fillStyle = '#2b8fa8'; g.fillRect(-ext, 0, ext, half + top);
   paintPlan(g, half, game.city.districts.decks, top);      // land, sea and roads from the map
+  paintSnowPlan(g, half);                                   // the mountain and its ice road
   g.fillStyle = '#d6cfc4';
   for (const bi of WORLD.blocksIdx) for (const bj of WORLD.blocksIdx) g.fillRect(half + 27 + WORLD.PITCH * bi - 20, half + 27 + WORLD.PITCH * bj - 20, 40, 40);
   let frame = 0;
 
   return {
-    plan, half, top,
+    plan, half, top, ext,
     setBuildings(boxes) { g.fillStyle = '#e9a58f'; for (const b of boxes) if (!b.wall) g.fillRect(half + b.x - b.hw, half + b.z - b.hd, b.hw * 2, b.hd * 2); },
     update(t) {
       if (frame++ % 2) return;
@@ -24,7 +29,7 @@ export function createMinimap(game) {
       x.beginPath(); x.arc(R, R, R, 0, 7); x.clip();
       x.translate(R, R); x.rotate(-yaw - Math.PI / 2); x.scale(SCALE, SCALE); x.translate(-p.x, -p.z);
       x.fillStyle = '#2b8fa8'; x.fillRect(p.x - 150, p.z - 150, 300, 300);      // open sea beyond the edge of the plan (boats and helicopters go there)
-      x.drawImage(plan, -half, -half);
+      x.drawImage(plan, -half - ext, -half);
       // other cars
       for (const v of game.traffic.vehicles) {
         if (Math.abs(v.x - p.x) > 120 || Math.abs(v.z - p.z) > 120 || v === p.vehicle) continue;

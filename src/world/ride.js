@@ -2,12 +2,13 @@
 // cars follow slopes, get pulled downhill, leave the ground over crests and ramps, land
 // with a thump, bounce off ledges too tall to climb, and stall in deep water.
 // vehicle.js calls preStep() once per physics step and place() once per drawn frame.
-import { CAR, RIDE } from '../config.js';
+import { CAR, RIDE, SNOW } from '../config.js';
 import { clamp, damp } from '../core/utils.js';
 import { groundY, surfaceAt, layer } from './terrain.js';
 import { WATER } from './map.js';
+import { AREA as SNOW_AREA, onMountain } from './snowland.js';
 
-const AXLE = 1.4, TRACK = .86, DUSTY = { dirt: 1, scrub: 1, sand: 1 };
+const AXLE = 1.4, TRACK = .86, DUSTY = { dirt: 1, scrub: 1, sand: 1 }, SNOWY = { snow: 1, powder: 1, ice: 1 };
 
 export function createRide(game) {
   const vel = { x: 0, y: 0 }, pos = { x: 0, y: 0 };
@@ -83,6 +84,7 @@ export function createRide(game) {
       const free = gPrev + (v.vy - RIDE.gravity * dt) * dt, d = g - (gPrev + v.vy * dt);
       const kerb = d < -.05 && d > -RIDE.absorb;                  // small steps are soaked up by the suspension
       if (free > g + .001 && !kerb && speed > 3) {
+        if (v.cliff) { v.cliff = false; setMode(v); }
         v.air = dt; v.y = free; v.vy -= RIDE.gravity * dt; v.gf = gf; v.gr = gr; v.qx = x; v.qz = z;
         v.jump = { x, z, y: v.y, top: v.y, speed };
         emit('takeoff', v, v.jump);
@@ -99,6 +101,14 @@ export function createRide(game) {
         const steep = Math.max(0, Math.abs(v.slope) - RIDE.steep) * RIDE.steepPull * Math.sign(v.slope);
         const a = -(RIDE.slopePull * v.slope / Math.hypot(1, v.slope) + steep) * dt; vel.x += fx * a; vel.y += fz * a; changed = true;
       }
+      // Frostbite Peak: off the ledge the mountainside is too steep for tyres. Whatever is on it slides down the fall
+      // line (and, flat physics or not, through the low walls that keep trucks on the road from climbing the banks).
+      let cliff = false;
+      if (x < SNOW_AREA.x1 && !up && onMountain(x, z)) {
+        const e = 1.7, sx = (groundY(x + e, z, ref) - groundY(x - e, z, ref)) / (2 * e), sz = (groundY(x, z + e, ref) - groundY(x, z - e, ref)) / (2 * e), m = Math.hypot(sx, sz);
+        if (m > (v.cliff ? SNOW.cliff * .8 : SNOW.cliff)) { const a = SNOW.slide * Math.min(1, m) * dt / m; vel.x -= sx * a; vel.y -= sz * a; changed = true; cliff = true; }
+      }
+      if (cliff !== !!v.cliff) { v.cliff = cliff; if (cliff) game.physics.setCarMode(b, 1); else setMode(v); }
       // water: slows you down, then floods the engine
       const depth = WATER - g;
       if (depth > .25) {
@@ -137,7 +147,7 @@ export function createRide(game) {
       // dust on loose ground, spray in the shallows
       if (dt && v.air === 0 && v.speed > 7 && Math.abs(x - game.player.x) < 70 && Math.abs(z - game.player.z) < 70 && Math.random() < dt * (4 + v.speed * .25)) {
         if (v.wet) game.fx.smoke(x - fx * 1.5, y + .3, z - fz * 1.5, 1, 1.1, .5, v.vx * .3, v.vz * .3);
-        else if (!v.up && DUSTY[surfaceAt(x, z)]) game.fx.smoke(x - fx * 1.8, y + .25, z - fz * 1.8, .86, 1.2, .8, v.vx * .25, v.vz * .25);
+        else if (!v.up) { const s = surfaceAt(x, z); if (DUSTY[s]) game.fx.smoke(x - fx * 1.8, y + .25, z - fz * 1.8, .86, 1.2, .8, v.vx * .25, v.vz * .25); else if (SNOWY[s] && Math.random() < .6) game.fx.smoke(x - fx * 1.8, y + .25, z - fz * 1.8, 1, 1.1, .7, v.vx * .25, v.vz * .25, { alpha: s === 'ice' ? .2 : .42 }); }
       }
       return 0;
     },

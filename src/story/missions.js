@@ -27,7 +27,7 @@ export function buildMissions(game) {
     return { x: q.door.x + fx * 2.1 + sx, z: q.door.z + fz * 2.1 + sz, bx: q.door.x + fx * .75 + sx, bz: q.door.z + fz * .75 + sz, face: Math.atan2(fx, fz), room: q };
   };
   const spots = { sal: wait('motel'), tiff: wait('arcade'), dale: wait('station') };
-  { const x = chop.x - csx * 4.9 + csz * 5, z = chop.z - csz * 4.9 - csx * 5; spots.scrap = { x, z, bx: x - csx * 1.35, bz: z - csz * 1.35, face: Math.atan2(csx, csz) }; }
+  { const x = chop.x - csx * 4.9 + csz * 5, z = chop.z - csz * 4.9 - csx * 5; spots.scrap = { x, z, bx: x - csx * 1.35, bz: z - csz * 1.35, face: Math.atan2(csx, csz), always: true }; }
   const motelKerb = door('motel', 4.8), towerDoor = door('tower', 1.8), roof = game.city.skyline?.sunset?.roof;
   const inCar = { until: () => p.mode === 'car', text: 'Get yourself a car' };
   const arm = (id, words) => ({ run: () => { game.combat.give(id); p.armor = COMBAT.armor; hud.toast(words, 'good'); } });

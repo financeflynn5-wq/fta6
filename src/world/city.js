@@ -13,6 +13,7 @@ import { towerAt, buildSkyline } from './skyline.js';
 import { buildInteriors } from './interiors.js';
 import { buildGround } from './ground.js';
 import { buildDistricts, shapeLand } from './districts.js';
+import { buildSnowPeak } from './snowpeak.js';
 
 const { BLOCK, PITCH, blocksIdx, roadsAt } = WORLD;
 
@@ -231,6 +232,7 @@ export function buildCity(realScene) {
   buildGround(realScene);
   buildHighway(highway, { scene, realScene, solids, lampPts, signMats, IB, mat4 });
   const districts = buildDistricts({ scene, realScene, solids, lampPts, signMats, building, palm, IB, mat4, shopSpots: interiors.spots });
+  const snow = buildSnowPeak({ realScene, solids });      // Frostbite Peak, off the west edge
 
   // downtown welds in 108 m squares (2 x 2 blocks); the districts around it are sparser, so they weld in 162 m squares.
   // Bigger squares = fewer draws for the same picture, which pays for the larger map.
@@ -249,5 +251,5 @@ export function buildCity(realScene) {
     if (on !== glowOn) { glowOn = on; for (const s of skyline.glow) s.m.emissiveIntensity = s.k * on; }
   }
 
-  return { solids, lampPts, signMats, litWindows: IBm.lit, updateLights, districts, welded, highway, skyline, interiors, lots };
+  return { solids, lampPts, signMats, litWindows: IBm.lit, updateLights, districts, welded, highway, skyline, interiors, lots, snow };
 }

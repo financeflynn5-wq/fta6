@@ -9,6 +9,7 @@ export const CAST = {
   tiff: { name: 'TIFF', kind: 'tiff', tint: '#3de0ff' },
   dale: { name: 'OFFICER DALE', kind: 'dale', tint: '#8fb8ff' },
   scrap: { name: 'SCRAP', kind: 'scrap', tint: '#ff8ae6' },
+  dot: { name: 'DOT', kind: 'dot', tint: '#35d0c6' },
   posse: { name: 'POSSUM POSSE', kind: 'possum', tint: '#ff6b86' },
 };
 

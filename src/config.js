@@ -199,6 +199,23 @@ export const RIDE = {
   wadeDepth: .55, wadeSpeed: .55,       // on foot: deeper than this you wade at this share of your speed
 };
 
+// ---------- Frostbite Peak: the snow mountain and its ice road (world/snowland.js, world/snowpeak.js) ----------
+export const SNOW = {
+  halfWidth: 3.4, pinch: 2.75,   // half the width of the road (m): most of the way up, and through the two squeezes
+  grade: .112,                   // how steeply the road climbs (rise over run)
+  snowLine: 96,                  // snow lies above about this height (m); the road is dirt below it
+  cut: 4.6, fill: 3.6,           // how far the bank beside the road runs before it is the mountainside again: uphill side, downhill side (m)
+  // How slippery each kind of ground is: 0 = tarmac, 1 = sheet ice
+  packed: .5, powder: .6,
+  // Tyres on sheet ice, as shares of what they do on tarmac: sideways grip, drive, brakes. Packed snow is `packed` of the way there.
+  grip: .14, drive: .5, brake: .2,
+  over: 1.6,                     // on ice the wheel can ask for this many times the turn the tyres will hold; the rest is slide
+  yaw: 5,                        // how quickly the truck answers the wheel on ice (16 on tarmac)
+  cliff: .72, slide: 11,         // ground steeper than this (rise over run) can't be held: you go down it, gaining up to `slide` m/s every second
+  offRoad: 6,                    // the trucking mission: this many seconds off the road and the load is lost
+  flakes: 1600,                  // snowflakes in the air round the camera
+};
+
 export const TIME = { day: 210, dusk: 26, night: 130, dawn: 26 };
 
 // ---------- weapons and combat ----------
@@ -526,7 +543,8 @@ export const GANGS = {
 // ---------- the second chapter of the story (story/missions2.js, story/sea.js, world/siteTower.js) ----------
 export const STORY2 = {
   // what each mission pays
-  pay: { fish: 4000, cup: 6000, treasure: 40000, grand: 60000 },
+  pay: { fish: 4000, cup: 6000, treasure: 40000, grand: 60000, frost: 15000 },
+  frostClean: 5000,                 // the Frostbite Run: extra for getting the truck to the top without a scratch
   // the gun on the bow of your boat: shots a second, damage per hit, how far it reaches (m), how wide it looks for a target (radians)
   gun: { rate: 9, damage: 8, range: 120, cone: .22 },
   // crooks in boats: hull strength, seconds between their shots, damage per hit, chance to hit up close, range (m),

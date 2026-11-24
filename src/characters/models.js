@@ -38,7 +38,7 @@ export function setCharacterShadow(c, on) {
 // Who walks the streets and who polices them (repeats make a kind more common). 'bighead' and 'bigcop' are rolled fresh every time.
 export const CIVILIANS = ['raccoon', 'raccoon', 'possum', 'possum', 'scrap', 'scrap', 'scrap', 'bighead', 'bighead', 'bighead', 'bighead', 'bighead'];
 export const COPS = ['pigeon', 'unit50', 'bigcop'];
-export const BIG_HEADS = ['bighead', 'bigcop', 'sal', 'dale', 'tiff'];
+export const BIG_HEADS = ['bighead', 'bigcop', 'sal', 'dale', 'tiff', 'dot'];
 // Who you can play as (the title and pause menus). Rocco is the default.
 export const PLAYABLE = [['rocco', 'Rocco'], ['sal', 'Big Sal'], ['tiff', 'Tiff'], ['bighead', 'Random Big Head']];
 

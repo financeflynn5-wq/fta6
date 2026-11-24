@@ -5,6 +5,7 @@ import { Sky } from 'three/addons/objects/Sky.js';
 import { lerp, clamp } from '../core/utils.js';
 import { TIME } from '../config.js';
 import { mats, litMaterials } from './materials.js';
+import { landY } from './terrain.js';
 
 const smooth = (t) => t * t * (3 - 2 * t);
 
@@ -68,7 +69,7 @@ export function createSky(engine, city) {
       env.apply(c < d ? 0 : c < d + dusk ? (c - d) / dusk : c < d + dusk + nt ? 1 : 1 - (c - d - dusk - nt) / dawn);
       // shadow box follows the action
       const texel = 150 / sun.shadow.mapSize.x;
-      focus.copy(lookAt); focus.y = 0;
+      focus.copy(lookAt); focus.y = Math.max(0, landY(lookAt.x, lookAt.z));      // (on the ground under it: up on a hill or a mountain a box left at sea level would miss everything)
       const a = focus.dot(lx), b = focus.dot(ly);
       focus.addScaledVector(lx, -(a % texel)).addScaledVector(ly, -(b % texel));
       sun.target.position.copy(focus); sun.position.copy(focus).addScaledVector(sunDir, 150);

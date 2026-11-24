@@ -7,6 +7,7 @@ import { groundY, waterDepth, layer, ceilingY } from './terrain.js';
 import { districtAt } from './map.js';
 import * as THREE from 'three';
 import { createRide } from './ride.js';
+import { GATE as SNOW_GATE, EDGE as SNOW_EDGE, onMountain } from './snowland.js';
 
 export function createWorld(game) {
   game.ride = createRide(game);
@@ -59,7 +60,11 @@ export function createWorld(game) {
       // The edge of the world. The walls there don't hold the player (a boat can take you past them, and you may have to
       // wade back), so here: on dry land you can't walk out past the edge, and in the sea not past where the boats turn back.
       const L = WORLD.LIMIT, out = depth > .3 ? BOAT.limit + 6 : 0;
-      if (p.x < -L - out || p.x > L + out || p.z < -L - out || p.z > WORLD.LIMIT_N + out) {
+      // ...except out west, where the ice road goes through the ridge to Frostbite Peak: there the edge is the sea round the mountain
+      if (p.x < -L && p.x > SNOW_EDGE.x0 - 30 && p.z > SNOW_EDGE.z0 - 30 && p.z < SNOW_EDGE.z1 + 30 && (p.x < -L - 4.5 || Math.abs(p.z - SNOW_GATE.z) < SNOW_EDGE.gap)) {
+        const bx = p.x < SNOW_EDGE.x0, bs = p.z < SNOW_EDGE.z0, bn = p.z > SNOW_EDGE.z1;
+        if (bx || bs || bn) { const v = p.body.linvel(); vel.x = bx ? Math.max(v.x, 1.5) : v.x; vel.y = bs ? Math.max(v.y, 1.5) : bn ? Math.min(v.y, -1.5) : v.y; p.body.setLinvel(vel, true); }
+      } else if (p.x < -L - out || p.x > L + out || p.z < -L - out || p.z > WORLD.LIMIT_N + out) {
         const v = p.body.linvel(); vel.x = v.x; vel.y = v.y;
         if (p.x < -L - out) vel.x = Math.max(vel.x, 1.5); if (p.x > L + out) vel.x = Math.min(vel.x, -1.5);
         if (p.z < -L - out) vel.y = Math.max(vel.y, 1.5); if (p.z > WORLD.LIMIT_N + out) vel.y = Math.min(vel.y, -1.5);
@@ -113,7 +118,7 @@ export function createWorld(game) {
       // "now entering" banner
       if ((districtT -= dt) <= 0) {
         districtT = .5;
-        const d = districtAt(p.x, p.z);
+        const d = p.x < SNOW_GATE.x - 12 && onMountain(p.x, p.z) ? 'FROSTBITE PEAK' : districtAt(p.x, p.z);
         if (d !== district) { if (district && game.state === 'playing' && !game.over) game.hud.toast(d, 'place'); district = d; }
       }
     },

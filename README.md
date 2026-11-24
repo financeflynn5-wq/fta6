@@ -88,6 +88,13 @@ There is no build step.
   `MOUSEBEAR.onRoad` in `src/config.js`), and four wait in the yard to be taken; a truck you take comes back to its bay once you
   are far away. They drive like the box truck. The artwork is drawn by `dev/mousebear-art.py` into `assets/mousebear/` and
   `assets/vehicles/atlas_mousebear.png`.
+- **Frostbite Peak** is the snow mountain off the west edge of the map (the white triangle on the big map). The only way on
+  to it is the notch at the top of the West Pass, by car or on foot; the ice road climbs from there to the lodge and the radio
+  mast on top, about 215 m up, and it is open in free roam too. Packed snow has less grip than tarmac and the blue sheets of ice
+  have almost none: slow down before them, steer gently, and do not brake hard on them. Anything that leaves the ledge slides
+  down the mountainside. All of it is tuned in `SNOW` in `src/config.js`: `grip`, `brake` and `drive` on ice, `packed` and
+  `powder` for snow, the road's width (`halfWidth`, `pinch`) and how steep it climbs (`grade`), and how long the mission lets
+  you stray (`offRoad`).
 - **Crash damage.** Every knock leaves its mark where it landed, on your car and on whatever you hit: the body is pressed in (deeper and wider the harder the hit), paint is scraped dull and then down to bare metal, glass cracks and then falls out, lamps go dark (smashed headlights light the road less), a battered nose loses its bumper and the radiator starts to steam. Traffic, parked cars and cruisers dent the same way. Tune it in `DAMAGE` in `src/config.js`.
 - **Chop-shop orders.** Scrap pages you with a car he wants and it shows up pink on the radar with an arrow over it. Steal it, lose any stars, and park it on the pink marker outside Scrap's Chop Shop. Less damage means more cash. Rare cars (the sports car and the limo) pay the most, and every third order is a police cruiser. Any other stolen car parked there is sold for scrap.
 - **Taxi fares.** Sit in a taxi and someone hails you (gold on the radar). Stop next to them, then stop on the gold marker at their destination. A quick, smooth ride earns a tip; fares in a row pay more. Passengers bail if you pick up stars.
@@ -142,7 +149,13 @@ There is no build step.
   in Port Sunset: up the ramps a floor at a time through the guards, crack the safe on the roof by pressing E as the needle
   crosses the green, four times, before the clock runs out; then you are trapped up there and the only way down is off the
   plank with a parachute). The long ones have checkpoints: after a fail, Y starts you from the last one.
-- **Any mission, any time.** The pause menu lists all twelve; click one and you are at whoever gives it. A mission picked that
+- **The Frostbite Run** is a job on the side, from Dot, Mouse Bear's dispatcher, who stands by the gatehouse at the depot (Tiff
+  sends you her way after the Possum Grand, and it is in the pause menu's list like the rest). Take the loaded truck from the first
+  bay, drive it across town and over the West Pass, through the gate at the top of it, and up the ice road to the Frostbite
+  Lodge on top of Frostbite Peak. The road is one narrow ledge wound round the mountain, with no rails: dirt, then packed snow,
+  then sheets of blue ice. Going over the edge, or leaving the road for more than a few seconds, loses the load. Four
+  checkpoints on the way up put you back in a fresh truck, and a truck delivered without a scratch pays a bonus.
+- **Any mission, any time.** The pause menu lists all thirteen; click one and you are at whoever gives it. A mission picked that
   way pays as usual and leaves your place in the story where it was.
 - **Your cash and guns are saved** in the browser between sessions, in both modes, along with story progress. "Start over" on
   the title screen wipes them.
@@ -278,12 +291,14 @@ src/world/                  city (the downtown scene), materials, sky (day/night
                             places (things that break: glass, fences, props, gate booms; the base's alarm; roofs the camera stays under)
                             zoo (Sunset Zoo's wall, gates, paths and enclosures; who lives in them is src/wildlife/)
                             forest (Whisper Woods: the pines over High Meadows, the trail, the clearing and everything in the camp)
+                            snowland (Frostbite Peak as numbers: the mountain's shape, the ice road, where it is icy),
+                            snowpeak (the same, drawn: land, road, ice, pines, gate, lodge, falling snow; a far-away stand-in)
 src/activities/             activities (start rings, one-at-a-time), kit (markers, panel, banner, save), races, stunts, tins,
                             pizza, traps (speed cameras), bowling, bounty, derby, spree (the mall), range, spray, bigmap (hold Tab)
 src/story/                  story (the mission runner: start rings, the people who give jobs, steps, checkpoints, pass/fail/retry,
                             the menu buttons and the mission list), missions (the first eight jobs as data: read its header for the
                             step vocabulary), missions2 (the four after that, with their own little scenes: digging, the ambush,
-                            the chase, the boat battle, the safe, the jump), sea (what missions do on the water: the bow gun,
+                            the chase, the boat battle, the safe, the jump), missions3 (the Frostbite Run: the truck on the ice road), sea (what missions do on the water: the bow gun,
                             crooks in boats, fish and spears, the buoy race), dialogue (the
                             talking box and who can speak), gunmen (armed goons), wallet (cash and guns saved between sessions)
 src/vehicles/               damage (dents, scuffs, cracked glass, dead lamps, torn-off bumpers: see the notes at its top),

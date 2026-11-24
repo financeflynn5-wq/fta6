@@ -8,12 +8,13 @@ import { HELI, WORLD } from '../config.js';
 import { clamp, damp, lerp, angleDiff } from '../core/utils.js';
 import { groundY, layer, surfaceAt } from '../world/terrain.js';
 import { WATER } from '../world/map.js';
+import { AREA as SNOW_AREA } from '../world/snowland.js';
 
 const DUSTY = { dirt: 1, scrub: 1, sand: 1 };
 
 export function createHelis(game) {
   const seen = { top: 0, wall: false, vague: false }, F = { y: 0, roof: false, up: false, water: false, wall: false };
-  const X0 = -WORLD.LIMIT - HELI.limit, X1 = WORLD.LIMIT + HELI.limit, Z0 = -WORLD.LIMIT - HELI.limit, Z1 = WORLD.LIMIT_N + HELI.limit;
+  const X0 = Math.min(-WORLD.LIMIT - HELI.limit, SNOW_AREA.x0 - 60), X1 = WORLD.LIMIT + HELI.limit, Z0 = -WORLD.LIMIT - HELI.limit, Z1 = WORLD.LIMIT_N + HELI.limit;
 
   // What is under a helicopter at (x, z) flying at height y: F.y = where its skids would rest, and what that is
   // (a roof, the upper level, the sea); F.wall = something there stands higher than it can step onto.

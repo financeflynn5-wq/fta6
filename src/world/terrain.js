@@ -63,7 +63,16 @@ function roadFade(x, z, ci, cj) {
   }
   return m;
 }
+// ---------- extra land: a place that brings its own shape (world/snowland.js: the mountain off the west edge) ----------
+// { x0, x1, z0, z1, height(x, z, y), surface(x, z) }: inside that box, height() is handed the land as the map has it and
+// answers with what is really there; surface() names what it is made of (or null for "what the map says").
+let extra = null;
+export function setExtraLand(e) { extra = e; }
 export function landY(x, z) {
+  if (extra && x < extra.x1 && x > extra.x0 && z > extra.z0 && z < extra.z1) return extra.height(x, z, mapY(x, z));
+  return mapY(x, z);
+}
+function mapY(x, z) {
   let y = baseY(x, z);
   const ci = cell(x), cj = cellZ(z), list = featGrid.get(gkey(ci, cj));
   if (list) {
@@ -174,8 +183,10 @@ export function groundY(x, z, ref) {
 // How deep the water is here (0 on dry land).
 export const waterDepth = (x, z) => Math.max(0, WATER - groundY(x, z));
 
-// What the ground is made of: 'road', 'city', 'sand', 'dirt', 'scrub', 'grass', 'park', 'hill', 'port', 'quay', 'rock', 'sea'.
+// What the ground is made of: 'road', 'city', 'sand', 'dirt', 'scrub', 'grass', 'park', 'hill', 'port', 'quay', 'rock', 'sea'
+// (and on Frostbite Peak: 'ice', 'snow', 'powder').
 export function surfaceAt(x, z) {
+  if (extra && x < extra.x1 && x > extra.x0 && z > extra.z0 && z < extra.z1) { const s = extra.surface(x, z); if (s) return s; }
   const ci = cell(x), cj = cellZ(z), fx = x - X0 - ci * STEP, fz = z - X0 - cj * STEP;
   const R = ROAD_HALF;
   if ((fz < R && hasRoad(ci, cj, ci + 1, cj)) || (fz > STEP - R && hasRoad(ci, cj + 1, ci + 1, cj + 1)) ||

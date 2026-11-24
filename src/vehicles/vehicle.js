@@ -1,9 +1,10 @@
 // One drivable car: arcade handling on top of a Rapier body.
 // Anyone can drive it by writing to `controls` (the player, traffic AI or a cop).
-import { CAR, FX } from '../config.js';
+import { CAR, FX, SNOW } from '../config.js';
 import { clamp, lerp, damp, angleDiff } from '../core/utils.js';
 import { groundY } from '../world/city.js';
 import { makeCarModel } from './carModel.js';
+import { slickAt, AREA as SNOW_AREA } from '../world/snowland.js';
 import { poseJoints } from '../characters/models.js';
 
 const GEARS = [0, 9, 17, 25, 32, 42];
@@ -53,15 +54,19 @@ export class Vehicle {
     const driven = this.driver && !this.wrecked;
     const c = this.controls, thr = driven ? clamp(c.throttle, -1, 1) : 0, hb = driven ? c.handbrake : true;
     const dmg = this.health < 30 ? .8 : 1;
+    // Ice and snow (Frostbite Peak). slick runs from 0 on tarmac to 1 on sheet ice, and every job the tyres do gets
+    // weaker with it: pulling away, braking, and above all holding the truck's line (SNOW in config.js).
+    const ice = this.slick = this.x < SNOW_AREA.x1 || this.slick > .01 ? damp(this.slick || 0, this.up ? 0 : slickAt(this.x, this.z), 7, dt) : 0;
+    const iceGrip = (1 - ice * (1 - SNOW.grip)) * (this.cliff ? .15 : 1), iceBrake = 1 - ice * (1 - SNOW.brake), iceDrive = 1 - ice * (1 - SNOW.drive);
 
     // forward / back
     let a = 0; this.braking = false;
-    if (thr > 0) { if (vf > -.5) { const x = vf / (S.maxSpeed * dmg); a = S.accel * thr * Math.max(0, 1 - x * x) * (vf < 8 ? 1.25 : 1); } else { a = H.brake * thr; this.braking = true; } }
-    else if (thr < 0) { if (vf > 1) { a = H.brake * thr; this.braking = true; } else a = H.reverseAccel * thr * Math.max(0, 1 + vf / H.maxReverse); }
+    if (thr > 0) { if (vf > -.5) { const x = vf / (S.maxSpeed * dmg); a = S.accel * thr * Math.max(0, 1 - x * x) * (vf < 8 ? 1.25 : 1) * iceDrive; } else { a = H.brake * thr * iceBrake; this.braking = true; } }
+    else if (thr < 0) { if (vf > 1) { a = H.brake * thr * iceBrake; this.braking = true; } else a = H.reverseAccel * thr * Math.max(0, 1 + vf / H.maxReverse) * iceDrive; }
     const before = vf;
     vf += a * dt;
-    let resist = H.drag * vf * Math.abs(vf) + (thr === 0 ? H.engineBrake * Math.sign(vf) : 0);
-    if (hb) { resist += H.handbrakeDecel * Math.sign(vf); this.braking = true; }
+    let resist = H.drag * vf * Math.abs(vf) + (thr === 0 ? H.engineBrake * iceBrake * Math.sign(vf) : 0);
+    if (hb) { resist += H.handbrakeDecel * iceBrake * Math.sign(vf); this.braking = true; }
     if (!driven) resist += 3 * Math.sign(vf);
     const nv = vf - resist * dt; vf = (Math.sign(nv) !== Math.sign(vf) && thr === 0) ? 0 : nv;
     if (this.braking && before * vf < 0) vf = 0;
@@ -69,7 +74,7 @@ export class Vehicle {
     // The rear tyres only let go on the handbrake, and bite again over a moment instead of snapping.
     const drifting = hb && driven && Math.abs(vf) > H.driftMinSpeed;
     this.loose = drifting ? Math.min(1, this.loose + H.looseIn * dt) : Math.max(0, this.loose - H.looseOut * dt);
-    const grip = driven ? lerp(H.grip, H.gripHandbrake, this.loose) : H.gripHandbrake * .7;
+    const grip = (driven ? lerp(H.grip, H.gripHandbrake, this.loose) : H.gripHandbrake * .7) * iceGrip;
 
     // sideways: tyres cancel the slide, up to their grip limit
     const vl0 = vl, got = clamp(-vl / dt, -grip, grip);
@@ -78,7 +83,8 @@ export class Vehicle {
     if (driven && !hb) vf = Math.sign(vf || 1) * Math.sqrt(vf * vf + H.slideKeep * (thr > 0 ? 1 : .5) * clamp((Math.abs(vf) - 3) / 6, 0, 1) * Math.max(0, vl0 * vl0 - vl * vl));
     this.slip = Math.abs(vl);
     const burnout = driven && thr > .9 && Math.abs(vf) < 7 && Math.abs(before) < 6;
-    this.sliding = this.slip > 2.2 || drifting || burnout;
+    this.sliding = (this.slip > 2.2 || drifting || burnout) && ice < .3;      // (on snow and ice there is no rubber to squeal or to lay down)
+    this.skating = ice >= .3 && (this.slip > 1.4 || (drifting && Math.abs(vf) > 2) || (driven && thr > .8 && Math.abs(vf) < 5));
     if (this.slip > 1) vf -= vf * Math.min(.5, this.slip * .012) * dt;       // sliding scrubs a little speed
 
     // steering wheel: moves at a steady rate, a touch slower at speed so a tap is a lane change, not a lurch
@@ -88,13 +94,14 @@ export class Vehicle {
     this.steer += clamp(target - this.steer, -rate * dt, rate * dt);
     // Full lock asks for the tightest turn the tyres can hold at this speed and no more, so the car goes
     // where it is pointed. On the handbrake the tail is free to swing round faster than that.
-    const most = lerp(H.gripUse * H.grip / Math.max(av, 1), H.driftYaw, this.loose);
+    // (on ice the wheel can ask for more turn than the tyres will hold, SNOW.over: the nose comes round and the truck goes on sliding the way it was going)
+    const most = lerp(H.gripUse * H.grip * iceGrip * lerp(1, SNOW.over, ice) / Math.max(av, 1), H.driftYaw, this.loose);
     let wT = this.steer * clamp(vf * Math.tan(H.steerLock) / H.wheelbase, -most, most);
     if (this.loose > 0 && wT * vl < 0) {       // swinging deeper into the slide: ease off before it becomes a spin
       const ang = Math.atan2(this.slip, av);
       wT *= lerp(1, clamp(1 - (ang - H.driftAngle) / .35, .12, 1), this.loose);
     }
-    if (driven) w = damp(w, wT, lerp(H.yawGrip, H.yawSlide, this.loose), dt);
+    if (driven) w = damp(w, wT, lerp(lerp(H.yawGrip, H.yawSlide, this.loose), SNOW.yaw, ice), dt);
     else w *= Math.max(0, 1 - 2.5 * dt);
 
     this.accelLong = damp(this.accelLong, (vf - before) / dt, 10, dt);
@@ -173,6 +180,7 @@ export class Vehicle {
         if (Math.random() < dt * 14) fxs.smoke(wx, this.y + .2, wz, .7, .85, .5);
       }
     } else this.skidPrev[0] = this.skidPrev[1] = null;
+    if (this.skating && !this.air && Math.random() < dt * 26) { const rw = u.rear[Math.random() < .5 ? 0 : u.rear.length - 1], ch = Math.cos(this.ih), sh = Math.sin(this.ih); fxs.smoke(this.ix + ch * rw.x - sh * rw.z, this.y + .25, this.iz + sh * rw.x + ch * rw.z, 1, .9 + Math.random() * .5, .55, this.vx * .2, this.vz * .2, { alpha: .55, rise: .9 }); }
     this.engineSmoke(dt, this.halfLen * .74, 1);
     // fake gearbox for the engine note
     const s = Math.abs(this.vf); let gi = 1; while (gi < 5 && s > GEARS[gi]) gi++; this.gear = gi;

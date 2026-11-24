@@ -50,6 +50,7 @@ import { createBoats } from './vehicles/boats.js';
 import { createHelis } from './vehicles/helis.js';
 import { createFleet } from './vehicles/fleet.js';
 import { createMouseBearFleet } from './vehicles/mousebearFleet.js';
+import { createSnow } from './world/snowpeak.js';
 import { createAirSea } from './police/airSea.js';
 import { createSkydive } from './player/skydive.js';
 import { createWildlife } from './wildlife/wildlife.js';
@@ -106,6 +107,7 @@ async function boot() {
   game.fleet = createFleet(game);               // boats at the docks, helicopters on the pads
   game.airSea = createAirSea(game);             // the police helicopter and patrol boats
   game.mouseBear = createMouseBearFleet(game);  // Mouse Bear Trucking: trucks in the depot's bays and out on the roads
+  game.snow = createSnow(game);                 // Frostbite Peak: falling snow, the lodge's lights and smoke
   for (const s of game.fleet.slots) if (s.type.endsWith('heli')) game.skydive.place(s.x + 3.4 * (s.x > 330 ? -1 : 1), s.z + 3.6, (s.y ?? 0) + 1);      // a parachute pack by every helipad
   game.peds.init();
   game.wildlife = createWildlife(game);         // sharks in the sea, the animals at the zoo
@@ -305,7 +307,7 @@ async function boot() {
     game.jobs.update(dt, t);
     game.damage.update(dt); game.debris.update(dt);
     game.fleet.update(dt, t); game.airSea.update(dt); game.wake.update(dt);
-    game.mouseBear.update(dt);
+    game.mouseBear.update(dt); game.snow.update(dt, t);
     fx.update(dt);
     game.city.updateLights(t);
     if ((maintainT -= dt) <= 0) { maintainT = 2; game.traffic.maintain(); }

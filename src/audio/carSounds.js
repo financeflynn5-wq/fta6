@@ -7,7 +7,7 @@ import { SOUND } from '../config.js';
 import { clamp } from '../core/utils.js';
 import { surfaceAt } from '../world/terrain.js';
 
-const HALF_PI = Math.PI / 2, DUSTY = { dirt: 1, scrub: 1, sand: 1 }, LOOP_RATE = 32000;
+const HALF_PI = Math.PI / 2, DUSTY = { dirt: 1, scrub: 1, sand: 1, snow: 1, powder: 1 }, LOOP_RATE = 32000;
 
 // bus: { dry, world, noise } — dry goes straight to the speakers, world is the street (echo, and muffled when you are indoors)
 export function createCarSounds(ctx, bus) {
