@@ -1,0 +1,9 @@
+{
+  "name": "fta6",
+  "private": true,
+  "type": "module",
+  "description": "Flynn Theft Auto. The game itself needs no install; this is only for server/server.js, which hands it out and relays multiplayer.",
+  "scripts": { "start": "node server/server.js" },
+  "engines": { "node": ">=18" },
+  "dependencies": { "ws": "^8.18.0" }
+}

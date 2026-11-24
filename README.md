@@ -226,7 +226,7 @@ gorillas down the east.
 **On where the game's own server hands out the page, off everywhere else.** `server/` is a small program that hands out the
 game's files and is the relay; it marks the page, and the game sees the mark (`netOn` in `src/net/transport.js`). A copy that is
 only files (GitHub Pages, a folder) hides the menu and connects to nothing. `?mp` in the address switches it on for one page.
-`server/README.md` says how to put the server on a rented machine.
+`server/README.md` says how it goes on Flynn's game server.
 
 The title menu has a name, a room code and **Join room**. Everyone who joins the same code is in the same city: you see each
 other walk, drive and shoot, and you can hurt each other. Each player's own game stays in charge of their own body, their own

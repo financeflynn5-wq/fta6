@@ -3,6 +3,7 @@
 //   http://<server>/                 the game
 //   ws://<server>/room/<code>        the relay: a WebSocket; everyone on the same code is in the same room
 //   http://<server>/health           "running", and how many players are in how many rooms
+//   http://<server>/healthz          the same as JSON ({ok, players, rooms, multiplayer}), for the deploy tool's status
 //
 // The relay keeps no game state: it stamps each message with who sent it and passes it on.
 //   from a player   {k:'s', d}             their latest snapshot      -> everyone else as {k:'s', f, d}
@@ -64,7 +65,7 @@ const MARK = '<meta name="fta-relay" content="same">';
 const page = (html) => (MULTIPLAYER ? html.replace(/<meta charset=[^>]*>/i, (m) => m + '\n' + MARK) : html);
 
 // Compressed copies are kept in memory (the whole game is a few megabytes) and thrown away when the file changes.
-const kept = new Map(); let keptBytes = 0; const KEEP_UP_TO = 96 * 1024 * 1024;
+const kept = new Map(); let keptBytes = 0; const KEEP_UP_TO = 40 * 1024 * 1024;     // the server has 1 GB for everything
 function shrunk(key, raw, how) {
   const k = how + ' ' + key, hit = kept.get(k); if (hit) return hit;
   const out = how === 'br'
@@ -190,7 +191,11 @@ const pathOf = (req) => { try { return strip(new URL(req.url, 'http://x').pathna
 
 const server = http.createServer((req, res) => {
   const pathname = pathOf(req); if (pathname === null) return plain(res, 400, 'Bad address.');
-  if (pathname === '/health') { let players = 0; for (const r of rooms.values()) players += r.size; return plain(res, 200, `FTA 6 server: running. ${players} player${players === 1 ? '' : 's'} in ${rooms.size} room${rooms.size === 1 ? '' : 's'}. Playing together is ${MULTIPLAYER ? 'on' : 'off'}.\n`, { 'cache-control': 'no-store' }); }
+  if (pathname === '/health' || pathname === '/healthz') {
+    let players = 0; for (const r of rooms.values()) players += r.size;
+    if (pathname === '/healthz') { res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }); return res.end(JSON.stringify({ ok: true, game: 'fta6', players, rooms: rooms.size, multiplayer: MULTIPLAYER })); }
+    return plain(res, 200, `FTA 6 server: running. ${players} player${players === 1 ? '' : 's'} in ${rooms.size} room${rooms.size === 1 ? '' : 's'}. Playing together is ${MULTIPLAYER ? 'on' : 'off'}.\n`, { 'cache-control': 'no-store' });
+  }
   if (/^\/room\//.test(pathname)) return plain(res, 426, 'This address is for the game to connect to.');
   serve(req, res, pathname);
 });
