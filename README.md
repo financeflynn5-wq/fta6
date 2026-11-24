@@ -223,9 +223,10 @@ gorillas down the east.
 
 ## Playing together
 
-**Switched off for now** (`NET.enabled` in `src/config.js`): the menu is hidden and the game connects to nothing. It comes back
-once the relay in `relay/` runs on Cloudflare and its address is in `NET.relay`. `?mp` in the address switches it on for one page.
-The rest of this section describes how it works when it is on.
+**On where the game's own server hands out the page, off everywhere else.** `server/` is a small program that hands out the
+game's files and is the relay; it marks the page, and the game sees the mark (`netOn` in `src/net/transport.js`). A copy that is
+only files (GitHub Pages, a folder) hides the menu and connects to nothing. `?mp` in the address switches it on for one page.
+`server/README.md` says how to put the server on a rented machine.
 
 The title menu has a name, a room code and **Join room**. Everyone who joins the same code is in the same city: you see each
 other walk, drive and shoot, and you can hurt each other. Each player's own game stays in charge of their own body, their own
@@ -234,9 +235,10 @@ A car belongs to whoever drove it last. Street traffic, pedestrians and the AI p
 
 How the players reach each other (`src/net/transport.js`):
 
-- **relay**: a small server on Cloudflare passes everything along (`relay/`, with its own README for setting it up). Nobody's
-  computer hosts: each player sends only their own snapshots and receives the others'. This is the normal way, used whenever
-  `NET.relay` holds the relay's address. If the line drops, the game rejoins the room by itself.
+- **relay**: the game's own server passes everything along (`server/`; `relay/` is the same thing written for Cloudflare, not
+  used). Nobody's computer hosts: each player sends only their own snapshots and receives the others'. This is the normal way,
+  used whenever the page came from that server or `NET.relay` holds a relay's address. If the line drops, the game rejoins the
+  room by itself.
 - **room**: the live room of a Claude page, when the game is published as one with the `room` capability (topic `ev` open to
   everyone it is shared with). Used when the relay cannot be reached from that page.
 - **tabs**: windows of one browser on one computer (`?tabs` forces it). For trying multiplayer alone, and the last fallback.
