@@ -1,0 +1,9 @@
+{
+  "name": "fta6-server",
+  "private": true,
+  "type": "module",
+  "description": "Hands out the FTA 6 game files and relays messages between players in a room.",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" },
+  "dependencies": { "ws": "^8.18.0" }
+}

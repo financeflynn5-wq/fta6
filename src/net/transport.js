@@ -2,9 +2,9 @@
 //   state  - each player's latest snapshot, sent many times a second; only the newest one matters
 //   events - one-off things (a shot, a hit, "I took that car")
 // Four transports are built in:
-//   "relay"  a small server on Cloudflare that passes everything along (relay/ in this repo). Nobody's computer hosts:
-//            every player only sends their own snapshots and receives the others'. The normal way to play; used
-//            whenever config.js NET.relay holds its address.
+//   "relay"  a small server that passes everything along: the game's own server (server/ in this repo), which also
+//            hands out the game's files. Nobody's computer hosts: every player only sends their own snapshots and
+//            receives the others'. The normal way to play; used whenever the page came from that server (see netOn below).
 //   "room"   the live room of the Claude page the game is published on (only there, and only if the page was given one)
 //   "tabs"   windows of one browser on one computer, for trying multiplayer alone, and the fallback when the
 //            relay cannot be reached.
@@ -27,8 +27,8 @@ function base(kind) {
   };
 }
 
-// The relay on Cloudflare: one WebSocket to wss://<relay>/room/<code>. It gives us our id, stamps every message
-// with its sender and passes it to the others (relay/src/index.js has the other half).
+// The relay: one WebSocket to wss://<relay>/room/<code>. It gives us our id, stamps every message with its sender and
+// passes it to the others. The other half is server/server.js (the game's own server); relay/ is the same for Cloudflare.
 export function createRelayTransport(room, address) {
   const t = base('relay'), url = String(address).replace(/^http/, 'ws').replace(/\/+$/, '') + '/room/' + cleanRoom(room);
   return new Promise((res, rej) => {
@@ -172,11 +172,23 @@ export async function createRtcTransport(room, server) {
   return t;
 }
 
+// Is playing together on for this page, and which relay does it use?
+//   config.js NET              the answer built into every copy of the game (off, as it stands)
+//   <meta name="fta-relay">    put into the page by the game's own server (server/): on. "same" means the relay is at the
+//                              page's own address; anything else is the relay's address
+//   ?mp and ?relay=ws://...    in the address, for the playtests
+const fromServer = () => document.querySelector('meta[name="fta-relay"]')?.content || '';
+export const netOn = () => !!(NET.enabled || fromServer() || new URLSearchParams(location.search).has('mp'));
+export function relayAddress() {
+  const m = fromServer();
+  return new URLSearchParams(location.search).get('relay') || (m === 'same' ? new URL('.', location.href).href : m) || NET.relay;
+}
+
 // The best transport this page has: the relay if there is one, else the Claude page's room, else this computer only.
 // In the address: ?tabs forces the one-computer kind, ?relay=ws://host:port names another relay (the playtests run
 // one), ?direct or ?peer=host:port asks for direct connections.
 export async function openTransport(room) {
-  const q = new URLSearchParams(location.search), relay = q.get('relay') || NET.relay;
+  const q = new URLSearchParams(location.search), relay = relayAddress();
   if (q.has('tabs')) return createTabTransport(room);
   let note = relay ? '' : 'no relay is set up';
   try {

@@ -449,9 +449,11 @@ export const BASE = {
 
 // ---------- Cops vs Robbers (net/match.js) ----------
 // Two teams, two halves. One team robs while the other polices, then they swap; the team that stashed more wins.
-// Playing together. OFF: the game never shows the "Play together" menu and never connects to anything.
-// It comes back on when `enabled` is true and `relay` holds the address of the relay (relay/ in this repo, run on
-// Cloudflare), e.g. 'wss://fta6-relay.someone.workers.dev'. For testing, ?mp in the address switches it on for that page.
+// Playing together. OFF here: a copy of the game that is only files (GitHub Pages, a folder on a computer) never shows the
+// "Play together" menu and never connects to anything. It is ON where the game's own server (server/ in this repo) hands
+// out the page, because that server is also the relay: it marks the page and the game finds the relay at the same address.
+// `enabled` and `relay` force it on for every copy with a relay somewhere else ('wss://...'). ?mp in the address switches
+// it on for one page (the playtests).
 export const NET = { enabled: false, relay: '' };
 
 export const MATCH = {
